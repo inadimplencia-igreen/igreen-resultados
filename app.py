@@ -951,14 +951,30 @@ def pagina_lancamento(mes_ano):
 
     st.markdown("---")
     if st.button("Salvar Lançamento", use_container_width=True, key=f"btn_salvar_{equipe_id}_{mes_ano}"):
-        label = "Fechamento do Mês" if eh_fechamento else data_sel.strftime("%d/%m/%Y")
-        if not any(v>0 for v in vi.values()) and vg == 0:
+        # Lê valores diretamente do session_state para garantir captura correta
+        vi_final = {}
+        for op in ops:
+            sk = f"op_{equipe_id}_{mes_ano}_{op['_id']}"
+            vi_final[op["_id"]] = float(st.session_state.get(sk, 0))
+        
+        vg_final  = float(st.session_state.get(f"vg_{equipe_id}_{mes_ano}", 0))
+        dt_final  = int(st.session_state.get(f"dt_{equipe_id}_{mes_ano}", 0))
+        td_final  = int(st.session_state.get(f"td_{equipe_id}_{mes_ano}", 22))
+        data_final = st.session_state.get(f"data_{equipe_id}_{mes_ano}", date.today())
+        fech_final = st.session_state.get(f"fech_{equipe_id}_{mes_ano}", False)
+        
+        tc_final  = sum(vi_final.values())
+        sem_final = max(0, vg_final - tc_final)
+        label     = "Fechamento do Mês" if fech_final else data_final.strftime("%d/%m/%Y")
+
+        if not any(v>0 for v in vi_final.values()) and vg_final == 0:
             st.warning("Preencha pelo menos um valor.")
         else:
-            agentes_data = {op["_id"]:{"valorRecebido":vi[op["_id"]],"nome":op["nome"]} for op in ops}
-            criar_lancamento(mes_ano, equipe_id, str(data_sel), label,
-                             agentes_data, tc, vg, sem, dt, td)
-            st.success(f"✅ Lançamento de {label} salvo com sucesso!")
+            agentes_data = {op["_id"]:{"valorRecebido":vi_final[op["_id"]],"nome":op["nome"]} for op in ops}
+            criar_lancamento(mes_ano, equipe_id, str(data_final), label,
+                             agentes_data, tc_final, vg_final, sem_final, dt_final, td_final)
+            st.success(f"✅ Lançamento de {label} salvo! Total: {fmt_brl(tc_final)}")
+            st.rerun()
 
     # ── MINI HISTÓRICO abaixo do botão
     st.markdown("---")
@@ -1609,60 +1625,200 @@ def pagina_dashboard_executivo():
         st.download_button("⬇️ Baixar",data=out.getvalue(),file_name=f"iGreen_{mes_f}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ── UPLOAD ─────────────────────────────────────
+def detectar_coluna(df, keywords):
+    cols = [str(c).lower().strip() for c in df.columns]
+    orig = list(df.columns)
+    for kw in keywords:
+        for i,c in enumerate(cols):
+            if kw in c:
+                return orig[i]
+    return None
+
+def processar_base_unica(arquivo, equipe_id, mes_ano):
+    try:
+        xls = pd.ExcelFile(arquivo)
+    except Exception as e:
+        return None, [f"Erro ao ler arquivo: {e}"], []
+
+    abas_upper = [a.upper().strip() for a in xls.sheet_names]
+    abas_orig  = xls.sheet_names
+
+    # Localiza aba PAGOS
+    aba_pagos = next((abas_orig[i] for i,a in enumerate(abas_upper) if "PAGO" in a), None)
+    if not aba_pagos:
+        return None, ["Aba PAGOS não encontrada! Verifique a planilha."], []
+
+    df_pagos = pd.read_excel(xls, sheet_name=aba_pagos, header=0)
+
+    # Mapeamento inteligente de colunas
+    mapa = {}
+    col = detectar_coluna(df_pagos, ["uc","cpf","instalacao","instalação","contrato","cliente","cod"])
+    if col: mapa[col] = "uc_cpf"
+    col = detectar_coluna(df_pagos, ["baixa","data_pagamento","dt_pagamento","data_baixa","dt_baixa","pagamento"])
+    if col: mapa[col] = "data_pagamento"
+    col = detectar_coluna(df_pagos, ["vencimento","venc","data_venc","dt_venc","vencimento_original"])
+    if col: mapa[col] = "data_vencimento"
+    col = detectar_coluna(df_pagos, ["valor","vlr","vl_","montante","vl_pago"])
+    if col: mapa[col] = "valor"
+    col = detectar_coluna(df_pagos, ["fornecedor","distribuidora","concession","empresa"])
+    if col: mapa[col] = "fornecedora"
+
+    # Fallback por posição
+    cols = list(df_pagos.columns)
+    if "uc_cpf"          not in mapa.values() and len(cols)>=1: mapa[cols[0]] = "uc_cpf"
+    if "data_vencimento" not in mapa.values() and len(cols)>=2: mapa[cols[1]] = "data_vencimento"
+    if "data_pagamento"  not in mapa.values() and len(cols)>=3: mapa[cols[2]] = "data_pagamento"
+    if "valor"           not in mapa.values() and len(cols)>=4: mapa[cols[3]] = "valor"
+    if "fornecedora"     not in mapa.values() and len(cols)>=5: mapa[cols[4]] = "fornecedora"
+
+    df_pagos = df_pagos.rename(columns=mapa)
+
+    for col in ["data_vencimento","data_pagamento"]:
+        if col in df_pagos.columns:
+            df_pagos[col] = pd.to_datetime(df_pagos[col], dayfirst=True, errors="coerce")
+
+    if "valor" in df_pagos.columns:
+        df_pagos["valor"] = pd.to_numeric(
+            df_pagos["valor"].astype(str)
+            .str.replace("R$","").str.replace(".","").str.replace(",",".").str.strip(),
+            errors="coerce"
+        ).fillna(0)
+
+    df_pagos["uc_cpf"] = df_pagos["uc_cpf"].astype(str).str.strip()
+
+    # Lê abas de contato
+    contatos = []
+    abas_lidas = []
+    for busca, nome in [
+        (["CHAT"], "CHAT"),
+        (["LIG"], "LIGAÇÕES"),
+        (["DISPAR"], "DISPAROS")
+    ]:
+        aba = next((abas_orig[i] for i,a in enumerate(abas_upper) if any(b in a for b in busca)), None)
+        if aba:
+            try:
+                df_c = pd.read_excel(xls, sheet_name=aba, header=0)
+                dc = pd.DataFrame()
+                col_id = detectar_coluna(df_c, ["uc","cpf","instalacao","instalação","contrato","cliente","cod"])
+                col_dt = detectar_coluna(df_c, ["baixa","data","dt_","pagamento","contato","data_contato"])
+                dc["uc_cpf"] = (df_c[col_id] if col_id else df_c.iloc[:,0]).astype(str).str.strip()
+                dc["data_contato"] = pd.to_datetime(
+                    df_c[col_dt] if col_dt else df_c.iloc[:,1],
+                    dayfirst=True, errors="coerce"
+                )
+                contatos.append(dc)
+                abas_lidas.append(nome)
+            except: pass
+
+    primeiro_contato = pd.DataFrame()
+    if contatos:
+        df_todos = pd.concat(contatos, ignore_index=True).dropna(subset=["data_contato"])
+        primeiro_contato = df_todos.groupby("uc_cpf")["data_contato"].min().reset_index().rename(
+            columns={"data_contato":"primeiro_contato"})
+
+    df_res = df_pagos.merge(primeiro_contato, on="uc_cpf", how="left") if not primeiro_contato.empty else df_pagos.copy()
+    if "primeiro_contato" not in df_res.columns:
+        df_res["primeiro_contato"] = pd.NaT
+
+    if "data_pagamento" in df_res.columns:
+        df_res["diferenca_dias"] = (df_res["data_pagamento"] - df_res.get("primeiro_contato", pd.NaT)).dt.days
+    else:
+        df_res["diferenca_dias"] = None
+
+    def classif(row):
+        if pd.isna(row.get("primeiro_contato")): return "ND"
+        d = row.get("diferenca_dias")
+        if d is None or pd.isna(d): return "ND"
+        return "Elegível" if d >= 0 else "Não Elegível"
+
+    df_res["elegibilidade"] = df_res.apply(classif, axis=1)
+
+    if "data_pagamento" in df_res.columns and "data_vencimento" in df_res.columns:
+        df_res["dias_vencidos"] = (df_res["data_pagamento"] - df_res["data_vencimento"]).dt.days
+    else:
+        df_res["dias_vencidos"] = None
+    df_res["aging"] = df_res["dias_vencidos"].apply(aging_faixa)
+
+    for col in ["data_vencimento","data_pagamento","primeiro_contato"]:
+        if col in df_res.columns:
+            try:
+                df_res[col] = pd.to_datetime(df_res[col], errors="coerce").dt.strftime("%Y-%m-%d").where(
+                    pd.to_datetime(df_res[col], errors="coerce").notna(), other=None)
+            except: pass
+
+    df_res["equipe"]  = equipe_id
+    df_res["mes_ano"] = mes_ano
+    return df_res, [], abas_lidas
+
 def pagina_upload(mes_ano):
     u = st.session_state.usuario
-    header_page("Upload de Bases Mensais","Aceita .xlsx e .csv · Processamento automático")
+    header_page("Upload de Bases Mensais","Planilha única com abas · Processamento automático")
     equipe_id = seletor_equipe(u["equipe"] or "tamires")
 
-    c1,c2 = st.columns(2)
-    with c1:
-        st.markdown("#### PAGOS *(obrigatório)*")
-        pf = st.file_uploader("Arquivo PAGOS",type=["xlsx","csv"],label_visibility="collapsed",key="pagos")
-        st.markdown("#### LIGAÇÕES")
-        lf = st.file_uploader("Arquivo LIGAÇÕES",type=["xlsx","csv"],label_visibility="collapsed",key="lig")
-    with c2:
-        st.markdown("#### CHAT")
-        cf = st.file_uploader("Arquivo CHAT",type=["xlsx","csv"],label_visibility="collapsed",key="chat")
-        st.markdown("#### DISPAROS")
-        df_u = st.file_uploader("Arquivo DISPAROS",type=["xlsx","csv"],label_visibility="collapsed",key="disp")
+    st.markdown("""
+    <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:14px 18px;margin-bottom:16px">
+        <div style="color:#1b5e20;font-weight:700;margin-bottom:8px">Como preparar a planilha:</div>
+        <div style="color:#333;font-size:13px;line-height:1.8">
+            Suba um único arquivo <strong>.xlsx</strong> com as seguintes abas:<br>
+            <strong>PAGOS</strong> — obrigatória &nbsp;·&nbsp;
+            <strong>CHAT</strong> — opcional &nbsp;·&nbsp;
+            <strong>LIGAÇÕES</strong> — opcional &nbsp;·&nbsp;
+            <strong>DISPAROS</strong> — opcional
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-
-    # Status badges - clean HTML, no Streamlit widgets
-    def badge(nome, carregado, obrigatorio=False):
-        if carregado:
-            return f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;color:#2e7d32;display:inline-block'>✓ {nome} carregado</div>"
-        elif obrigatorio:
-            return f"<div style='background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;color:#f57f17;display:inline-block'>⏳ {nome} aguardando</div>"
-        else:
-            return f"<div style='background:#f5f5f5;border:1px solid #e0e0e0;border-radius:6px;padding:8px 14px;font-size:12px;color:#757575;display:inline-block'>{nome} (opcional)</div>"
-
-    st.markdown(
-        f"<div style='display:flex;gap:12px;flex-wrap:wrap;margin:16px 0'>"
-        f"{badge('PAGOS', bool(pf), True)}"
-        f"{badge('CHAT', bool(cf))}"
-        f"{badge('LIGAÇÕES', bool(lf))}"
-        f"{badge('DISPAROS', bool(df_u))}"
-        f"</div>",
-        unsafe_allow_html=True
+    arquivo = st.file_uploader(
+        "Selecione a planilha (.xlsx)",
+        type=["xlsx"],
+        label_visibility="collapsed",
+        key="base_unica"
     )
 
+    if arquivo:
+        try:
+            xls_prev = pd.ExcelFile(arquivo)
+            abas_prev = xls_prev.sheet_names
+            arquivo.seek(0)
+            abas_html = " &nbsp;·&nbsp; ".join([f"<strong>{a}</strong>" for a in abas_prev])
+            st.markdown(
+                f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;"
+                f"padding:10px 14px;margin:8px 0;color:#2e7d32;font-size:13px'>"
+                f"✓ <strong>{arquivo.name}</strong> &nbsp;·&nbsp; Abas: {abas_html}</div>",
+                unsafe_allow_html=True
+            )
+        except: pass
+
     st.markdown("---")
-    if st.button("PROCESSAR MÊS",use_container_width=True):
-        if not pf: st.error("⚠ PAGOS é obrigatório!"); return
+    if st.button("PROCESSAR MÊS", use_container_width=True):
+        if not arquivo:
+            st.error("Selecione a planilha antes de processar!")
+            return
+        arquivo.seek(0)
         with st.spinner("Processando bases..."):
-            df_res,erros = processar_bases(pf,cf,lf,df_u,equipe_id,mes_ano)
+            resultado = processar_base_unica(arquivo, equipe_id, mes_ano)
+
+        df_res, erros, abas_lidas = resultado
         for e in erros: st.error(e)
+
         if df_res is not None and not df_res.empty:
-            salvar_processamento(mes_ano,equipe_id,df_res)
+            salvar_processamento(mes_ano, equipe_id, df_res)
             elig = df_res[df_res["elegibilidade"]=="Elegível"]
+
+            if abas_lidas:
+                st.info(f"Abas de contato processadas: {', '.join(abas_lidas)}")
             st.success(f"✅ {len(df_res):,} registros processados!")
+
             c1,c2,c3,c4,c5 = st.columns(5)
-            c1.metric("Valor Elegível",fmt_brl(elig["valor"].sum()))
-            c2.metric("Boletos",f"{len(df_res):,}")
-            c3.metric("Clientes",f"{df_res['uc_cpf'].nunique():,}")
-            c4.metric("Elegíveis",f"{len(elig):,}")
-            c5.metric("Não Elegíveis",f"{len(df_res[df_res['elegibilidade']=='Não Elegível']):,}")
-            st.dataframe(df_res[["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging"]].head(50),use_container_width=True)
+            c1.metric("Valor Elegível",  fmt_brl(elig["valor"].sum()) if "valor" in df_res else "—")
+            c2.metric("Boletos",         f"{len(df_res):,}")
+            c3.metric("Clientes",        f"{df_res['uc_cpf'].nunique():,}")
+            c4.metric("Elegíveis",       f"{len(elig):,}")
+            c5.metric("Não Elegíveis",   f"{len(df_res[df_res['elegibilidade']=='Não Elegível']):,}")
+
+            cols_show = [c for c in ["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging"] if c in df_res.columns]
+            st.dataframe(df_res[cols_show].head(50), use_container_width=True)
+
 
 # ── MAIN ───────────────────────────────────────
 def main():
