@@ -1190,55 +1190,49 @@ def pagina_monitorias(mes_ano):
                                 </div>
                             """, unsafe_allow_html=True)
 
-                            # Critérios
-                            crits = m.get("criterios", [])
-                            if crits:
-                                st.markdown("""
-                                <div style="margin-top:12px;border-top:1px solid #e0e0e0;padding-top:10px">
-                                    <div style="font-size:11px;color:#666;text-transform:uppercase;
-                                                letter-spacing:1px;margin-bottom:8px;font-weight:600">
-                                        Critérios Avaliados
-                                    </div>
-                                """, unsafe_allow_html=True)
-                                crit_html = ""
-                                for c in crits:
-                                    passou = c.get("passou", True)
-                                    cor_c = "#2e7d32" if passou else "#c62828"
-                                    bg_c  = "#f1f8f1" if passou else "#fff5f5"
-                                    ic    = "✓" if passou else "✗"
-                                    crit_html += (
-                                        f"<div style='display:flex;justify-content:space-between;"
-                                        f"padding:6px 12px;background:{bg_c};border-radius:6px;"
-                                        f"margin-bottom:4px;border-left:3px solid {cor_c}'>"
-                                        f"<span style='color:#333;font-size:13px'>{c.get('num','')} {c.get('nome','')}</span>"
-                                        f"<span style='color:{cor_c};font-weight:700;font-size:13px'>{ic} {('Passou' if passou else 'Não passou')}</span></div>"
-                                    )
-                                st.markdown(crit_html + "</div>", unsafe_allow_html=True)
-
-                            # Erros críticos
-                            erros = m.get("errosCriticos", [])
-                            if erros:
-                                erros_html = "<div style='margin-top:8px'><div style='font-size:11px;color:#c62828;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:600'>Erros Críticos</div>"
-                                for e in erros:
-                                    erros_html += (
-                                        f"<div style='padding:6px 12px;background:#ffebee;"
-                                        f"border-radius:6px;margin-bottom:4px;border-left:3px solid #e53935;"
-                                        f"color:#c62828;font-size:13px'>"
-                                        f"<strong>{e.get('nome','')}</strong> — {e.get('desc','')}</div>"
-                                    )
-                                st.markdown(erros_html + "</div>", unsafe_allow_html=True)
-
-                            # Observação
-                            if m.get("observacao"):
-                                st.markdown(
-                                    f"<div style='margin-top:8px;padding:8px 12px;background:#f9fbe7;"
-                                    f"border-radius:6px;border-left:3px solid #c6e02b;"
-                                    f"color:#555;font-size:13px'>"
-                                    f"<strong>Observação:</strong> {m['observacao']}</div>",
-                                    unsafe_allow_html=True
-                                )
-
                             st.markdown("</div>", unsafe_allow_html=True)
+
+                            # Ver detalhes — expander limpo
+                            with st.expander("Ver detalhes"):
+                                crits = m.get("criterios", [])
+                                if crits:
+                                    st.markdown("<div style='font-size:11px;color:#2e7d32;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600'>Critérios Avaliados</div>", unsafe_allow_html=True)
+                                    crit_html = ""
+                                    for c in crits:
+                                        passou = c.get("passou", True)
+                                        cor_c = "#2e7d32" if passou else "#c62828"
+                                        bg_c  = "#f1f8f1" if passou else "#fff5f5"
+                                        ic    = "✓" if passou else "✗"
+                                        crit_html += (
+                                            f"<div style='display:flex;justify-content:space-between;"
+                                            f"padding:7px 12px;background:{bg_c};border-radius:6px;"
+                                            f"margin-bottom:4px;border-left:3px solid {cor_c}'>"
+                                            f"<span style='color:#333;font-size:13px'>{c.get('num','')} {c.get('nome','')}</span>"
+                                            f"<span style='color:{cor_c};font-weight:700;font-size:13px'>{ic} {'Passou' if passou else 'Não passou'}</span></div>"
+                                        )
+                                    st.markdown(crit_html, unsafe_allow_html=True)
+
+                                erros = m.get("errosCriticos", [])
+                                if erros:
+                                    st.markdown("<div style='font-size:11px;color:#c62828;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px;font-weight:600'>Erros Críticos</div>", unsafe_allow_html=True)
+                                    erros_html = ""
+                                    for e in erros:
+                                        erros_html += (
+                                            f"<div style='padding:7px 12px;background:#ffebee;"
+                                            f"border-radius:6px;margin-bottom:4px;border-left:3px solid #e53935;"
+                                            f"color:#c62828;font-size:13px'>"
+                                            f"<strong>{e.get('nome','')}</strong> — {e.get('desc','')}</div>"
+                                        )
+                                    st.markdown(erros_html, unsafe_allow_html=True)
+
+                                if m.get("observacao"):
+                                    st.markdown(
+                                        f"<div style='margin-top:8px;padding:8px 12px;background:#f9fbe7;"
+                                        f"border-radius:6px;border-left:3px solid #cddc39;"
+                                        f"color:#555;font-size:13px'>"
+                                        f"<strong>Observação:</strong> {m['observacao']}</div>",
+                                        unsafe_allow_html=True
+                                    )
 
                             # Botões PDF e Excluir
                             col_pdf, col_del, col_esp = st.columns([2,2,6])
