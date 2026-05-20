@@ -1109,53 +1109,114 @@ def pagina_monitorias(mes_ano):
             st.markdown(f'<a href="data:text/html;base64,{b64}" download="Monitoria_{op_sel.replace(" ","_")}_{protocolo}.html" style="display:inline-block;background:linear-gradient(135deg,#1a6b35,#2daf5c);color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px">📥 Baixar Relatório PDF</a>',unsafe_allow_html=True)
 
     with t2:
-        # Filtro de mês para monitorias
         meses_com_mon = listar_meses_monitorias(equipe_id)
-        
-        if meses_com_mon:
+
+        if not meses_com_mon:
+            st.info("Nenhuma monitoria registrada ainda.")
+        else:
             meses_sel = st.multiselect(
-                "Filtrar por mês (selecione um ou mais):",
+                "Filtrar por mês:",
                 options=meses_com_mon,
-                default=meses_com_mon,  # todos selecionados por padrão
+                default=meses_com_mon[:1],
                 key="mon_mes_filtro"
             )
-            if meses_sel:
-                monts = []
-                for m in meses_sel:
-                    monts += buscar_monitorias_equipe(equipe_id, m)
-                # Ordena por data
-                monts.sort(key=lambda x: x.get("criadoEm", datetime.now()), reverse=True)
+
+            if not meses_sel:
+                st.info("Selecione pelo menos um mês.")
             else:
-                monts = buscar_monitorias_equipe(equipe_id)
-        else:
-            monts = buscar_monitorias_equipe(equipe_id)
+                monts = []
+                for ms in meses_sel:
+                    monts += buscar_monitorias_equipe(equipe_id, ms)
+                monts.sort(key=lambda x: str(x.get("mesAno","")) + str(x.get("criadoEm","")), reverse=True)
 
-        if not monts:
-            st.info("Nenhuma monitoria registrada.")
-        else:
-            rows = []
-            for m in monts:
-                media,n = calc_media_operador(m["opId"])
-                rows.append({
-                    "Operador": m["opNome"],
-                    "Protocolo": m.get("protocolo","—"),
-                    "Nota": f"{m['nota']:.0f}%",
-                    "Média Geral": f"{media:.1f}%",
-                    "Pontos": calc_pontos(media),
-                    "Mês": m.get("mesAno","—"),
-                    "Data": str(m.get("criadoEm",""))[:10],
-                    "_id": m["_id"]
-                })
-            df = pd.DataFrame(rows)
-            st.dataframe(df.drop(columns=["_id"]), use_container_width=True, hide_index=True)
+                if not monts:
+                    st.info("Nenhuma monitoria nos meses selecionados.")
+                else:
+                    for mes_atual in meses_sel:
+                        monts_mes = [m for m in monts if m.get("mesAno") == mes_atual]
+                        if not monts_mes: continue
 
-            st.markdown("---")
-            sel_excluir = st.selectbox("Excluir monitoria:", ["—"]+[f"{r['Protocolo']} — {r['Operador']} — {r['Data']}" for _,r in df.iterrows()])
-            if sel_excluir != "—":
-                idx = df[df.apply(lambda r: f"{r['Protocolo']} — {r['Operador']} — {r['Data']}"==sel_excluir,axis=1)].index
-                if len(idx)>0 and st.button("Confirmar Exclusão"):
-                    excluir_monitoria(df.loc[idx[0],"_id"])
-                    st.warning("Monitoria excluída."); st.rerun()
+                        ops_unicos = list({m["opId"]: m["opNome"] for m in monts_mes}.items())
+                        medias = [calc_media_operador(op_id, mes_atual)[0] for op_id,_ in ops_unicos]
+                        media_equipe_mes = sum(medias)/len(medias) if medias else 0
+
+                        st.markdown(f"""
+                        <div style="background:linear-gradient(135deg,#003318,#004d20);border:1px solid #005a25;
+                                    border-radius:10px;padding:12px 18px;margin:12px 0 8px;
+                                    display:flex;justify-content:space-between;align-items:center">
+                            <div style="color:#ffffff;font-weight:700;font-size:15px">{mes_atual.replace('-',' ')}</div>
+                            <div style="text-align:right">
+                                <div style="color:#81c784;font-size:10px;text-transform:uppercase">Média da Equipe no Mês</div>
+                                <div style="color:#00c853;font-size:20px;font-weight:800">{media_equipe_mes:.1f}%</div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        for m in monts_mes:
+                            media_op, n_op = calc_media_operador(m["opId"], mes_atual)
+                            pontos_op = calc_pontos(media_op)
+                            nota = float(m.get("nota", 0))
+
+                            with st.expander(
+                                f"{m['opNome']} · Protocolo {m.get('protocolo','—')} · Nota {nota:.0f}% · {str(m.get('criadoEm',''))[:10]}",
+                                expanded=False
+                            ):
+                                c1,c2,c3,c4 = st.columns(4)
+                                c1.metric("Nota", f"{nota:.0f}%")
+                                c2.metric(f"Média {mes_atual.split('-')[0]}", f"{media_op:.1f}%")
+                                c3.metric("Pontos", f"{pontos_op} pts")
+                                c4.metric("Monitorias no mês", f"{n_op}")
+
+                                crits = m.get("criterios", [])
+                                if crits:
+                                    st.markdown("**Critérios avaliados:**")
+                                    for c in crits:
+                                        passou = c.get("passou", True)
+                                        cor = "#00c853" if passou else "#e53935"
+                                        status = "Passou" if passou else "Não passou"
+                                        st.markdown(
+                                            f"<div style='display:flex;justify-content:space-between;"
+                                            f"padding:6px 12px;background:#e8f5e9;border-radius:6px;"
+                                            f"margin-bottom:4px;border-left:3px solid {cor}'>"
+                                            f"<span style='color:#1b5e20;font-weight:500'>{c.get('num','')} {c.get('nome','')}</span>"
+                                            f"<span style='color:{cor};font-weight:700'>{status}</span></div>",
+                                            unsafe_allow_html=True
+                                        )
+
+                                erros = m.get("errosCriticos", [])
+                                if erros:
+                                    st.markdown("**Erros críticos:**")
+                                    for e in erros:
+                                        st.markdown(
+                                            f"<div style='padding:6px 12px;background:#ffebee;"
+                                            f"border-radius:6px;margin-bottom:4px;border-left:3px solid #e53935;"
+                                            f"color:#c62828;font-weight:600'>"
+                                            f"{e.get('nome','')} — {e.get('desc','')}</div>",
+                                            unsafe_allow_html=True
+                                        )
+
+                                if m.get("observacao"):
+                                    st.markdown(f"**Observação:** {m['observacao']}")
+
+                                html_pdf = gerar_pdf_monitoria(
+                                    m["opNome"], m.get("protocolo",""), m.get("observacao",""),
+                                    m.get("criterios",[]), m.get("errosCriticos",[]),
+                                    nota, media_op, n_op, mes_atual
+                                )
+                                b64 = base64.b64encode(html_pdf.encode()).decode()
+                                st.markdown(
+                                    f'<a href="data:text/html;base64,{b64}" '
+                                    f'download="Monitoria_{m["opNome"].replace(" ","_")}_{m.get("protocolo","")}.html" '
+                                    f'style="display:inline-block;background:#00c853;color:white;'
+                                    f'padding:8px 16px;border-radius:6px;text-decoration:none;'
+                                    f'font-weight:600;font-size:13px;margin-top:8px">Baixar PDF</a>',
+                                    unsafe_allow_html=True
+                                )
+                                st.markdown("---")
+                                if st.button("Excluir esta monitoria", key=f"del_{m['_id']}"):
+                                    excluir_monitoria(m["_id"])
+                                    st.warning("Monitoria excluída."); st.rerun()
+
 
 def pagina_monitorias_diretor(mes_ano):
     st.markdown("### Visão Geral — Monitorias por Equipe")
