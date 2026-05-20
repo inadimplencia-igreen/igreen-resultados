@@ -1943,11 +1943,23 @@ def pagina_upload(mes_ano):
             c2.metric("Boletos Pagos",   f"{len(elig):,}")
             c3.metric("Clientes Pagos",  f"{clientes_elig:,}")
 
-            cols_show = [c for c in ["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging"] if c in df_res.columns]
-            if cols_show:
-                st.dataframe(df_res[cols_show].head(50), use_container_width=True)
-            else:
-                st.dataframe(df_res.head(50), use_container_width=True)
+            cols_show = [c for c in ["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging","diferenca_dias","primeiro_contato"] if c in df_res.columns]
+            df_show = df_res[cols_show] if cols_show else df_res
+            st.dataframe(df_show.head(50), use_container_width=True)
+
+            # Download Excel completo
+            out = io.BytesIO()
+            with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
+                df_res.to_excel(writer, sheet_name="Resultado", index=False)
+                elig.to_excel(writer, sheet_name="Elegíveis", index=False)
+                df_res[df_res["elegibilidade"]=="ND"].to_excel(writer, sheet_name="ND", index=False)
+                df_res[df_res["elegibilidade"]=="Não Elegível"].to_excel(writer, sheet_name="Não Elegíveis", index=False)
+            st.download_button(
+                "Baixar Excel Completo",
+                data=out.getvalue(),
+                file_name=f"Resultado_{equipe_id}_{mes_ano}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
 
 # ── MAIN ───────────────────────────────────────
