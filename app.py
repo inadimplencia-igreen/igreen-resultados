@@ -1018,15 +1018,21 @@ def pagina_lancamento(mes_ano):
                 )
                 rows = []
                 for op in ops:
+                    def get_val_op(agentes_dict, op_id, op_nome):
+                        # Por ID primeiro
+                        if op_id in agentes_dict:
+                            v = agentes_dict[op_id]
+                            return float(v.get("valorRecebido",0) if isinstance(v,dict) else v)
+                        # Por nome como fallback
+                        for k,v in agentes_dict.items():
+                            nome_s = v.get("nome","") if isinstance(v,dict) else ""
+                            if nome_s.strip().lower() == op_nome.strip().lower():
+                                return float(v.get("valorRecebido",0) if isinstance(v,dict) else v)
+                        return 0.0
+
                     ag   = lanc.get("agentes",{})
-                    v_op = 0.0
-                    if op["_id"] in ag:
-                        v_op = float(ag[op["_id"]].get("valorRecebido",0) if isinstance(ag[op["_id"]],dict) else ag[op["_id"]])
-                    v_ant = 0.0
-                    if lanc_ant:
-                        ag_ant = lanc_ant.get("agentes",{})
-                        if op["_id"] in ag_ant:
-                            v_ant = float(ag_ant[op["_id"]].get("valorRecebido",0) if isinstance(ag_ant[op["_id"]],dict) else ag_ant[op["_id"]])
+                    v_op = get_val_op(ag, op["_id"], op["nome"])
+                    v_ant = get_val_op(lanc_ant.get("agentes",{}), op["_id"], op["nome"]) if lanc_ant else 0.0
                     diff_op = v_op - v_ant if lanc_ant else 0
                     ev = f"{'+'if diff_op>=0 else ''}{fmt_brl(abs(diff_op))}" if lanc_ant and (v_op>0 or v_ant>0) else "—"
                     rows.append({"Operador":op["nome"],"Valor":fmt_brl(v_op) if v_op>0 else "—","Evolução":ev})
