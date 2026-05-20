@@ -969,19 +969,25 @@ def pagina_lancamento(mes_ano):
         lancs_ord = list(reversed(lancs))
         for i, lanc in enumerate(lancs_ord):
             lanc_ant = lancs_ord[i-1] if i > 0 else None
-            vg_l  = float(lanc.get("valorGeral", 0))
-            vg_ant = float(lanc_ant.get("valorGeral", 0)) if lanc_ant else 0
-            diff_geral = vg_l - vg_ant if lanc_ant else 0
-            cor_d = "#2daf5c" if diff_geral >= 0 else "#e53935"
-            sinal = "+" if diff_geral >= 0 else ""
-            ev_txt = f" · <span style='color:{cor_d};font-size:11px;font-weight:600'>{sinal}{fmt_brl(abs(diff_geral))}</span>" if lanc_ant else ""
+            # Soma todos os operadores deste lançamento
+            soma_ops = sum(
+                float(v.get("valorRecebido", 0))
+                for v in lanc.get("agentes", {}).values()
+            )
+            soma_ant = sum(
+                float(v.get("valorRecebido", 0))
+                for v in lanc_ant.get("agentes", {}).values()
+            ) if lanc_ant else 0
+            diff_geral = soma_ops - soma_ant if lanc_ant else 0
+            cor_d  = "#2daf5c" if diff_geral >= 0 else "#e53935"
+            sinal  = "+" if diff_geral >= 0 else ""
 
-            with st.expander(f"Lançamento {lanc.get('label','')} — {fmt_brl(vg_l)}{'' if not lanc_ant else ''}", expanded=False):
+            with st.expander(f"Lançamento {lanc.get('label','')} — {fmt_brl(soma_ops)}", expanded=False):
                 st.markdown(f"""
-                <div style="margin-bottom:8px;font-size:12px;color:#555">
-                    Recebido Geral: <strong style="color:#1b5e20">{fmt_brl(vg_l)}</strong>
-                    &nbsp;·&nbsp; Com Interação: <strong>{fmt_brl(float(lanc.get('totalEquipe',0)))}</strong>
-                    {f'&nbsp;·&nbsp; Evolução Geral: <strong style="color:{cor_d}">{sinal}{fmt_brl(abs(diff_geral))}</strong>' if lanc_ant else ''}
+                <div style="margin-bottom:8px;font-size:12px;color:#c8e6c9">
+                    Com Interação: <strong style="color:#ffffff">{fmt_brl(soma_ops)}</strong>
+                    &nbsp;·&nbsp; Geral: <strong style="color:#ffffff">{fmt_brl(float(lanc.get('valorGeral',0)))}</strong>
+                    {f'&nbsp;·&nbsp; Evolução: <strong style="color:{cor_d}">{sinal}{fmt_brl(abs(diff_geral))}</strong>' if lanc_ant else ""}
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -990,22 +996,21 @@ def pagina_lancamento(mes_ano):
                     v_op  = float(lanc.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0))
                     v_ant = float(lanc_ant.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0)) if lanc_ant else 0
                     diff_op = v_op - v_ant if lanc_ant else 0
-                    if lanc_ant:
+                    if v_op == 0 and v_ant == 0:
+                        ev_op = "—"
+                    elif lanc_ant:
                         sinal_op = "+" if diff_op >= 0 else ""
                         ev_op = f"{sinal_op}{fmt_brl(abs(diff_op))}"
-                        cor_op = "#2daf5c" if diff_op >= 0 else "#e53935"
                     else:
                         ev_op = "—"
-                        cor_op = "#888"
                     rows.append({
                         "Operador": op["nome"],
-                        "Valor": fmt_brl(v_op),
-                        "Evolução": ev_op if v_op > 0 or v_ant > 0 else "—"
+                        "Valor": fmt_brl(v_op) if v_op > 0 else "—",
+                        "Evolução": ev_op
                     })
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-                if st.button("Excluir este lançamento", key=f"del_mini_{lanc['_id']}", type="primary"):
+                if st.button("Excluir este lançamento", key=f"del_mini_{lanc['_id']}"):
                     excluir_lancamento(lanc["_id"])
-                    st.success("Lançamento excluído!")
                     st.rerun()
 
 # ── QUADRO DE RESULTADOS ───────────────────────
@@ -1030,7 +1035,11 @@ def pagina_quadro(mes_ano):
         tpct     = int(meta_gest_doc.get("targetPct",125))
         # RECEBIDO = valor geral informado pela gestora (não soma dos operadores)
         vg_geral = float(ultimo.get("valorGeral",0))
-        tc_ops   = float(ultimo.get("totalEquipe",0))  # soma dos operadores
+        # Sempre recalcula soma dos operadores do último lançamento
+        tc_ops = sum(
+            float(v.get("valorRecebido",0))
+            for v in ultimo.get("agentes",{}).values()
+        )
         dt       = int(ultimo.get("diasTrabalhados",0))
         td       = int(ultimo.get("totalDias",22))
         proj     = calc_projecao(vg_geral,dt,td)
