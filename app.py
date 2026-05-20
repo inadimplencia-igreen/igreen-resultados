@@ -1303,12 +1303,25 @@ def pagina_upload(mes_ano):
         st.markdown("#### DISPAROS")
         df_u = st.file_uploader("Arquivo DISPAROS",type=["xlsx","csv"],label_visibility="collapsed",key="disp")
 
-    st.markdown("---")
-    col1,col2,col3,col4 = st.columns(4)
-    with col1: st.success("PAGOS carregado") if pf else st.warning("PAGOS aguardando")
-    with col2: st.success("CHAT carregado")  if cf else st.info("CHAT (opcional)")
-    with col3: st.success("LIGAÇÕES carregado") if lf else st.info("LIGAÇÕES (opcional)")
-    with col4: st.success("DISPAROS carregado") if df_u else st.info("DISPAROS (opcional)")
+
+    # Status badges - clean HTML, no Streamlit widgets
+    def badge(nome, carregado, obrigatorio=False):
+        if carregado:
+            return f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;color:#2e7d32;display:inline-block'>✓ {nome} carregado</div>"
+        elif obrigatorio:
+            return f"<div style='background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;color:#f57f17;display:inline-block'>⏳ {nome} aguardando</div>"
+        else:
+            return f"<div style='background:#f5f5f5;border:1px solid #e0e0e0;border-radius:6px;padding:8px 14px;font-size:12px;color:#757575;display:inline-block'>{nome} (opcional)</div>"
+
+    st.markdown(
+        f"<div style='display:flex;gap:12px;flex-wrap:wrap;margin:16px 0'>"
+        f"{badge('PAGOS', bool(pf), True)}"
+        f"{badge('CHAT', bool(cf))}"
+        f"{badge('LIGAÇÕES', bool(lf))}"
+        f"{badge('DISPAROS', bool(df_u))}"
+        f"</div>",
+        unsafe_allow_html=True
+    )
 
     st.markdown("---")
     if st.button("PROCESSAR MÊS",use_container_width=True):
