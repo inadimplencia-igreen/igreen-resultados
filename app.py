@@ -1832,14 +1832,23 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
         )
 
     # ── PASSO 4: Merge LEFT — PAGOS nunca cresce
-    if not primeiro_contato.empty:
-        df_res = pd.merge(df_pagos, primeiro_contato, on="uc_cpf", how="left")
-    else:
+    try:
+        if (not primeiro_contato.empty 
+            and "uc_cpf" in primeiro_contato.columns 
+            and "uc_cpf" in df_pagos.columns):
+            # Garante tipos iguais antes do merge
+            df_pagos["uc_cpf"] = df_pagos["uc_cpf"].astype(str).str.strip()
+            primeiro_contato["uc_cpf"] = primeiro_contato["uc_cpf"].astype(str).str.strip()
+            df_res = pd.merge(df_pagos, primeiro_contato, on="uc_cpf", how="left")
+        else:
+            df_res = df_pagos.copy()
+            df_res["primeiro_contato"] = pd.NaT
+    except Exception:
         df_res = df_pagos.copy()
         df_res["primeiro_contato"] = pd.NaT
 
     # Garante que merge não duplicou
-    if len(df_res) != qtd_boletos:
+    if len(df_res) > qtd_boletos:
         df_res = df_res.drop_duplicates(subset=cols_dedup, keep="first").reset_index(drop=True)
 
     # ── PASSO 5: Elegibilidade
