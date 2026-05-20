@@ -1720,9 +1720,9 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
         cn = str(c).lower().strip()
         if any(x in cn for x in ["cpf","uc","instalac","matricul","cod_c","codigo_c","id_c"]):
             if "uc_cpf" not in mapa.values(): mapa[c] = "uc_cpf"
-        elif any(x in cn for x in ["valor","vlr","vl_"]):
+        elif any(x in cn for x in ["valor a pagar","valor_a_pagar","vlr_a_pagar","valor pagar","valor","vlr","vl_"]):
             if "valor" not in mapa.values(): mapa[c] = "valor"
-        elif any(x in cn for x in ["data_pag","dt_pag","data pag","baixa","data_baixa"]):
+        elif any(x in cn for x in ["data_pag","dt_pag","data pag","data pagamento","baixa","data_baixa","pagamento"]):
             if "data_pagamento" not in mapa.values(): mapa[c] = "data_pagamento"
         elif any(x in cn for x in ["vencim","venc"]):
             if "data_vencimento" not in mapa.values(): mapa[c] = "data_vencimento"
@@ -1734,12 +1734,21 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
     # Converte tipos
     df_pagos["uc_cpf"] = df_pagos["uc_cpf"].astype(str).str.strip()
     df_pagos["data_pagamento"] = pd.to_datetime(df_pagos["data_pagamento"], dayfirst=True, errors="coerce")
-    df_pagos["valor"] = pd.to_numeric(
-        df_pagos["valor"].astype(str)
-        .str.replace("R$","",regex=False).str.replace(".","",regex=False)
-        .str.replace(",",".",regex=False).str.strip(),
-        errors="coerce"
-    ).fillna(0)
+    # Converte valor preservando centavos
+    def conv_valor(v):
+        s = str(v).strip().replace("R$","").replace(" ","")
+        if not s or s in ["nan","None","-"]: return 0.0
+        # Detecta formato: se tem vírgula após ponto = brasileiro (1.234,56)
+        if "," in s and "." in s:
+            if s.rfind(",") > s.rfind("."):  # BR: 1.234,56
+                s = s.replace(".","").replace(",",".")
+            else:  # EN: 1,234.56
+                s = s.replace(",","")
+        elif "," in s:  # pode ser BR sem milhar: 1234,56
+            s = s.replace(",",".")
+        try: return float(s)
+        except: return 0.0
+    df_pagos["valor"] = df_pagos["valor"].apply(conv_valor)
 
     # Remove duplicatas
     df_pagos = df_pagos.drop_duplicates(subset=["uc_cpf","data_pagamento","valor"], keep="first").reset_index(drop=True)
@@ -1878,11 +1887,12 @@ def pagina_upload(mes_ano):
             st.success(f"✅ {len(df_res):,} registros processados!")
 
             c1,c2,c3,c4,c5 = st.columns(5)
-            c1.metric("Valor Elegível",  fmt_brl(elig["valor"].sum()) if "valor" in df_res.columns else "—")
-            c2.metric("Boletos",         f"{len(df_res):,}")
-            c3.metric("Clientes",        f"{df_res['uc_cpf'].nunique():,}" if "uc_cpf" in df_res.columns else "—")
-            c4.metric("Elegíveis",       f"{len(elig):,}")
-            c5.metric("Não Elegíveis",   f"{len(df_res[df_res['elegibilidade']=='Não Elegível']):,}")
+            valor_total = df_res["valor"].sum() if "valor" in df_res.columns else 0
+            valor_elig  = elig["valor"].sum() if "valor" in df_res.columns else 0
+            c1,c2,c3 = st.columns(3)
+            c1.metric("Valor Total Recebido", fmt_brl(valor_total))
+            c2.metric("Boletos",              f"{len(df_res):,}")
+            c3.metric("Clientes Únicos",      f"{df_res['uc_cpf'].nunique():,}" if "uc_cpf" in df_res.columns else "—")
 
             cols_show = [c for c in ["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging"] if c in df_res.columns]
             if cols_show:
