@@ -920,39 +920,50 @@ def pagina_lancamento(mes_ano):
         st.markdown("---")
         st.markdown("### Valores por Operador")
 
-        c1,c2,c3 = st.columns([3,2,2])
+        # Busca último lançamento para mostrar evolução
+        lancs_ant = buscar_lancamentos(mes_ano, equipe_id)
+        ultimo_lanc = lancs_ant[0] if lancs_ant else {}
+
+        # Cabeçalho da tabela
+        c1,c2,c3,c4 = st.columns([3,2,2,2])
         c1.markdown("**Operador**")
         c2.markdown("**Meta**")
         c3.markdown("**Valor Recebido (R$)**")
+        c4.markdown("**Evolução**")
 
         vi = {}
         for op in ops:
             meta = float(metas_salvas.get(op["_id"],0))
-            c1,c2,c3 = st.columns([3,2,2])
+            val_ant = float(ultimo_lanc.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0))
+
+            c1,c2,c3,c4 = st.columns([3,2,2,2])
             with c1:
                 nome_label = ("★ " if op.get("pleno") else "") + op["nome"]
                 st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{nome_label}</div>",
                             unsafe_allow_html=True)
             with c2:
-                st.markdown(f"<div style='padding-top:10px;color:#5a9a70'>{fmt_brl(meta) if meta>0 else '—'}</div>",
+                st.markdown(f"<div style='padding-top:10px;color:#5a9a70;font-size:13px'>{fmt_brl(meta) if meta>0 else '—'}</div>",
                             unsafe_allow_html=True)
             with c3:
                 val = st.number_input("v", label_visibility="collapsed",
                                       min_value=0.0, step=100.0, format="%.2f",
                                       key=f"fi_{op['_id']}")
+            with c4:
+                if val_ant > 0:
+                    diff = val - val_ant
+                    if diff > 0:
+                        ev_html = f"<div style='padding-top:10px;color:#2daf5c;font-size:12px;font-weight:600'>+{fmt_brl(diff)}</div>"
+                    elif diff < 0:
+                        ev_html = f"<div style='padding-top:10px;color:#e53935;font-size:12px;font-weight:600'>{fmt_brl(diff)}</div>"
+                    else:
+                        ev_html = f"<div style='padding-top:10px;color:#888;font-size:12px'>sem alteração</div>"
+                    st.markdown(ev_html, unsafe_allow_html=True)
+                else:
+                    st.markdown("<div style='padding-top:10px;color:#555;font-size:12px'>—</div>", unsafe_allow_html=True)
             vi[op["_id"]] = val
 
         tc  = sum(vi.values())
         sem = max(0, vg - tc)
-        pct_gest = (tc/mg*100) if mg>0 else 0
-
-        st.markdown("---")
-        c1,c2,c3,c4,c5 = st.columns(5)
-        c1.metric("Com Interação", fmt_brl(tc))
-        c2.metric("Sem Interação", fmt_brl(sem))
-        c3.metric("Total Geral",   fmt_brl(vg))
-        c4.metric("Projeção",      fmt_brl(calc_projecao(tc,dt,td)))
-        c5.metric(f"Meta ({pct_gest:.1f}%)", fmt_brl(mg))
 
         submitted = st.form_submit_button("Salvar Lançamento", use_container_width=True)
 
