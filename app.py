@@ -774,11 +774,11 @@ def render_sidebar():
         st.markdown("<p style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5a9a70;margin-bottom:4px'>NAVEGAÇÃO</p>", unsafe_allow_html=True)
 
         if u["role"]=="diretor":
-            pags=["Quadro de Resultados","Dashboard Executivo","Análise de Projeção","Monitorias","Histórico"]
+            pags=["Quadro de Resultados","Dashboard Executivo","Análise de Projeção","Monitorias"]
         elif u["role"]=="admin":
-            pags=["Quadro de Resultados","Lançamento","Dashboard Executivo","Análise de Projeção","Monitorias","Upload de Bases","Histórico","Operadores","Metas"]
+            pags=["Quadro de Resultados","Lançamento","Dashboard Executivo","Análise de Projeção","Monitorias","Upload de Bases","Operadores","Metas"]
         else:
-            pags=["Quadro de Resultados","Lançamento","Análise de Projeção","Monitorias","Upload de Bases","Histórico","Operadores","Metas"]
+            pags=["Quadro de Resultados","Lançamento","Análise de Projeção","Monitorias","Upload de Bases","Operadores","Metas"]
 
         pag = st.radio("",pags,label_visibility="collapsed")
         st.markdown("<hr>",unsafe_allow_html=True)
@@ -920,23 +920,15 @@ def pagina_lancamento(mes_ano):
         st.markdown("---")
         st.markdown("### Valores por Operador")
 
-        # Busca último lançamento para mostrar evolução
-        lancs_ant = buscar_lancamentos(mes_ano, equipe_id)
-        ultimo_lanc = lancs_ant[0] if lancs_ant else {}
-
-        # Cabeçalho da tabela
-        c1,c2,c3,c4 = st.columns([3,2,2,2])
+        c1,c2,c3 = st.columns([3,2,2])
         c1.markdown("**Operador**")
         c2.markdown("**Meta**")
         c3.markdown("**Valor Recebido (R$)**")
-        c4.markdown("**Evolução**")
 
         vi = {}
         for op in ops:
             meta = float(metas_salvas.get(op["_id"],0))
-            val_ant = float(ultimo_lanc.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0))
-
-            c1,c2,c3,c4 = st.columns([3,2,2,2])
+            c1,c2,c3 = st.columns([3,2,2])
             with c1:
                 nome_label = ("★ " if op.get("pleno") else "") + op["nome"]
                 st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{nome_label}</div>",
@@ -948,18 +940,6 @@ def pagina_lancamento(mes_ano):
                 val = st.number_input("v", label_visibility="collapsed",
                                       min_value=0.0, step=100.0, format="%.2f",
                                       key=f"fi_{op['_id']}")
-            with c4:
-                if val_ant > 0:
-                    diff = val - val_ant
-                    if diff > 0:
-                        ev_html = f"<div style='padding-top:10px;color:#2daf5c;font-size:12px;font-weight:600'>+{fmt_brl(diff)}</div>"
-                    elif diff < 0:
-                        ev_html = f"<div style='padding-top:10px;color:#e53935;font-size:12px;font-weight:600'>{fmt_brl(diff)}</div>"
-                    else:
-                        ev_html = f"<div style='padding-top:10px;color:#888;font-size:12px'>sem alteração</div>"
-                    st.markdown(ev_html, unsafe_allow_html=True)
-                else:
-                    st.markdown("<div style='padding-top:10px;color:#555;font-size:12px'>—</div>", unsafe_allow_html=True)
             vi[op["_id"]] = val
 
         tc  = sum(vi.values())
@@ -977,6 +957,52 @@ def pagina_lancamento(mes_ano):
                              agentes_data, tc, vg, sem, dt, td)
             st.session_state.ultimo_salvo = f"Lançamento de {label} salvo com sucesso!"
             st.rerun()
+
+    # ── MINI HISTÓRICO abaixo do botão
+    st.markdown("---")
+    lancs = buscar_lancamentos(mes_ano, equipe_id)
+    if lancs:
+        st.markdown("<p style='color:#81c784;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Lançamentos do mês</p>", unsafe_allow_html=True)
+        # Ordena do mais antigo para o mais recente para calcular evolução
+        lancs_ord = list(reversed(lancs))
+        for i, lanc in enumerate(lancs_ord):
+            lanc_ant = lancs_ord[i-1] if i > 0 else None
+            vg_l  = float(lanc.get("valorGeral", 0))
+            vg_ant = float(lanc_ant.get("valorGeral", 0)) if lanc_ant else 0
+            diff_geral = vg_l - vg_ant if lanc_ant else 0
+            cor_d = "#2daf5c" if diff_geral >= 0 else "#e53935"
+            sinal = "+" if diff_geral >= 0 else ""
+            ev_txt = f" · <span style='color:{cor_d};font-size:11px;font-weight:600'>{sinal}{fmt_brl(abs(diff_geral))}</span>" if lanc_ant else ""
+
+            with st.expander(f"Lançamento {lanc.get('label','')} — {fmt_brl(vg_l)}{'' if not lanc_ant else ''}", expanded=False):
+                st.markdown(f"""
+                <div style="margin-bottom:8px;font-size:12px;color:#555">
+                    Recebido Geral: <strong style="color:#1b5e20">{fmt_brl(vg_l)}</strong>
+                    &nbsp;·&nbsp; Com Interação: <strong>{fmt_brl(float(lanc.get('totalEquipe',0)))}</strong>
+                    {f'&nbsp;·&nbsp; Evolução Geral: <strong style="color:{cor_d}">{sinal}{fmt_brl(abs(diff_geral))}</strong>' if lanc_ant else ''}
+                </div>
+                """, unsafe_allow_html=True)
+
+                rows = []
+                for op in ops:
+                    v_op  = float(lanc.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0))
+                    v_ant = float(lanc_ant.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0)) if lanc_ant else 0
+                    diff_op = v_op - v_ant if lanc_ant else 0
+                    if lanc_ant:
+                        sinal_op = "+" if diff_op >= 0 else ""
+                        ev_op = f"{sinal_op}{fmt_brl(abs(diff_op))}"
+                        cor_op = "#2daf5c" if diff_op >= 0 else "#e53935"
+                    else:
+                        ev_op = "—"
+                        cor_op = "#888"
+                    rows.append({
+                        "Operador": op["nome"],
+                        "Valor": fmt_brl(v_op),
+                        "Evolução": ev_op if v_op > 0 or v_ant > 0 else "—"
+                    })
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                if st.button("Excluir", key=f"del_mini_{lanc['_id']}"):
+                    excluir_lancamento(lanc["_id"]); st.rerun()
 
 # ── QUADRO DE RESULTADOS ───────────────────────
 def pagina_quadro(mes_ano):
@@ -1638,7 +1664,7 @@ def main():
         elif "Dashboard" in pagina: pagina_dashboard_executivo()
         elif "Projeção"  in pagina: pagina_analise_projecao(mes_ano)
         elif "Monitorias" in pagina: pagina_monitorias(mes_ano)
-        elif "Histórico" in pagina: pagina_historico(mes_ano)
+
 
     elif u["role"]=="admin":
         if "Quadro"      in pagina: pagina_quadro(mes_ano)
@@ -1647,7 +1673,6 @@ def main():
         elif "Projeção"   in pagina: pagina_analise_projecao(mes_ano)
         elif "Monitorias" in pagina: pagina_monitorias(mes_ano)
         elif "Upload"     in pagina: pagina_upload(mes_ano)
-        elif "Histórico"  in pagina: pagina_historico(mes_ano)
         elif "Operadores" in pagina: pagina_operadores()
         elif "Metas"      in pagina: pagina_metas(mes_ano)
 
@@ -1657,7 +1682,6 @@ def main():
         elif "Projeção"   in pagina: pagina_analise_projecao(mes_ano)
         elif "Monitorias" in pagina: pagina_monitorias(mes_ano)
         elif "Upload"     in pagina: pagina_upload(mes_ano)
-        elif "Histórico"  in pagina: pagina_historico(mes_ano)
         elif "Operadores" in pagina: pagina_operadores()
         elif "Metas"      in pagina: pagina_metas(mes_ano)
 
