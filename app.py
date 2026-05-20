@@ -7,43 +7,197 @@ import base64
 import warnings
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="iGreen | Gestão Inadimplência", page_icon="🌿", layout="wide")
+st.set_page_config(page_title="iGreen Performance", page_icon=None, layout="wide")
 
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 * { font-family: 'Inter', sans-serif !important; }
-.stApp { background-color: #071a0e; }
-[data-testid="stSidebar"] { background: linear-gradient(180deg,#0a2414,#071a0e); border-right:1px solid #1a4d2e; }
-[data-testid="stMetric"] { background:linear-gradient(135deg,#0a2414,#0d2e1a); border:1px solid #1a4d2e; border-radius:12px; padding:20px !important; border-left:3px solid #2daf5c; }
-[data-testid="stMetricValue"] { color:#ffffff !important; font-size:22px !important; font-weight:700 !important; }
-[data-testid="stMetricLabel"] { color:#5a9a70 !important; font-size:10px !important; text-transform:uppercase; letter-spacing:1px; }
-.stButton > button { background:linear-gradient(135deg,#1a6b35,#2daf5c) !important; color:white !important; border:none !important; border-radius:8px !important; font-weight:600 !important; transition: all 0.2s !important; }
-.stButton > button:hover { background:linear-gradient(135deg,#2daf5c,#3dd670) !important; transform:translateY(-1px) !important; }
-h1 { color:#ffffff !important; font-size:22px !important; font-weight:700 !important; }
-h2 { color:#e0f0e8 !important; font-size:18px !important; }
-h3 { color:#5a9a70 !important; font-size:11px !important; text-transform:uppercase; letter-spacing:1.5px; }
-hr { border-color:#1a4d2e !important; margin:16px 0 !important; }
-p, label, div { color:#b8d4c0; }
-.stTextInput input, .stNumberInput input, .stTextArea textarea {
-    background:#0a2414 !important; border:1px solid #1a4d2e !important;
-    color:#e0f0e8 !important; border-radius:8px !important; }
-.stSelectbox > div > div { background:#0a2414 !important; border:1px solid #1a4d2e !important; color:#e0f0e8 !important; }
-[data-testid="stSidebar"] .stRadio label { color:#b8d4c0 !important; font-size:13px !important; }
-.stTabs [data-baseweb="tab-list"] { background:#0a2414 !important; border-radius:8px !important; padding:4px !important; }
-.stTabs [data-baseweb="tab"] { color:#5a9a70 !important; border-radius:6px !important; }
-.stTabs [aria-selected="true"] { background:#1a6b35 !important; color:#ffffff !important; }
-.stCheckbox label { color:#e0f0e8 !important; }
-[data-testid="stFileUploader"] > div { background:#0a2414 !important; border:2px dashed #1a4d2e !important; border-radius:12px !important; }
-[data-testid="stFileUploader"] label { color:#5a9a70 !important; }
-.stSuccess > div { background:rgba(45,175,92,0.15) !important; border:1px solid rgba(45,175,92,0.3) !important; color:#2daf5c !important; border-radius:8px !important; }
-.stWarning > div { background:rgba(240,165,0,0.15) !important; border:1px solid rgba(240,165,0,0.3) !important; color:#f0a500 !important; border-radius:8px !important; }
-.stError > div { background:rgba(224,60,60,0.15) !important; border:1px solid rgba(224,60,60,0.3) !important; color:#e03c3c !important; border-radius:8px !important; }
-.stInfo > div { background:rgba(59,130,246,0.15) !important; border:1px solid rgba(59,130,246,0.3) !important; color:#3b82f6 !important; border-radius:8px !important; }
-::-webkit-scrollbar { width:5px; height:5px; }
-::-webkit-scrollbar-track { background:#071a0e; }
-::-webkit-scrollbar-thumb { background:#1a4d2e; border-radius:3px; }
-.val-preview { color:#2daf5c; font-weight:700; font-size:18px; padding-top:28px; }
+
+/* ── BASE ── */
+.stApp { background-color: #0b1f11; }
+[data-testid="stSidebar"] {
+    background: #071408;
+    border-right: 1px solid #17391e;
+}
+
+/* ── METRICS ── */
+[data-testid="stMetric"] {
+    background: #0d1f12;
+    border: 1px solid #1c3d24;
+    border-radius: 10px;
+    padding: 18px 20px !important;
+    border-top: 2px solid #2daf5c;
+}
+[data-testid="stMetricValue"] {
+    color: #ffffff !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+}
+[data-testid="stMetricLabel"] {
+    color: #4d8a60 !important;
+    font-size: 10px !important;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-weight: 600;
+}
+[data-testid="stMetricDelta"] { font-size: 11px !important; }
+
+/* ── BUTTONS ── */
+.stButton > button {
+    background: #1e8a42 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    padding: 9px 18px !important;
+    transition: background 0.2s !important;
+    letter-spacing: 0.3px;
+}
+.stButton > button:hover {
+    background: #25a84f !important;
+}
+
+/* ── TYPOGRAPHY ── */
+h1 { color: #ffffff !important; font-size: 20px !important; font-weight: 700 !important; letter-spacing: -0.3px; }
+h2 { color: #d4ead9 !important; font-size: 16px !important; font-weight: 600 !important; }
+h3 { color: #4d8a60 !important; font-size: 10px !important; font-weight: 600 !important;
+     text-transform: uppercase; letter-spacing: 2px; }
+p  { color: #a0c4a8 !important; font-size: 13px; }
+hr { border: none !important; border-top: 1px solid #17391e !important; margin: 14px 0 !important; }
+
+/* ── INPUTS ── */
+.stTextInput input,
+.stNumberInput input,
+.stTextArea textarea {
+    background: #0d1f12 !important;
+    border: 1px solid #1c3d24 !important;
+    color: #d4ead9 !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+}
+.stTextInput input:focus,
+.stNumberInput input:focus,
+.stTextArea textarea:focus {
+    border-color: #2daf5c !important;
+    box-shadow: 0 0 0 2px rgba(45,175,92,0.15) !important;
+}
+.stTextInput input::placeholder { color: #3d6647 !important; }
+
+/* ── SELECTS ── */
+.stSelectbox > div > div {
+    background: #0d1f12 !important;
+    border: 1px solid #1c3d24 !important;
+    color: #d4ead9 !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+}
+
+/* ── SIDEBAR ── */
+[data-testid="stSidebar"] .stRadio label {
+    color: #a0c4a8 !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    padding: 4px 0 !important;
+}
+[data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p {
+    color: #a0c4a8 !important;
+}
+/* Active radio item */
+[data-testid="stSidebar"] .stRadio label:hover { color: #ffffff !important; }
+
+/* ── TABS ── */
+.stTabs [data-baseweb="tab-list"] {
+    background: #0d1f12 !important;
+    border-radius: 6px !important;
+    padding: 3px !important;
+    gap: 2px !important;
+}
+.stTabs [data-baseweb="tab"] {
+    color: #4d8a60 !important;
+    border-radius: 5px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    padding: 7px 14px !important;
+}
+.stTabs [aria-selected="true"] {
+    background: #1e8a42 !important;
+    color: #ffffff !important;
+}
+
+/* ── CHECKBOXES ── */
+.stCheckbox label {
+    color: #d4ead9 !important;
+    font-size: 13px !important;
+}
+.stCheckbox label span { color: #d4ead9 !important; }
+
+/* ── FILE UPLOADER ── */
+[data-testid="stFileUploader"] > div {
+    background: #0d1f12 !important;
+    border: 1.5px dashed #1c3d24 !important;
+    border-radius: 8px !important;
+}
+[data-testid="stFileUploader"] * { color: #4d8a60 !important; }
+
+/* ── ALERTS ── */
+.stSuccess > div {
+    background: rgba(30,138,66,0.12) !important;
+    border: 1px solid rgba(45,175,92,0.25) !important;
+    color: #2daf5c !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+}
+.stWarning > div {
+    background: rgba(200,130,0,0.12) !important;
+    border: 1px solid rgba(240,165,0,0.25) !important;
+    color: #c88200 !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+}
+.stError > div {
+    background: rgba(180,40,40,0.12) !important;
+    border: 1px solid rgba(224,60,60,0.25) !important;
+    color: #d94040 !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+}
+.stInfo > div {
+    background: rgba(45,100,180,0.12) !important;
+    border: 1px solid rgba(70,130,220,0.25) !important;
+    color: #5b9fd4 !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+}
+
+/* ── DATA TABLE ── */
+[data-testid="stDataFrame"] {
+    border: 1px solid #1c3d24 !important;
+    border-radius: 8px !important;
+}
+
+/* ── EXPANDER ── */
+.streamlit-expanderHeader {
+    background: #0d1f12 !important;
+    border: 1px solid #1c3d24 !important;
+    border-radius: 6px !important;
+    color: #d4ead9 !important;
+    font-size: 13px !important;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #0b1f11; }
+::-webkit-scrollbar-thumb { background: #1c3d24; border-radius: 2px; }
+
+/* ── CUSTOM ── */
+.val-preview { color: #2daf5c; font-weight: 700; font-size: 16px; padding-top: 30px; }
+.sec-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: #4d8a60; font-weight: 600; margin-bottom: 6px;
+}
+div[data-testid="stVerticalBlock"] label { color: #a0c4a8 !important; font-size: 12px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -56,10 +210,10 @@ USUARIOS = {
     "moyara":  {"senha":"moyara123", "equipe":None,     "role":"diretor","nome":"Moyara"},
 }
 EQUIPES = {
-    "luciano":{"nome":"Luciano","emoji":"🟢","cor":"#2daf5c"},
-    "deborah":{"nome":"Déborah","emoji":"🟣","cor":"#a855f7"},
-    "tamires":{"nome":"Tamires","emoji":"🟠","cor":"#f97316"},
-    "metcool":{"nome":"MetCool","emoji":"🔵","cor":"#3b82f6"},
+    "luciano":{"nome":"Luciano","emoji":"OK","cor":"#2daf5c"},
+    "deborah":{"nome":"Déborah","emoji":"","cor":"#a855f7"},
+    "tamires":{"nome":"Tamires","emoji":"","cor":"#f97316"},
+    "metcool":{"nome":"MetCool","emoji":"","cor":"#3b82f6"},
 }
 MESES_NOMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
                "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
@@ -248,9 +402,9 @@ def cor_pct(pct):
     return "#e03c3c"
 
 def status_pct(pct):
-    if pct>=80: return "🟢"
-    if pct>=50: return "🟡"
-    return "🔴"
+    if pct>=80: return "OK"
+    if pct>=50: return "Regular"
+    return "Baixo"
 
 def calc_pontos(media):
     for lo,hi,pts in FAIXAS_PONTOS:
@@ -311,7 +465,7 @@ def seletor_equipe(default=None):
         eq_opts   = list(EQUIPES.keys())
         eq_labels = [f"{EQUIPES[e]['emoji']} Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
         default_idx = eq_opts.index(default) if default and default in eq_opts else 0
-        sel = st.selectbox("🏢 Gerenciando equipe:", eq_labels, index=default_idx, key="admin_eq_sel")
+        sel = st.selectbox("Gerenciando equipe:", eq_labels, index=default_idx, key="admin_eq_sel")
         return eq_opts[eq_labels.index(sel)]
     return u["equipe"]
 
@@ -462,23 +616,27 @@ def tela_login():
     c1,c2,c3 = st.columns([1,1.2,1])
     with c2:
         st.markdown("""
-        <div style="text-align:center;padding:48px 0 32px">
-            <div style="width:72px;height:72px;background:linear-gradient(135deg,#1a6b35,#2daf5c);
-                        border-radius:18px;display:inline-flex;align-items:center;justify-content:center;
-                        font-size:36px;font-weight:800;color:white;margin-bottom:16px;
-                        box-shadow:0 8px 32px rgba(45,175,92,0.4)">G</div>
-            <h1 style="color:#ffffff;margin:0;font-size:24px">iGreen Resultados</h1>
-            <p style="color:#5a9a70;margin:6px 0 0;font-size:13px">Gestão de Inadimplência Comercial</p>
+        <div style="text-align:center;padding:40px 0 28px">
+            <div style="font-size:28px;font-weight:800;color:#ffffff;letter-spacing:-1px;margin-bottom:6px">
+                i<span style="color:#2daf5c">Green</span> Performance
+            </div>
+            <div style="width:40px;height:2px;background:#2daf5c;margin:8px auto 12px"></div>
+            <p style="color:#5a9a70;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin:0">
+                Painel de Monitoria de Qualidade
+            </p>
         </div>
         """,unsafe_allow_html=True)
-        usuario = st.text_input("Usuário",placeholder="Digite seu usuário")
-        senha   = st.text_input("Senha",type="password",placeholder="••••••••")
+        st.markdown("<p style='font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#5a9a70;margin-bottom:4px'>E-MAIL</p>",unsafe_allow_html=True)
+        usuario = st.text_input("usuario_input", placeholder="seu@email.com", label_visibility="collapsed")
+        st.markdown("<p style='font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#5a9a70;margin-bottom:4px;margin-top:12px'>SENHA</p>",unsafe_allow_html=True)
+        senha   = st.text_input("senha_input", type="password", placeholder="••••••••", label_visibility="collapsed")
+        st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
         if st.button("Entrar",use_container_width=True):
             u = USUARIOS.get(usuario.lower().strip())
             if u and u["senha"]==senha.strip():
                 st.session_state.usuario={"id":usuario.lower(),**u}; st.rerun()
-            else: st.error("⚠ Usuário ou senha incorretos.")
-        st.markdown('<p style="text-align:center;color:#1a4d2e;font-size:11px;margin-top:32px">iGreen Energy © 2026</p>',unsafe_allow_html=True)
+            else: st.error("Usuário ou senha incorretos.")
+        st.markdown('<p style="text-align:center;color:#1a4d2e;font-size:11px;margin-top:24px">iGreen Energy © 2026</p>',unsafe_allow_html=True)
 
 # ── SIDEBAR ────────────────────────────────────
 def render_sidebar():
@@ -487,23 +645,25 @@ def render_sidebar():
         st.markdown(f"""
         <div style="padding:16px 0 8px">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-                <div style="width:40px;height:40px;background:linear-gradient(135deg,#1a6b35,#2daf5c);
-                            border-radius:10px;display:flex;align-items:center;justify-content:center;
-                            font-weight:800;font-size:18px;color:white">G</div>
-                <div><div style="color:#ffffff;font-weight:700;font-size:14px">iGreen</div>
-                <div style="color:#5a9a70;font-size:11px">Inadimplência</div></div>
+                <div style="width:36px;height:36px;background:linear-gradient(135deg,#1a6b35,#2daf5c);
+                            border-radius:8px;display:flex;align-items:center;justify-content:center;
+                            font-weight:800;font-size:15px;color:white;letter-spacing:-0.5px">iG</div>
+                <div>
+                <div style="color:#ffffff;font-weight:700;font-size:14px">i<span style='color:#2daf5c'>Green</span></div>
+                <div style="color:#5a9a70;font-size:10px;text-transform:uppercase;letter-spacing:1px">Performance</div>
+            </div>
             </div>
             <div style="background:rgba(45,175,92,0.1);border:1px solid rgba(45,175,92,0.2);
                         border-radius:8px;padding:10px 12px;margin-bottom:16px">
                 <div style="color:#2daf5c;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px">
-                    {'👔 Diretoria' if u['role']=='diretor' else '⚙️ Admin' if u['role']=='admin' else '👤 Gestor'}
+                    {'Diretoria' if u['role']=='diretor' else 'Admin' if u['role']=='admin' else 'Gestor'}
                 </div>
                 <div style="color:#ffffff;font-size:14px;font-weight:600;margin-top:2px">{u['nome']}</div>
             </div>
         </div><hr>
         """,unsafe_allow_html=True)
 
-        st.markdown("**📅 Período**")
+        st.markdown("<p style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5a9a70;margin-bottom:4px'>PERÍODO</p>", unsafe_allow_html=True)
         anos  = get_anos_disponiveis()
         ano   = st.selectbox("Ano",anos,label_visibility="collapsed")
         meses = get_todos_meses_ano(int(ano))
@@ -513,18 +673,18 @@ def render_sidebar():
         mes_ano    = f"{mes_sel}-{ano}"
 
         st.markdown("<hr>",unsafe_allow_html=True)
-        st.markdown("**📌 Navegação**")
+        st.markdown("<p style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5a9a70;margin-bottom:4px'>NAVEGAÇÃO</p>", unsafe_allow_html=True)
 
         if u["role"]=="diretor":
-            pags=["🏆 Quadro de Resultados","📊 Dashboard Executivo","📈 Análise de Projeção","📋 Monitorias","📅 Histórico"]
+            pags=["Quadro de Resultados","Dashboard Executivo","Análise de Projeção","Monitorias","Histórico"]
         elif u["role"]=="admin":
-            pags=["🏆 Quadro de Resultados","✏️ Lançamento","📊 Dashboard Executivo","📈 Análise de Projeção","📋 Monitorias","📁 Upload de Bases","📅 Histórico","👥 Operadores","🎯 Metas"]
+            pags=["Quadro de Resultados","Lançamento","Dashboard Executivo","Análise de Projeção","Monitorias","Upload de Bases","Histórico","Operadores","Metas"]
         else:
-            pags=["🏆 Quadro de Resultados","✏️ Lançamento","📈 Análise de Projeção","📋 Monitorias","📁 Upload de Bases","📅 Histórico","👥 Operadores","🎯 Metas"]
+            pags=["Quadro de Resultados","Lançamento","Análise de Projeção","Monitorias","Upload de Bases","Histórico","Operadores","Metas"]
 
         pag = st.radio("",pags,label_visibility="collapsed")
         st.markdown("<hr>",unsafe_allow_html=True)
-        if st.button("⏻ Sair",use_container_width=True):
+        if st.button("Sair",use_container_width=True):
             del st.session_state.usuario; st.rerun()
 
     return mes_ano, pag
@@ -532,17 +692,17 @@ def render_sidebar():
 # ── OPERADORES ─────────────────────────────────
 def pagina_operadores():
     u = st.session_state.usuario
-    header_page("👥 Operadores","Gerencie os operadores da equipe")
+    header_page("Operadores","Gerencie os operadores da equipe")
     equipe_id = seletor_equipe(u["equipe"])
     eq = EQUIPES[equipe_id]
 
-    with st.expander("➕ Cadastrar Novo Operador",expanded=False):
+    with st.expander("Cadastrar Novo Operador",expanded=False):
         c1,c2,c3 = st.columns([3,1,1])
         with c1: novo_nome = st.text_input("Nome",placeholder="Nome completo")
         with c2: novo_pleno = st.checkbox("Pleno")
         with c3:
             st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
-            if st.button("➕ Cadastrar",use_container_width=True):
+            if st.button("Cadastrar",use_container_width=True):
                 if novo_nome.strip():
                     salvar_operador(equipe_id,novo_nome.strip(),novo_pleno)
                     st.success(f"✅ {novo_nome} cadastrado!"); st.rerun()
@@ -556,7 +716,7 @@ def pagina_operadores():
         st.info("Nenhum operador cadastrado.")
         padrao = OPERADORES_PADRAO.get(equipe_id,[])
         if padrao:
-            if st.button("📥 Importar Operadores Padrão",use_container_width=True):
+            if st.button("Importar Operadores Padrão",use_container_width=True):
                 for nome,pleno in padrao:
                     salvar_operador(equipe_id,nome,pleno)
                 st.success(f"✅ {len(padrao)} operadores importados!"); st.rerun()
@@ -568,16 +728,16 @@ def pagina_operadores():
         with c1: nn = st.text_input("n",value=op["nome"],label_visibility="collapsed",key=f"n_{op['_id']}")
         with c2: np_ = st.checkbox("Pleno",value=op.get("pleno",False),key=f"p_{op['_id']}")
         with c3:
-            if st.button("💾",key=f"s_{op['_id']}",help="Salvar"):
+            if st.button("Salvar",key=f"s_{op['_id']}",help="Salvar"):
                 atualizar_operador(op["_id"],nn,np_); st.success("Salvo!"); st.rerun()
         with c4:
-            if st.button("🗑️",key=f"d_{op['_id']}",help="Excluir"):
+            if st.button("Excluir",key=f"d_{op['_id']}",help="Excluir"):
                 excluir_operador(op["_id"]); st.warning(f"{op['nome']} removido."); st.rerun()
 
 # ── METAS ──────────────────────────────────────
 def pagina_metas(mes_ano):
     u = st.session_state.usuario
-    header_page("🎯 Metas",mes_ano.replace("-"," "))
+    header_page("Metas",mes_ano.replace("-"," "))
     equipe_id = seletor_equipe(u["equipe"])
     eq = EQUIPES[equipe_id]
     ops = buscar_operadores(equipe_id)
@@ -585,21 +745,21 @@ def pagina_metas(mes_ano):
     if not ops:
         st.warning("Cadastre operadores primeiro."); return
 
-    st.markdown("### 🏆 Meta da Gestora")
+    st.markdown("### Meta da Gestora")
     meta_gest_doc = buscar_meta_gestora(mes_ano,equipe_id)
     c1,c2,c3 = st.columns([2,1,1])
     with c1:
-        mg_val = st.number_input("💰 Meta Base do Mês (R$)",min_value=0.0,step=1000.0,format="%.2f",
+        mg_val = st.number_input("Meta Base do Mês (R$)",min_value=0.0,step=1000.0,format="%.2f",
             value=float(meta_gest_doc.get("metaGestora",0)),key="meta_gest_val")
     with c2:
-        target_pct = st.number_input("🎯 Target (%)",min_value=100,max_value=200,
+        target_pct = st.number_input("Target (%)",min_value=100,max_value=200,
             value=int(meta_gest_doc.get("targetPct",125)),key="target_pct")
     with c3:
         target_val = mg_val*(target_pct/100)
         st.markdown(f"<div style='padding-top:28px;color:#2daf5c;font-weight:700;font-size:16px'>{fmt_brl(target_val)}</div>",unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("### 👤 Metas por Operador")
+    st.markdown("### Metas por Operador")
     metas_salvas = buscar_metas_equipe(mes_ano,equipe_id)
     metas_novas  = {}
 
@@ -610,14 +770,14 @@ def pagina_metas(mes_ano):
         meta_salva = float(metas_salvas.get(op["_id"],0))
         c1,c2 = st.columns([3,2])
         with c1:
-            st.markdown(f"<div style='padding-top:10px;color:#e0f0e8'>{'⭐ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
+            st.markdown(f"<div style='padding-top:10px;color:#e0f0e8'>{'[P] ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
         with c2:
             v = st.number_input("m",label_visibility="collapsed",min_value=0.0,step=100.0,
                 format="%.2f",value=meta_salva,key=f"mg_{mes_ano}_{op['_id']}")
             metas_novas[op["_id"]] = v
 
     st.markdown("---")
-    if st.button("💾 Salvar Todas as Metas",use_container_width=True):
+    if st.button("Salvar Metas",use_container_width=True):
         for op_id,val in metas_novas.items():
             salvar_meta_operador(mes_ano,equipe_id,op_id,val)
         salvar_meta_gestora(mes_ano,equipe_id,mg_val,target_pct)
@@ -626,7 +786,7 @@ def pagina_metas(mes_ano):
 # ── LANÇAMENTO ─────────────────────────────────
 def pagina_lancamento(mes_ano):
     u = st.session_state.usuario
-    header_page("✏️ Lançamento de Resultado",mes_ano.replace("-"," "))
+    header_page("Lançamento de Resultado",mes_ano.replace("-"," "))
     equipe_id = seletor_equipe(u["equipe"])
     eq = EQUIPES[equipe_id]
     ops = buscar_operadores(equipe_id)
@@ -637,13 +797,13 @@ def pagina_lancamento(mes_ano):
     metas_salvas  = buscar_metas_equipe(mes_ano,equipe_id)
     meta_gest_doc = buscar_meta_gestora(mes_ano,equipe_id)
 
-    st.markdown("### ⚙️ Configuração do Lançamento")
+    st.markdown("### Configuração do Lançamento")
     c1,c2,c3 = st.columns([2,1,1])
     with c1:
         hoje = date.today()
-        data_sel = st.date_input("📅 Data do Resultado",value=hoje,
+        data_sel = st.date_input("Data do Resultado",value=hoje,
                                   min_value=date(hoje.year,1,1),max_value=date(hoje.year,12,31))
-        eh_fechamento = st.checkbox("📌 Fechamento do Mês")
+        eh_fechamento = st.checkbox("Fechamento do Mês")
         label = "Fechamento do Mês" if eh_fechamento else data_sel.strftime("%d/%m/%Y")
     with c2:
         dt = st.number_input("Dias Trabalhados",min_value=0,max_value=31,value=0)
@@ -654,12 +814,12 @@ def pagina_lancamento(mes_ano):
     # Valor Geral
     c1,c2 = st.columns([2,1])
     with c1:
-        vg = st.number_input("💰 Valor Total Geral Recebido (R$)",min_value=0.0,step=100.0,format="%.2f",key="vg_lanc")
+        vg = st.number_input("Valor Total Geral Recebido (R$)",min_value=0.0,step=100.0,format="%.2f",key="vg_lanc")
     with c2:
         st.markdown(f"<div class='val-preview'>{fmt_brl(vg)}</div>",unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("### 👤 Valores por Operador")
+    st.markdown("### Valores por Operador")
 
     c1,c2,c3,c4,c5 = st.columns([3,2,2,2,2])
     c1.markdown("**Operador**"); c2.markdown("**Meta**")
@@ -669,7 +829,7 @@ def pagina_lancamento(mes_ano):
     for op in ops:
         meta = float(metas_salvas.get(op["_id"],0))
         c1,c2,c3,c4,c5 = st.columns([3,2,2,2,2])
-        with c1: st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{'⭐ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
+        with c1: st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{'[P] ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
         with c2: st.markdown(f"<div style='padding-top:10px;color:#5a9a70'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
         with c3:
             val = st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"vl_{equipe_id}_{op['_id']}")
@@ -686,14 +846,14 @@ def pagina_lancamento(mes_ano):
 
     st.markdown("---")
     c1,c2,c3,c4,c5 = st.columns(5)
-    c1.metric("🤝 Com Interação",fmt_brl(tc))
-    c2.metric("🔕 Sem Interação",fmt_brl(sem))
-    c3.metric("💰 Total Geral",  fmt_brl(vg))
-    c4.metric("📈 Projeção",     fmt_brl(calc_projecao(tc,dt,td)))
+    c1.metric("Com Interação",fmt_brl(tc))
+    c2.metric("Sem Interação",fmt_brl(sem))
+    c3.metric("Total Geral",  fmt_brl(vg))
+    c4.metric("Projeção",     fmt_brl(calc_projecao(tc,dt,td)))
     c5.metric(f"🎯 Meta ({pct_gest:.1f}%)",fmt_brl(mg))
 
     st.markdown("---")
-    if st.button("💾 Salvar Lançamento",use_container_width=True):
+    if st.button("Salvar Lançamento",use_container_width=True):
         if not any(v>0 for v in vi.values()):
             st.warning("⚠ Preencha pelo menos um valor."); return
         agentes_data = {op["_id"]:{"valorRecebido":vi[op["_id"]],"nome":op["nome"]} for op in ops}
@@ -707,7 +867,7 @@ def pagina_quadro(mes_ano):
     is_admin = u["role"] == "admin"
     equipes_ver = list(EQUIPES.keys()) if (is_dir or is_admin) else [u["equipe"]]
 
-    header_page("🏆 Quadro de Resultados",mes_ano.replace("-"," "))
+    header_page("Quadro de Resultados",mes_ano.replace("-"," "))
 
     for equipe_id in equipes_ver:
         eq  = EQUIPES[equipe_id]
@@ -757,13 +917,13 @@ def pagina_quadro(mes_ano):
                 meta = float(metas_ops.get(op["_id"],0))
                 proj_op = calc_projecao(val,dt,td)
                 pct  = (val/meta*100) if meta>0 else 0
-                rows.append({"Status":status_pct(pct) if meta>0 else "⚪","Operador":("⭐ " if op.get("pleno") else "")+op["nome"],"Recebido":fmt_brl(val),"Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if proj_op>0 else "—","_v":val})
+                rows.append({"Status":status_pct(pct) if meta>0 else "—","Operador":("[P] " if op.get("pleno") else "")+op["nome"],"Recebido":fmt_brl(val),"Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if proj_op>0 else "—","_v":val})
             df = pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
             df.index = range(1,len(df)+1)
             st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
         st.markdown("---")
 
-    if st.button("📥 Exportar Excel"):
+    if st.button("Exportar Excel"):
         out = io.BytesIO()
         with pd.ExcelWriter(out,engine="xlsxwriter") as writer:
             for equipe_id in equipes_ver:
@@ -781,7 +941,7 @@ def pagina_monitorias(mes_ano):
     u = st.session_state.usuario
     is_dir = u["role"] == "diretor"
 
-    header_page("📋 Monitorias","Avaliação de qualidade · Inadimplência Comercial")
+    header_page("Monitorias","Avaliação de qualidade · Inadimplência Comercial")
 
     if is_dir:
         pagina_monitorias_diretor(mes_ano)
@@ -790,25 +950,25 @@ def pagina_monitorias(mes_ano):
     equipe_id = seletor_equipe(u["equipe"])
     ops = buscar_operadores(equipe_id)
 
-    t1,t2 = st.tabs(["➕ Nova Monitoria","📊 Histórico de Monitorias"])
+    t1,t2 = st.tabs(["Nova Monitoria","Histórico de Monitorias"])
 
     with t1:
         if not ops:
             st.warning("Cadastre operadores primeiro."); return
 
-        st.markdown("### 👤 Operador e Protocolo")
+        st.markdown("### Operador e Protocolo")
         c1,c2 = st.columns([2,2])
         with c1:
             op_nomes = [op["nome"] for op in ops]
             op_sel   = st.selectbox("Operador",op_nomes)
             op_obj   = next(o for o in ops if o["nome"]==op_sel)
         with c2:
-            protocolo = st.text_input("📞 Protocolo da Ligação",placeholder="Ex: 20260520-001")
+            protocolo = st.text_input("Protocolo da Ligação",placeholder="Ex: 20260520-001")
 
-        obs = st.text_area("📝 Observações",placeholder="Anotações sobre a monitoria...",height=80)
+        obs = st.text_area("Observações",placeholder="Anotações sobre a monitoria...",height=80)
 
         st.markdown("---")
-        st.markdown("### ⚠️ Erros Críticos — Zera a Monitoria")
+        st.markdown("### Erros Críticos — Zera a Monitoria")
         erros_marcados = []
         c1,c2 = st.columns(2)
         for i,ec in enumerate(ERROS_CRITICOS):
@@ -817,14 +977,14 @@ def pagina_monitorias(mes_ano):
                     erros_marcados.append(ec)
 
         st.markdown("---")
-        st.markdown("### 📋 Critérios de Avaliação")
+        st.markdown("### Critérios de Avaliação")
 
         zerada = len(erros_marcados)>0
         criterios_resultado = []
         nota = 0 if zerada else 100
 
         if zerada:
-            st.error("🚨 MONITORIA ZERADA — Erro crítico marcado!")
+            st.error("MONITORIA ZERADA — Erro crítico marcado!")
             for c in CRITERIOS:
                 criterios_resultado.append({**c,"passou":False})
         else:
@@ -863,7 +1023,7 @@ def pagina_monitorias(mes_ano):
         </div>
         """,unsafe_allow_html=True)
 
-        if st.button("💾 Salvar Monitoria",use_container_width=True):
+        if st.button("Salvar Monitoria",use_container_width=True):
             if not protocolo.strip():
                 st.error("⚠ Preencha o protocolo da ligação!"); return
             doc_id = salvar_monitoria(equipe_id,op_obj["_id"],op_sel,protocolo,obs,criterios_resultado,erros_marcados,nota,mes_ano)
@@ -895,7 +1055,7 @@ def pagina_monitorias(mes_ano):
                     st.warning("Monitoria excluída."); st.rerun()
 
 def pagina_monitorias_diretor(mes_ano):
-    st.markdown("### 📊 Visão Geral — Monitorias por Equipe")
+    st.markdown("### Visão Geral — Monitorias por Equipe")
     equipes_ids = list(EQUIPES.keys())
 
     for equipe_id in equipes_ids:
@@ -939,7 +1099,7 @@ def pagina_analise_projecao(mes_ano):
     is_dir  = u["role"] in ["diretor","admin"]
     equipes_ver = list(EQUIPES.keys()) if is_dir else [u["equipe"]]
 
-    header_page("📈 Análise de Projeção",f"Comparativo com mês anterior · {mes_ano.replace('-',' ')}")
+    header_page("Análise de Projeção",f"Comparativo com mês anterior · {mes_ano.replace('-',' ')}")
 
     partes = mes_ano.split("-")
     mes_idx = MESES_NOMES.index(partes[0])
@@ -990,7 +1150,7 @@ def pagina_analise_projecao(mes_ano):
             proj_op_at = calc_projecao(val_at,dt_at,td_at)
             proj_op_an = calc_projecao(val_an,dt_an,td_an) if val_an>0 else 0
             var_op = calc_variacao(proj_op_at,proj_op_an)
-            rows.append({"Operador":("⭐ " if op.get("pleno") else "")+op["nome"],"Proj. Atual":fmt_brl(proj_op_at) if proj_op_at>0 else "—","Proj. Mês Ant.":fmt_brl(proj_op_an) if proj_op_an>0 else "—","Variação":f"{'↑' if (var_op or 0)>=0 else '↓'} {abs(var_op):.1f}%" if var_op is not None else "—","_p":proj_op_at})
+            rows.append({"Operador":("[P] " if op.get("pleno") else "")+op["nome"],"Proj. Atual":fmt_brl(proj_op_at) if proj_op_at>0 else "—","Proj. Mês Ant.":fmt_brl(proj_op_an) if proj_op_an>0 else "—","Variação":f"{'↑' if (var_op or 0)>=0 else '↓'} {abs(var_op):.1f}%" if var_op is not None else "—","_p":proj_op_at})
         df = pd.DataFrame(rows).sort_values("_p",ascending=False).drop(columns=["_p"]).reset_index(drop=True)
         df.index = range(1,len(df)+1)
         st.dataframe(df,use_container_width=True)
@@ -1002,9 +1162,9 @@ def pagina_historico(mes_ano):
     is_admin = u["role"] == "admin"
     equipe_id = seletor_equipe(u["equipe"]) if u["role"] in ["admin","gestor"] else u["equipe"]
 
-    header_page("📅 Histórico",mes_ano.replace("-"," "))
+    header_page("Histórico",mes_ano.replace("-"," "))
 
-    t1,t2 = st.tabs(["📈 Lançamentos","📁 Bases Processadas"])
+    t1,t2 = st.tabs(["Lançamentos","Bases Processadas"])
 
     with t1:
         if not equipe_id: st.info("Use o Dashboard Executivo para histórico completo."); return
@@ -1040,34 +1200,34 @@ def pagina_historico(mes_ano):
 
 # ── DASHBOARD EXECUTIVO ─────────────────────────
 def pagina_dashboard_executivo():
-    header_page("📊 Dashboard Executivo","Gestão de Inadimplência Comercial")
+    header_page("Dashboard Executivo","Gestão de Inadimplência Comercial")
     mp = listar_meses_processados()
     if not mp: st.info("📭 Nenhuma base processada ainda."); return
 
     c1,c2,c3 = st.columns(3)
-    with c1: mes_f = st.selectbox("📅 Mês",["Todos"]+mp)
-    with c2: eq_f  = st.selectbox("👥 Equipe",["Todas","luciano","deborah","tamires"])
+    with c1: mes_f = st.selectbox("Mês",["Todos"]+mp)
+    with c2: eq_f  = st.selectbox("Equipe",["Todas","luciano","deborah","tamires"])
     df = buscar_processamentos(None if mes_f=="Todos" else mes_f, None if eq_f=="Todas" else eq_f)
     if df.empty: st.warning("Nenhum dado."); return
 
     df["valor"] = pd.to_numeric(df["valor"],errors="coerce").fillna(0)
     with c3:
         forns = ["Todas"]+sorted(df["fornecedora"].dropna().unique().tolist())
-        forn_f = st.selectbox("🏢 Fornecedora",forns)
+        forn_f = st.selectbox("Fornecedora",forns)
     if forn_f!="Todas": df = df[df["fornecedora"]==forn_f]
 
     st.markdown("---")
     elig=df[df["elegibilidade"]=="Elegível"]; nelig=df[df["elegibilidade"]=="Não Elegível"]; nd=df[df["elegibilidade"]=="ND"]
     c1,c2,c3,c4,c5,c6 = st.columns(6)
-    c1.metric("💰 Valor Recuperado",fmt_brl(elig["valor"].sum()))
-    c2.metric("👥 Clientes",f'{df["uc_cpf"].nunique():,}')
-    c3.metric("📋 Boletos",f'{len(df):,}')
-    c4.metric("✅ Elegíveis",f'{len(elig):,}')
-    c5.metric("❌ Não Elegíveis",f'{len(nelig):,}')
-    c6.metric("⬜ ND",f'{len(nd):,}')
+    c1.metric("Valor Recuperado",fmt_brl(elig["valor"].sum()))
+    c2.metric("Clientes Únicos",f'{df["uc_cpf"].nunique():,}')
+    c3.metric("Boletos",f'{len(df):,}')
+    c4.metric("Elegíveis",f'{len(elig):,}')
+    c5.metric("Não Elegíveis",f'{len(nelig):,}')
+    c6.metric("ND",f'{len(nd):,}')
     st.markdown("---")
 
-    t1,t2,t3,t4 = st.tabs(["📊 Aging","🏢 Fornecedoras","📅 Evolução","👥 Por Equipe"])
+    t1,t2,t3,t4 = st.tabs(["Aging","Fornecedoras","Evolução","Por Equipe"])
     with t1:
         ag=df.groupby("aging").agg(Boletos=("uc_cpf","count"),Clientes=("uc_cpf","nunique"),Valor=("valor","sum")).reset_index()
         ag["Valor"]=ag["Valor"].apply(fmt_brl)
@@ -1091,7 +1251,7 @@ def pagina_dashboard_executivo():
         st.dataframe(edf[["Equipe","Boletos","Clientes","Valor"]],use_container_width=True,hide_index=True)
 
     st.markdown("---")
-    if st.button("📥 Exportar Excel"):
+    if st.button("Exportar Excel"):
         out=io.BytesIO()
         with pd.ExcelWriter(out,engine="xlsxwriter") as w:
             df.to_excel(w,sheet_name="Dados",index=False)
@@ -1101,30 +1261,30 @@ def pagina_dashboard_executivo():
 # ── UPLOAD ─────────────────────────────────────
 def pagina_upload(mes_ano):
     u = st.session_state.usuario
-    header_page("📁 Upload de Bases Mensais","Aceita .xlsx e .csv · Processamento automático")
+    header_page("Upload de Bases Mensais","Aceita .xlsx e .csv · Processamento automático")
     equipe_id = seletor_equipe(u["equipe"] or "tamires")
 
     c1,c2 = st.columns(2)
     with c1:
-        st.markdown("#### 📄 PAGOS *(obrigatório)*")
+        st.markdown("#### PAGOS *(obrigatório)*")
         pf = st.file_uploader("Arquivo PAGOS",type=["xlsx","csv"],label_visibility="collapsed",key="pagos")
-        st.markdown("#### 📞 LIGAÇÕES")
+        st.markdown("#### LIGAÇÕES")
         lf = st.file_uploader("Arquivo LIGAÇÕES",type=["xlsx","csv"],label_visibility="collapsed",key="lig")
     with c2:
-        st.markdown("#### 💬 CHAT")
+        st.markdown("#### CHAT")
         cf = st.file_uploader("Arquivo CHAT",type=["xlsx","csv"],label_visibility="collapsed",key="chat")
-        st.markdown("#### 📣 DISPAROS")
+        st.markdown("#### DISPAROS")
         df_u = st.file_uploader("Arquivo DISPAROS",type=["xlsx","csv"],label_visibility="collapsed",key="disp")
 
     st.markdown("---")
     col1,col2,col3,col4 = st.columns(4)
-    with col1: st.success("✅ PAGOS carregado") if pf else st.warning("⏳ PAGOS aguardando")
-    with col2: st.success("✅ CHAT carregado")  if cf else st.info("ℹ️ CHAT opcional")
-    with col3: st.success("✅ LIGAÇÕES carregado") if lf else st.info("ℹ️ LIGAÇÕES opcional")
-    with col4: st.success("✅ DISPAROS carregado") if df_u else st.info("ℹ️ DISPAROS opcional")
+    with col1: st.success("PAGOS carregado") if pf else st.warning("PAGOS aguardando")
+    with col2: st.success("CHAT carregado")  if cf else st.info("CHAT (opcional)")
+    with col3: st.success("LIGAÇÕES carregado") if lf else st.info("LIGAÇÕES (opcional)")
+    with col4: st.success("DISPAROS carregado") if df_u else st.info("DISPAROS (opcional)")
 
     st.markdown("---")
-    if st.button("⚡ PROCESSAR MÊS",use_container_width=True):
+    if st.button("PROCESSAR MÊS",use_container_width=True):
         if not pf: st.error("⚠ PAGOS é obrigatório!"); return
         with st.spinner("Processando bases..."):
             df_res,erros = processar_bases(pf,cf,lf,df_u,equipe_id,mes_ano)
@@ -1134,11 +1294,11 @@ def pagina_upload(mes_ano):
             elig = df_res[df_res["elegibilidade"]=="Elegível"]
             st.success(f"✅ {len(df_res):,} registros processados!")
             c1,c2,c3,c4,c5 = st.columns(5)
-            c1.metric("💰 Valor Elegível",fmt_brl(elig["valor"].sum()))
-            c2.metric("📋 Boletos",f"{len(df_res):,}")
-            c3.metric("👥 Clientes",f"{df_res['uc_cpf'].nunique():,}")
-            c4.metric("✅ Elegíveis",f"{len(elig):,}")
-            c5.metric("❌ Não Elegíveis",f"{len(df_res[df_res['elegibilidade']=='Não Elegível']):,}")
+            c1.metric("Valor Elegível",fmt_brl(elig["valor"].sum()))
+            c2.metric("Boletos",f"{len(df_res):,}")
+            c3.metric("Clientes",f"{df_res['uc_cpf'].nunique():,}")
+            c4.metric("Elegíveis",f"{len(elig):,}")
+            c5.metric("Não Elegíveis",f"{len(df_res[df_res['elegibilidade']=='Não Elegível']):,}")
             st.dataframe(df_res[["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging"]].head(50),use_container_width=True)
 
 # ── MAIN ───────────────────────────────────────
