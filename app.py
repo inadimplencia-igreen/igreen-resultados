@@ -388,9 +388,11 @@ def buscar_monitorias_operador(op_id):
     return list(get_db().monitorias.find({"opId":op_id}).sort("criadoEm",-1))
 
 def buscar_monitorias_equipe(equipe_id, mes_ano=None):
-    filtro = {"equipeId":equipe_id}
-    if mes_ano: filtro["mesAno"] = mes_ano
-    return list(get_db().monitorias.find(filtro).sort("criadoEm",-1))
+    # Nunca apaga — sempre busca tudo, filtra só se necessário
+    filtro = {"equipeId": equipe_id}
+    if mes_ano:
+        filtro["mesAno"] = mes_ano
+    return list(get_db().monitorias.find(filtro).sort("criadoEm", -1))
 
 def buscar_todas_monitorias(mes_ano=None):
     filtro = {"mesAno":mes_ano} if mes_ano else {}
@@ -419,6 +421,9 @@ def buscar_processamentos(mes_ano=None, equipe_id=None):
 
 def listar_meses_processados():
     return sorted(get_db().processamentos.distinct("mesAno"),reverse=True)
+
+def listar_meses_monitorias(equipe_id):
+    return sorted(get_db().monitorias.distinct("mesAno", {"equipeId": equipe_id}), reverse=True)
 
 # ── HELPERS ────────────────────────────────────
 def fmt_brl(v):
@@ -1101,22 +1106,51 @@ def pagina_monitorias(mes_ano):
             st.markdown(f'<a href="data:text/html;base64,{b64}" download="Monitoria_{op_sel.replace(" ","_")}_{protocolo}.html" style="display:inline-block;background:linear-gradient(135deg,#1a6b35,#2daf5c);color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px">📥 Baixar Relatório PDF</a>',unsafe_allow_html=True)
 
     with t2:
-        monts = buscar_monitorias_equipe(equipe_id,mes_ano)
+        # Filtro de mês para monitorias
+        meses_com_mon = listar_meses_monitorias(equipe_id)
+        
+        if meses_com_mon:
+            meses_sel = st.multiselect(
+                "Filtrar por mês (selecione um ou mais):",
+                options=meses_com_mon,
+                default=meses_com_mon,  # todos selecionados por padrão
+                key="mon_mes_filtro"
+            )
+            if meses_sel:
+                monts = []
+                for m in meses_sel:
+                    monts += buscar_monitorias_equipe(equipe_id, m)
+                # Ordena por data
+                monts.sort(key=lambda x: x.get("criadoEm", datetime.now()), reverse=True)
+            else:
+                monts = buscar_monitorias_equipe(equipe_id)
+        else:
+            monts = buscar_monitorias_equipe(equipe_id)
+
         if not monts:
-            st.info("Nenhuma monitoria registrada neste mês.")
+            st.info("Nenhuma monitoria registrada.")
         else:
             rows = []
             for m in monts:
                 media,n = calc_media_operador(m["opId"])
-                rows.append({"Operador":m["opNome"],"Protocolo":m.get("protocolo","—"),"Nota":f"{m['nota']:.0f}%","Média Geral":f"{media:.1f}%","Pontos":calc_pontos(media),"Data":str(m.get("criadoEm",""))[:10],"_id":m["_id"]})
+                rows.append({
+                    "Operador": m["opNome"],
+                    "Protocolo": m.get("protocolo","—"),
+                    "Nota": f"{m['nota']:.0f}%",
+                    "Média Geral": f"{media:.1f}%",
+                    "Pontos": calc_pontos(media),
+                    "Mês": m.get("mesAno","—"),
+                    "Data": str(m.get("criadoEm",""))[:10],
+                    "_id": m["_id"]
+                })
             df = pd.DataFrame(rows)
-            st.dataframe(df.drop(columns=["_id"]),use_container_width=True,hide_index=True)
+            st.dataframe(df.drop(columns=["_id"]), use_container_width=True, hide_index=True)
 
             st.markdown("---")
-            sel_excluir = st.selectbox("Excluir monitoria (protocolo):", ["—"]+[f"{r['Protocolo']} — {r['Operador']} — {r['Data']}" for _,r in df.iterrows()])
+            sel_excluir = st.selectbox("Excluir monitoria:", ["—"]+[f"{r['Protocolo']} — {r['Operador']} — {r['Data']}" for _,r in df.iterrows()])
             if sel_excluir != "—":
                 idx = df[df.apply(lambda r: f"{r['Protocolo']} — {r['Operador']} — {r['Data']}"==sel_excluir,axis=1)].index
-                if len(idx)>0 and st.button("🗑️ Confirmar Exclusão"):
+                if len(idx)>0 and st.button("Confirmar Exclusão"):
                     excluir_monitoria(df.loc[idx[0],"_id"])
                     st.warning("Monitoria excluída."); st.rerun()
 
