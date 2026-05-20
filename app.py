@@ -1113,7 +1113,9 @@ def pagina_quadro(mes_ano):
         mg       = float(meta_gest_doc.get("metaGestora",0))
         tpct     = int(meta_gest_doc.get("targetPct",125))
         # RECEBIDO = valor geral informado pela gestora (não soma dos operadores)
-        vg_geral = float(ultimo.get("valorGeral",0))
+        # Recebido Geral = valor do último processamento salvo (base de resultado)
+        ultimo_proc = buscar_ultimo_processamento(mes_ano, equipe_id)
+        vg_geral = float(ultimo_proc.get("valorElegivel", ultimo.get("valorGeral", 0)))
         # Sempre recalcula soma dos operadores do último lançamento
         tc_ops = sum(
             float(v.get("valorRecebido",0))
@@ -1840,6 +1842,10 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
     # Confirma: resultado tem exatamente n_pagos linhas
     assert len(df_res) == n_pagos, f"Erro: {len(df_res)} != {n_pagos}"
 
+    # Garante comparação só por data (sem hora)
+    df_res["data_pagamento"]   = pd.to_datetime(df_res["data_pagamento"], errors="coerce").dt.normalize()
+    df_res["primeiro_contato"] = pd.to_datetime(df_res["primeiro_contato"], errors="coerce").dt.normalize()
+
     # Elegibilidade: data_pagamento >= primeiro_contato
     df_res["diferenca_dias"] = (df_res["data_pagamento"] - df_res["primeiro_contato"]).dt.days
 
@@ -1847,7 +1853,7 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
         if pd.isna(row.get("primeiro_contato")): return "ND"
         d = row.get("diferenca_dias")
         if pd.isna(d): return "ND"
-        return "Elegível" if d >= 0 else "Não Elegível"
+        return "Elegível" if int(d) >= 0 else "Não Elegível"
 
     df_res["elegibilidade"] = df_res.apply(classif, axis=1)
 
