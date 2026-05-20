@@ -338,13 +338,44 @@ def get_db():
     client = MongoClient(st.secrets["mongo"]["uri"], serverSelectionTimeoutMS=5000)
     return client[st.secrets["mongo"]["db"]]
 
+def corrigir_ids_operadores():
+    """Garante que todos os operadores têm IDs permanentes baseados no nome.
+       Roda automaticamente — nunca precisa de botão."""
+    import re
+    db = get_db()
+    ops = list(db.operadores.find({}))
+    for op in ops:
+        equipe_id = op.get("equipeId","")
+        nome = op.get("nome","")
+        if not nome: continue
+        nome_id = re.sub(r'[^a-z0-9]', '-', nome.lower().strip())
+        nome_id = re.sub(r'-+', '-', nome_id).strip('-')
+        id_correto = f"{equipe_id[:3]}-{nome_id}"[:40]
+        if op["_id"] != id_correto:
+            # Cria com ID correto se não existir
+            if not db.operadores.find_one({"_id": id_correto}):
+                db.operadores.insert_one({
+                    "_id": id_correto,
+                    "equipeId": equipe_id,
+                    "nome": nome,
+                    "pleno": op.get("pleno", False),
+                    "criadoEm": op.get("criadoEm", datetime.now())
+                })
+            # Remove o antigo
+            db.operadores.delete_one({"_id": op["_id"]})
+
 def buscar_operadores(equipe_id):
     return list(get_db().operadores.find({"equipeId":equipe_id}).sort("nome",1))
 
 def salvar_operador(equipe_id, nome, pleno=False):
-    import uuid
-    op_id = str(uuid.uuid4())[:12].replace("-","")
-    get_db().operadores.insert_one({"_id":op_id,"equipeId":equipe_id,"nome":nome,"pleno":pleno,"criadoEm":datetime.now()})
+    # ID permanente baseado no nome — nunca muda
+    import re
+    op_id = re.sub(r'[^a-z0-9]', '-', nome.lower().strip())
+    op_id = re.sub(r'-+', '-', op_id).strip('-')
+    op_id = f"{equipe_id[:3]}-{op_id}"[:40]
+    # Só cadastra se não existir
+    if not get_db().operadores.find_one({"_id": op_id}):
+        get_db().operadores.insert_one({"_id":op_id,"equipeId":equipe_id,"nome":nome,"pleno":pleno,"criadoEm":datetime.now()})
     return op_id
 
 def excluir_operador(op_id):
@@ -816,15 +847,19 @@ def pagina_operadores():
 
     st.markdown("---")
     ops = buscar_operadores(equipe_id)
+    padrao = OPERADORES_PADRAO.get(equipe_id, [])
 
     if not ops:
         st.info("Nenhum operador cadastrado.")
-        padrao = OPERADORES_PADRAO.get(equipe_id,[])
         if padrao:
-            if st.button("Importar Operadores Padrão",use_container_width=True):
-                for nome,pleno in padrao:
-                    salvar_operador(equipe_id,nome,pleno)
-                st.success(f"✅ {len(padrao)} operadores importados!"); st.rerun()
+            if st.button("Importar Operadores Padrão", use_container_width=True):
+                for nome, pleno in padrao:
+                    op_id = re.sub(r'[^a-z0-9]', '-', nome.lower().strip())
+                    op_id = re.sub(r'-+', '-', op_id).strip('-')
+                    op_id = f"{equipe_id[:3]}-{op_id}"[:40]
+                    if not get_db().operadores.find_one({"_id": op_id}):
+                        get_db().operadores.insert_one({"_id":op_id,"equipeId":equipe_id,"nome":nome,"pleno":pleno,"criadoEm":datetime.now()})
+                st.success("✅ Operadores importados!"); st.rerun()
         return
 
     st.markdown(f"**{len(ops)} operadores — {eq['emoji']} Equipe {eq['nome']}**")
@@ -1835,6 +1870,13 @@ def pagina_upload(mes_ano):
 
 # ── MAIN ───────────────────────────────────────
 def main():
+    # Garante IDs corretos automaticamente sempre que o app carrega
+    if "ids_corrigidos" not in st.session_state:
+        try:
+            corrigir_ids_operadores()
+        except: pass
+        st.session_state.ids_corrigidos = True
+
     if "usuario" not in st.session_state:
         tela_login(); return
 
