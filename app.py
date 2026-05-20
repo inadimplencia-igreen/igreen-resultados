@@ -883,114 +883,85 @@ def pagina_lancamento(mes_ano):
     u = st.session_state.usuario
     header_page("Lançamento de Resultado",mes_ano.replace("-"," "))
     equipe_id = seletor_equipe(u["equipe"])
-    eq = EQUIPES[equipe_id]
     ops = buscar_operadores(equipe_id)
 
     if not ops:
-        st.warning("⚠ Cadastre operadores primeiro em 👥 Operadores."); return
+        st.warning("Cadastre operadores primeiro em Operadores."); return
 
     metas_salvas  = buscar_metas_equipe(mes_ano,equipe_id)
     meta_gest_doc = buscar_meta_gestora(mes_ano,equipe_id)
+    mg = float(meta_gest_doc.get("metaGestora",0))
 
-    st.markdown("### Configuração do Lançamento")
-    c1,c2,c3 = st.columns([2,1,1])
-    with c1:
-        hoje = date.today()
-        data_sel = st.date_input("Data do Resultado",value=hoje,
-                                  min_value=date(hoje.year,1,1),max_value=date(hoje.year,12,31))
-        eh_fechamento = st.checkbox("Fechamento do Mês")
-        label = "Fechamento do Mês" if eh_fechamento else data_sel.strftime("%d/%m/%Y")
-    with c2:
-        dt = st.number_input("Dias Trabalhados",min_value=0,max_value=31,value=0)
-    with c3:
-        td = st.number_input("Total de Dias no Mês",min_value=1,max_value=31,value=22)
+    if "ultimo_salvo" in st.session_state and st.session_state.ultimo_salvo:
+        st.success(f"✅ {st.session_state.ultimo_salvo}")
+        st.session_state.ultimo_salvo = ""
 
-    st.markdown("---")
-    # Valor Geral
-    c1,c2 = st.columns([2,1])
-    with c1:
-        vg = st.number_input("Valor Total Geral Recebido (R$)",min_value=0.0,step=100.0,format="%.2f",key="vg_lanc")
-    with c2:
-        st.markdown(f"<div class='val-preview'>{fmt_brl(vg)}</div>",unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("### Valores por Operador")
-
-    c1,c2,c3,c4,c5 = st.columns([3,2,2,2,2])
-    c1.markdown("**Operador**"); c2.markdown("**Meta**")
-    c3.markdown("**Valor Recebido (R$)**"); c4.markdown("**Projeção**"); c5.markdown("**% Meta**")
-
-    # Chave única para este formulário
-    form_key = f"lanc_{mes_ano}_{equipe_id}"
-
-    vi = {}
-    for op in ops:
-        meta = float(metas_salvas.get(op["_id"],0))
-        sk   = f"vl_{form_key}_{op['_id']}"
-        # Garante que session_state tem a chave
-        if sk not in st.session_state:
-            st.session_state[sk] = 0.0
-        c1,c2,c3,c4,c5 = st.columns([3,2,2,2,2])
+    with st.form(key=f"form_lanc_{mes_ano}_{equipe_id}"):
+        st.markdown("### Configuração do Lançamento")
+        c1,c2,c3 = st.columns([2,1,1])
         with c1:
-            st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
+            hoje = date.today()
+            data_sel = st.date_input("Data do Resultado", value=hoje,
+                                      min_value=date(hoje.year,1,1),
+                                      max_value=date(hoje.year,12,31))
+            eh_fechamento = st.checkbox("Fechamento do Mês")
         with c2:
-            st.markdown(f"<div style='padding-top:10px;color:#5a9a70'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
+            dt = st.number_input("Dias Trabalhados", min_value=0, max_value=31, value=0)
         with c3:
-            val = st.number_input("v", label_visibility="collapsed",
-                                  min_value=0.0, step=100.0, format="%.2f", key=sk)
-        proj = calc_projecao(val,dt,td)
-        pct  = (val/meta*100) if meta>0 else 0
-        with c4:
-            st.markdown(f"<div style='padding-top:10px;color:#5a9a70'>{fmt_brl(proj) if proj>0 else '—'}</div>",unsafe_allow_html=True)
-        with c5:
-            st.markdown(f"<div style='padding-top:10px;color:{cor_pct(pct)};font-weight:700'>{status_pct(pct) if meta>0 else '—'} {f'{pct:.1f}%' if meta>0 else '—'}</div>",unsafe_allow_html=True)
-        vi[op["_id"]] = val
+            td = st.number_input("Total de Dias no Mês", min_value=1, max_value=31, value=22)
 
-    tc  = sum(vi.values())
-    sem = max(0, vg - tc)
-    mg  = float(meta_gest_doc.get("metaGestora",0))
-    pct_gest = (tc/mg*100) if mg>0 else 0
+        st.markdown("---")
+        vg = st.number_input("💰 Valor Total Geral Recebido (R$)",
+                              min_value=0.0, step=1000.0, format="%.2f")
 
-    st.markdown("---")
-    c1,c2,c3,c4,c5 = st.columns(5)
-    c1.metric("Com Interação", fmt_brl(tc))
-    c2.metric("Sem Interação", fmt_brl(sem))
-    c3.metric("Total Geral",   fmt_brl(vg))
-    c4.metric("Projeção",      fmt_brl(calc_projecao(tc,dt,td)))
-    c5.metric(f"Meta ({pct_gest:.1f}%)", fmt_brl(mg))
+        st.markdown("---")
+        st.markdown("### Valores por Operador")
 
-    st.markdown("---")
-    col_btn1, col_btn2 = st.columns([1,3])
-    with col_btn1:
-        salvar = st.button("Salvar Lançamento", use_container_width=True)
-    with col_btn2:
-        if "ultimo_salvo" in st.session_state and st.session_state.ultimo_salvo:
-            st.success(f"✅ {st.session_state.ultimo_salvo}")
+        c1,c2,c3 = st.columns([3,2,2])
+        c1.markdown("**Operador**")
+        c2.markdown("**Meta**")
+        c3.markdown("**Valor Recebido (R$)**")
 
-    if salvar:
-        # Lê valores direto do session_state para garantir que pegou o que foi digitado
-        vi_final = {}
+        vi = {}
         for op in ops:
-            sk = f"vl_{form_key}_{op['_id']}"
-            vi_final[op["_id"]] = float(st.session_state.get(sk, 0))
+            meta = float(metas_salvas.get(op["_id"],0))
+            c1,c2,c3 = st.columns([3,2,2])
+            with c1:
+                nome_label = ("★ " if op.get("pleno") else "") + op["nome"]
+                st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{nome_label}</div>",
+                            unsafe_allow_html=True)
+            with c2:
+                st.markdown(f"<div style='padding-top:10px;color:#5a9a70'>{fmt_brl(meta) if meta>0 else '—'}</div>",
+                            unsafe_allow_html=True)
+            with c3:
+                val = st.number_input("v", label_visibility="collapsed",
+                                      min_value=0.0, step=100.0, format="%.2f",
+                                      key=f"fi_{op['_id']}")
+            vi[op["_id"]] = val
 
-        tc_final  = sum(vi_final.values())
-        vg_key    = "vg_lanc"
-        vg_final  = float(st.session_state.get(vg_key, 0))
-        sem_final = max(0, vg_final - tc_final)
+        tc  = sum(vi.values())
+        sem = max(0, vg - tc)
+        pct_gest = (tc/mg*100) if mg>0 else 0
 
-        if not any(v>0 for v in vi_final.values()) and vg_final == 0:
+        st.markdown("---")
+        c1,c2,c3,c4,c5 = st.columns(5)
+        c1.metric("Com Interação", fmt_brl(tc))
+        c2.metric("Sem Interação", fmt_brl(sem))
+        c3.metric("Total Geral",   fmt_brl(vg))
+        c4.metric("Projeção",      fmt_brl(calc_projecao(tc,dt,td)))
+        c5.metric(f"Meta ({pct_gest:.1f}%)", fmt_brl(mg))
+
+        submitted = st.form_submit_button("Salvar Lançamento", use_container_width=True)
+
+    if submitted:
+        label = "Fechamento do Mês" if eh_fechamento else data_sel.strftime("%d/%m/%Y")
+        if not any(v>0 for v in vi.values()) and vg == 0:
             st.warning("Preencha pelo menos um valor.")
         else:
-            agentes_data = {op["_id"]:{"valorRecebido":vi_final[op["_id"]],"nome":op["nome"]} for op in ops}
+            agentes_data = {op["_id"]:{"valorRecebido":vi[op["_id"]],"nome":op["nome"]} for op in ops}
             criar_lancamento(mes_ano, equipe_id, str(data_sel), label,
-                             agentes_data, tc_final, vg_final, sem_final, dt, td)
+                             agentes_data, tc, vg, sem, dt, td)
             st.session_state.ultimo_salvo = f"Lançamento de {label} salvo com sucesso!"
-            # Limpa os campos após salvar
-            for op in ops:
-                sk = f"vl_{form_key}_{op['_id']}"
-                st.session_state[sk] = 0.0
-            st.session_state["vg_lanc"] = 0.0
             st.rerun()
 
 # ── QUADRO DE RESULTADOS ───────────────────────
@@ -1233,24 +1204,37 @@ def pagina_monitorias(mes_ano):
                 criterios_resultado.append({**c,"passou":False})
         else:
             for crit in CRITERIOS:
-                cor_borda = "#f9a825" if crit["obrigatorio"] else "#a5d6a7"
+                cor_titulo = "#c62828" if crit["obrigatorio"] else "#1b5e20"
+                cor_borda  = "#ef9a9a" if crit["obrigatorio"] else "#a5d6a7"
+                bg_card    = "#fff5f5" if crit["obrigatorio"] else "#e8f5e9"
+                peso_bg    = "rgba(198,40,40,0.12)" if crit["obrigatorio"] else "rgba(46,125,50,0.1)"
+                peso_cor   = "#c62828" if crit["obrigatorio"] else "#2e7d32"
+
+                # Build itens html
+                itens_html = ""
+                for item in crit["itens"]:
+                    obrig = "obrigatório" in item.lower() or "obrigatorio" in item.lower()
+                    cor_item = "#b71c1c" if obrig else "#333333"
+                    fw = "700" if obrig else "400"
+                    itens_html += f"<div style='font-size:13px;color:{cor_item};font-weight:{fw};padding:3px 0 3px 12px;border-left:2px solid {'#ef9a9a' if obrig else '#c8e6c9'};margin-bottom:4px'>• {item}</div>"
+
                 st.markdown(f"""
-                <div style="background:#e8f5e9;border:1px solid {cor_borda};border-radius:10px;
-                            padding:14px 18px;margin-bottom:8px">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                        <span style="color:#1b5e20;font-weight:600">{crit['num']} {crit['nome']}</span>
-                        <span style="background:{'rgba(249,168,37,0.2)' if crit['obrigatorio'] else 'rgba(46,125,50,0.1)'};
-                               color:{'#f57f17' if crit['obrigatorio'] else '#2e7d32'};
-                               padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">
-                            Peso {crit['peso']} {'— Obrigatório' if crit['obrigatorio'] else ''}
+                <div style="background:{bg_card};border:1px solid {cor_borda};border-radius:10px;
+                            padding:14px 18px;margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                        <span style="color:{cor_titulo};font-weight:700;font-size:15px">{crit['num']} {crit['nome']}</span>
+                        <span style="background:{peso_bg};color:{peso_cor};
+                               padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">
+                            Peso {crit['peso']} {'— ⚠ Obrigatório' if crit['obrigatorio'] else ''}
                         </span>
                     </div>
+                    <div style="margin-bottom:10px">{itens_html}</div>
+                </div>
                 """, unsafe_allow_html=True)
-                for item in crit["itens"]:
-                    obrig = "obrigatorio" in item.lower()
-                    st.markdown(f"<div style='font-size:12px;color:{'#e65100' if obrig else '#333'};margin-left:8px'>• {item}</div>", unsafe_allow_html=True)
-                passou = st.checkbox(f"Critério passou", key=f"cr_{crit['id']}", value=True)
-                st.markdown("</div>", unsafe_allow_html=True)
+
+                passou = st.checkbox(f"✓ {crit['num']} {crit['nome']} — passou",
+                                     key=f"cr_{crit['id']}", value=True)
+                st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
                 if not passou:
                     nota -= crit["peso"]
                 criterios_resultado.append({**crit,"passou":passou})
