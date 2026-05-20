@@ -232,7 +232,7 @@ USUARIOS = {
     "moyara":  {"senha":"moyara123", "equipe":None,     "role":"diretor","nome":"Moyara"},
 }
 EQUIPES = {
-    "luciano":{"nome":"Luciano","emoji":"OK","cor":"#2daf5c"},
+    "luciano":{"nome":"Luciano","emoji":"","cor":"#2daf5c"},
     "deborah":{"nome":"Déborah","emoji":"","cor":"#a855f7"},
     "tamires":{"nome":"Tamires","emoji":"","cor":"#f97316"},
     "metcool":{"nome":"MetCool","emoji":"","cor":"#3b82f6"},
