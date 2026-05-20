@@ -623,17 +623,23 @@ def processar_bases(pagos_file, chat_file, lig_file, disp_file, equipe_id, mes_a
     if "valor" in df_pagos.columns:
         df_pagos["valor"] = pd.to_numeric(df_pagos["valor"].astype(str).str.replace("R$","").str.replace(".","").str.replace(",",".").str.strip(),errors="coerce").fillna(0)
 
-    # Normaliza CPF/UC — remove pontos, traços, espaços e padroniza zeros à esquerda
     def normalizar_cpf(s):
         s = str(s).strip()
+        # Remove .0 de float
+        if "." in s:
+            try:
+                f = float(s)
+                s = str(int(f))
+            except:
+                s = s.replace(".","").replace(",","")
         # Remove formatação
-        s = s.replace(".","").replace("-","").replace("/","").replace(" ","")
-        # Remove .0 de float (ex: 12345678900.0 -> 12345678900)
-        if s.endswith(".0"): s = s[:-2]
-        # Garante 11 dígitos para CPF (com zeros à esquerda)
+        s = s.replace("-","").replace("/","").replace(" ","").replace("\t","")
+        # Remove zeros iniciais extras mas mantém CPF com 11 dígitos
+        s = s.lstrip("0") if len(s) > 11 else s
+        # Padroniza para 11 dígitos
         if s.isdigit() and len(s) <= 11:
             s = s.zfill(11)
-        return s
+        return s.strip()
     df_pagos["uc_cpf"] = df_pagos["uc_cpf"].apply(normalizar_cpf)
 
     contatos = []
@@ -1712,148 +1718,140 @@ def detectar_coluna(df, keywords):
                 return orig[i]
     return None
 
+def normalizar_cpf(s):
+    s = str(s).strip()
+    try:
+        s = str(int(float(s)))
+    except:
+        s = s.replace(".","").replace("-","").replace("/","").replace(" ","")
+    if s.isdigit() and len(s) < 11:
+        s = s.zfill(11)
+    return s
+
 def processar_base_unica(arquivo, equipe_id, mes_ano):
     try:
         xls = pd.ExcelFile(arquivo)
     except Exception as e:
         return None, [f"Erro ao ler arquivo: {e}"], []
 
-    abas_upper = [a.upper().strip() for a in xls.sheet_names]
-    abas_orig  = xls.sheet_names
+    import unicodedata
+    def norm_aba(s):
+        s = unicodedata.normalize('NFKD', str(s).upper().strip()).encode('ascii','ignore').decode()
+        return s
 
-    # ── 1. LÊ ABA PAGOS
-    # Busca aba PAGOS — tenta várias variações
+    abas_norm = [norm_aba(a) for a in xls.sheet_names]
+    abas_orig = xls.sheet_names
+
+    # Localiza aba PAGOS
     aba_pagos = None
-    for i,a in enumerate(abas_upper):
-        a_clean = a.strip()
-        if a_clean in ["PAGOS","PAGO","PAGAMENTOS","BASE PAGOS","BASE_PAGOS"]:
+    for i,a in enumerate(abas_norm):
+        if any(p in a for p in ["PAGO","PAGAM","RECEB","BASE"]):
             aba_pagos = abas_orig[i]
             break
     if not aba_pagos:
-        # Segunda tentativa: contém "PAG"
-        for i,a in enumerate(abas_upper):
-            if "PAG" in a:
-                aba_pagos = abas_orig[i]
-                break
-    if not aba_pagos:
-        aba_pagos = abas_orig[0]  # fallback: primeira aba
+        aba_pagos = abas_orig[0]
+
+    # Lê PAGOS completo — CADA LINHA É UM BOLETO, nunca remove nada
     df_pagos = pd.read_excel(xls, sheet_name=aba_pagos, header=0)
+    df_pagos = df_pagos.reset_index(drop=True)
+    df_pagos["_row_id"] = df_pagos.index  # ID único por linha
 
-    # Renomeia colunas por contexto
-    mapa = {}
+    # Mapeia colunas
+    col_cpf = None; col_val = None; col_dpag = None; col_dvenc = None; col_forn = None
     for c in df_pagos.columns:
-        cn = str(c).lower().strip()
-        if any(x in cn for x in ["cpf","uc","instalac","matricul","cod_c","codigo_c","id_c"]):
-            if "uc_cpf" not in mapa.values(): mapa[c] = "uc_cpf"
-        elif any(x in cn for x in ["valor a pagar","valor_a_pagar","vlr_a_pagar","valor pagar","valor","vlr","vl_"]):
-            if "valor" not in mapa.values(): mapa[c] = "valor"
-        elif any(x in cn for x in ["data_pag","dt_pag","data pag","data pagamento","baixa","data_baixa","pagamento"]):
-            if "data_pagamento" not in mapa.values(): mapa[c] = "data_pagamento"
-        elif any(x in cn for x in ["vencim","venc"]):
-            if "data_vencimento" not in mapa.values(): mapa[c] = "data_vencimento"
-        elif any(x in cn for x in ["fornec","distrib","empresa","concess"]):
-            if "fornecedora" not in mapa.values(): mapa[c] = "fornecedora"
+        cn = norm_aba(str(c))
+        if not col_cpf  and any(x in cn for x in ["CPF","UC","INSTAL","MATRICUL","COD_C","CODIGO_C","ID_C","NUM_C"]): col_cpf  = c
+        if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_"]): col_val  = c
+        if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI"]): col_dpag = c
+        if not col_dvenc and any(x in cn for x in ["VENC"]): col_dvenc = c
+        if not col_forn and any(x in cn for x in ["FORNEC","DISTRIB","EMPRESA","CONCESS"]): col_forn = c
 
+    # Renomeia
+    mapa = {}
+    if col_cpf:   mapa[col_cpf]   = "uc_cpf"
+    if col_val:   mapa[col_val]   = "valor"
+    if col_dpag:  mapa[col_dpag]  = "data_pagamento"
+    if col_dvenc: mapa[col_dvenc] = "data_vencimento"
+    if col_forn:  mapa[col_forn]  = "fornecedora"
     df_pagos = df_pagos.rename(columns=mapa)
 
-    # Converte tipos
-    # Normaliza CPF/UC — remove pontos, traços, espaços e padroniza zeros à esquerda
-    def normalizar_cpf(s):
-        s = str(s).strip()
-        # Remove formatação
-        s = s.replace(".","").replace("-","").replace("/","").replace(" ","")
-        # Remove .0 de float (ex: 12345678900.0 -> 12345678900)
-        if s.endswith(".0"): s = s[:-2]
-        # Garante 11 dígitos para CPF (com zeros à esquerda)
-        if s.isdigit() and len(s) <= 11:
-            s = s.zfill(11)
-        return s
-    df_pagos["uc_cpf"] = df_pagos["uc_cpf"].apply(normalizar_cpf)
-    df_pagos["data_pagamento"] = pd.to_datetime(df_pagos["data_pagamento"], dayfirst=True, errors="coerce")
-    # Converte valor preservando centavos
-    def conv_valor(v):
-        s = str(v).strip().replace("R$","").replace(" ","")
-        if not s or s in ["nan","None","-"]: return 0.0
-        # Detecta formato: se tem vírgula após ponto = brasileiro (1.234,56)
-        if "," in s and "." in s:
-            if s.rfind(",") > s.rfind("."):  # BR: 1.234,56
-                s = s.replace(".","").replace(",",".")
-            else:  # EN: 1,234.56
-                s = s.replace(",","")
-        elif "," in s:  # pode ser BR sem milhar: 1234,56
-            s = s.replace(",",".")
-        try: return float(s)
-        except: return 0.0
-    df_pagos["valor"] = df_pagos["valor"].apply(conv_valor)
+    # Converte
+    if "uc_cpf" in df_pagos.columns:
+        df_pagos["uc_cpf"] = df_pagos["uc_cpf"].apply(normalizar_cpf)
+    if "data_pagamento" in df_pagos.columns:
+        df_pagos["data_pagamento"] = pd.to_datetime(df_pagos["data_pagamento"], dayfirst=True, errors="coerce").dt.normalize()
+    if "data_vencimento" in df_pagos.columns:
+        df_pagos["data_vencimento"] = pd.to_datetime(df_pagos["data_vencimento"], dayfirst=True, errors="coerce").dt.normalize()
+    if "valor" in df_pagos.columns:
+        def conv_val(v):
+            s = str(v).strip().replace("R$","").replace(" ","")
+            try:
+                f = float(s)
+                return f
+            except:
+                s2 = s.replace(".","").replace(",",".")
+                try: return float(s2)
+                except: return 0.0
+        df_pagos["valor"] = df_pagos["valor"].apply(conv_val)
 
-    # Remove duplicatas
-    df_pagos = df_pagos.drop_duplicates(subset=["uc_cpf","data_pagamento","valor"], keep="first").reset_index(drop=True)
+    n_pagos = len(df_pagos)  # total de boletos — NUNCA muda
 
-    # ── 2. LÊ INTERAÇÕES E PEGA PRIMEIRO CONTATO POR CPF
+    # Lê interações e pega data mínima por CPF
     contatos = []
     abas_lidas = []
-    for busca, nome in [("CHAT","CHAT"), ("LIG","LIGAÇÕES"), ("DISPAR","DISPAROS")]:
-        aba = next((abas_orig[i] for i,a in enumerate(abas_upper) if busca in a), None)
+    for busca, nome in [("CHAT","CHAT"),("LIG","LIGAÇÕES"),("DISPAR","DISPAROS")]:
+        aba = next((abas_orig[i] for i,a in enumerate(abas_norm) if busca in a), None)
         if not aba: continue
         try:
             df_c = pd.read_excel(xls, sheet_name=aba, header=0)
-            if df_c.empty: continue
-            # Acha coluna CPF
-            col_cpf = next((c for c in df_c.columns if any(x in str(c).lower() for x in ["cpf","uc","instalac","cod","matricul"])), df_c.columns[0])
-            # Acha coluna data
-            col_dt  = next((c for c in df_c.columns if any(x in str(c).lower() for x in ["data","dt_","baixa","contato","ligac","chat","dispar"])), df_c.columns[1] if len(df_c.columns)>1 else df_c.columns[0])
+            if df_c.empty or len(df_c.columns) < 2: continue
+            # Coluna CPF
+            cc = next((c for c in df_c.columns if any(x in norm_aba(str(c)) for x in ["CPF","UC","INSTAL","MATRICUL","COD","CLIENT"])), df_c.columns[0])
+            # Coluna data
+            cd = next((c for c in df_c.columns if any(x in norm_aba(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])), df_c.columns[1] if len(df_c.columns)>1 else df_c.columns[0])
             dc = pd.DataFrame({
-                "uc_cpf": df_c[col_cpf].apply(lambda x: normalizar_cpf(x)),
-                "data_contato": pd.to_datetime(df_c[col_dt], dayfirst=True, errors="coerce")
+                "uc_cpf": df_c[cc].apply(normalizar_cpf),
+                "data_contato": pd.to_datetime(df_c[cd], dayfirst=True, errors="coerce").dt.normalize()
             }).dropna(subset=["data_contato"])
+            dc = dc[dc["uc_cpf"].str.len() >= 3]
             if not dc.empty:
                 contatos.append(dc)
                 abas_lidas.append(nome)
         except: pass
 
-    # Pega data mínima por CPF entre todas as interações
+    # Data mínima por CPF
     if contatos:
         df_todos = pd.concat(contatos, ignore_index=True)
-        primeiro_contato = df_todos.groupby("uc_cpf", as_index=False)["data_contato"].min()
-        primeiro_contato.columns = ["uc_cpf","primeiro_contato"]
+        pc = df_todos.groupby("uc_cpf", as_index=False)["data_contato"].min()
+        pc.columns = ["uc_cpf","primeiro_contato"]
     else:
-        primeiro_contato = pd.DataFrame(columns=["uc_cpf","primeiro_contato"])
+        pc = pd.DataFrame(columns=["uc_cpf","primeiro_contato"])
 
-    # ── 3. CRUZAMENTO: PAGOS x PRIMEIRO CONTATO
-    if not primeiro_contato.empty:
-        primeiro_contato["uc_cpf"] = primeiro_contato["uc_cpf"].astype(str).str.strip()
-        df_res = pd.merge(df_pagos, primeiro_contato, on="uc_cpf", how="left")
+    # Usa MAP em vez de merge — garante 1 resultado por linha sem duplicar
+    # pc é um dicionário: CPF -> data_minima
+    if not pc.empty:
+        mapa_contato = dict(zip(pc["uc_cpf"], pc["primeiro_contato"]))
+        df_pagos["primeiro_contato"] = df_pagos["uc_cpf"].map(mapa_contato)
     else:
-        df_res = df_pagos.copy()
-        df_res["primeiro_contato"] = pd.NaT
+        df_pagos["primeiro_contato"] = pd.NaT
 
-    # Garante sem duplicatas após merge
-    df_res = df_res.drop_duplicates(subset=["uc_cpf","data_pagamento","valor"], keep="first").reset_index(drop=True)
+    df_res = df_pagos.drop(columns=["_row_id"], errors="ignore").reset_index(drop=True)
+    
+    # Confirma: resultado tem exatamente n_pagos linhas
+    assert len(df_res) == n_pagos, f"Erro: {len(df_res)} != {n_pagos}"
 
-    # ── 4. ELEGIBILIDADE
-    # diferenca_dias = data_pagamento - primeiro_contato
-    # >= 0 = interação foi ANTES ou NO DIA do pagamento = Elegível
-    df_res["diferenca_dias"] = (df_res["data_pagamento"] - df_res["primeiro_contato"]).dt.days
-
-    # Garante que datas são comparadas sem componente de hora
-    if "data_pagamento" in df_res.columns:
-        df_res["data_pagamento"] = pd.to_datetime(df_res["data_pagamento"], errors="coerce").dt.normalize()
-    if "primeiro_contato" in df_res.columns:
-        df_res["primeiro_contato"] = pd.to_datetime(df_res["primeiro_contato"], errors="coerce").dt.normalize()
-
-    # Recalcula diferença após normalizar
+    # Elegibilidade: data_pagamento >= primeiro_contato
     df_res["diferenca_dias"] = (df_res["data_pagamento"] - df_res["primeiro_contato"]).dt.days
 
     def classif(row):
-        if pd.isna(row["primeiro_contato"]): return "ND"
-        d = row["diferenca_dias"]
+        if pd.isna(row.get("primeiro_contato")): return "ND"
+        d = row.get("diferenca_dias")
         if pd.isna(d): return "ND"
-        if d >= 0: return "Elegível"
-        return "Não Elegível"
+        return "Elegível" if d >= 0 else "Não Elegível"
 
     df_res["elegibilidade"] = df_res.apply(classif, axis=1)
 
-    # ── 5. AGING
+    # Aging
     if "data_vencimento" in df_res.columns:
         df_res["dias_vencidos"] = (df_res["data_pagamento"] - df_res["data_vencimento"]).dt.days
     else:
@@ -1870,7 +1868,6 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
 
     df_res["equipe"]  = equipe_id
     df_res["mes_ano"] = mes_ano
-
     return df_res, [], abas_lidas
 
 
