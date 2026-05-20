@@ -1135,16 +1135,37 @@ def pagina_quadro(mes_ano):
 
         if ops:
             rows = []
+            ag_data = ultimo.get("agentes", {})
             for op in ops:
-                val  = float(ultimo.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0))
-                meta = float(metas_ops.get(op["_id"],0))
-                proj_op = calc_projecao(val,dt,td)
-                pct  = (val/meta*100) if meta>0 else 0
+                # Busca por nome (mais confiável que ID)
+                val = 0.0
+                for k, v in ag_data.items():
+                    if isinstance(v, dict):
+                        nome_salvo = v.get("nome", "").strip().lower()
+                        if nome_salvo == op["nome"].strip().lower():
+                            val = float(v.get("valorRecebido", 0))
+                            break
+                # Fallback por ID
+                if val == 0 and op["_id"] in ag_data:
+                    v = ag_data[op["_id"]]
+                    val = float(v.get("valorRecebido", 0) if isinstance(v, dict) else v)
+
+                meta    = float(metas_ops.get(op["_id"], 0))
+                proj_op = calc_projecao(val, dt, td)
+                pct     = (val/meta*100) if meta > 0 else 0
                 pleno_label = " ★" if op.get("pleno") else ""
-            rows.append({"Status":status_pct(pct) if meta>0 else "—","Operador":op["nome"]+pleno_label,"Recebido":fmt_brl(val),"Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if proj_op>0 else "—","_v":val})
-            df = pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
-            df.index = range(1,len(df)+1)
-            st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
+                rows.append({
+                    "Status":   status_pct(pct) if meta > 0 else "—",
+                    "Operador": op["nome"] + pleno_label,
+                    "Recebido": fmt_brl(val) if val > 0 else "—",
+                    "Meta":     fmt_brl(meta) if meta > 0 else "—",
+                    "% Meta":   f"{pct:.1f}%" if meta > 0 else "—",
+                    "Projeção": fmt_brl(proj_op) if proj_op > 0 else "—",
+                    "_v": val
+                })
+            df = pd.DataFrame(rows).sort_values("_v", ascending=False).drop(columns=["_v"]).reset_index(drop=True)
+            df.index = range(1, len(df)+1)
+            st.dataframe(df, use_container_width=True, height=min(600,(len(df)+1)*38+40))
         st.markdown("---")
 
     if st.button("Exportar Excel"):
