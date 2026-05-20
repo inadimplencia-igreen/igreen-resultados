@@ -340,7 +340,32 @@ def criar_lancamento(mes_ano, equipe_id, data_ref, label, agentes_data, total, v
     return doc_id
 
 def buscar_lancamentos(mes_ano, equipe_id):
-    return list(get_db().lancamentos.find({"mesAno":mes_ano,"equipeId":equipe_id}).sort("criadoEm",-1))
+    # Busca na coleção nova (lancamentos)
+    novos = list(get_db().lancamentos.find({"mesAno":mes_ano,"equipeId":equipe_id}).sort("criadoEm",-1))
+    
+    # Busca também na coleção antiga (resultados) para não perder dados anteriores
+    antigos_raw = list(get_db().resultados.find({"mesAno":mes_ano,"equipeId":equipe_id}))
+    antigos = []
+    for d in antigos_raw:
+        # Converte formato antigo para novo
+        antigos.append({
+            "_id": d["_id"],
+            "mesAno": d["mesAno"],
+            "equipeId": d["equipeId"],
+            "label": d.get("semanaId", "Registro anterior"),
+            "dataRef": d.get("atualizadoEm",""),
+            "agentes": d.get("agentes",{}),
+            "totalEquipe": d.get("totalEquipe",0),
+            "valorGeral": d.get("valorGeral",0),
+            "semInteracao": d.get("semInteracao",0),
+            "diasTrabalhados": d.get("diasTrabalhados",0),
+            "totalDias": d.get("totalDias",22),
+            "criadoEm": d.get("atualizadoEm", datetime.now()),
+        })
+    
+    todos = novos + antigos
+    todos.sort(key=lambda x: x.get("criadoEm", datetime.now()), reverse=True)
+    return todos
 
 def buscar_lancamentos_mes_todas(mes_ano):
     return list(get_db().lancamentos.find({"mesAno":mes_ano}).sort("criadoEm",-1))
@@ -641,12 +666,16 @@ def tela_login():
         st.markdown("""
         <div style="background:#003318;border-radius:16px;padding:40px 32px;box-shadow:0 8px 32px rgba(0,0,0,0.3);border:1px solid #005a25">
         <div style="text-align:center;padding:0 0 28px">
-            <div style="font-size:28px;font-weight:800;color:#ffffff;letter-spacing:-1px;margin-bottom:6px">
-                i<span style="color:#2daf5c">Green</span> Performance
+            <div style="width:64px;height:64px;background:linear-gradient(135deg,#1a6b35,#2daf5c);
+                    border-radius:16px;display:inline-flex;align-items:center;justify-content:center;
+                    font-weight:900;font-size:32px;color:white;margin-bottom:14px;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.3)">G</div>
+            <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;margin-bottom:4px">
+                iGreen Performance
             </div>
-            <div style="width:40px;height:2px;background:#2daf5c;margin:8px auto 12px"></div>
+            <div style="width:36px;height:2px;background:#00c853;margin:6px auto 10px"></div>
             <p style="color:#5a9a70;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin:0">
-                Painel de Monitoria de Qualidade
+                Painel de Gestão de Inadimplência
             </p>
         </div>
         """,unsafe_allow_html=True)
@@ -669,9 +698,10 @@ def render_sidebar():
         st.markdown(f"""
         <div style="padding:16px 0 8px">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-                <div style="width:36px;height:36px;background:linear-gradient(135deg,#1a6b35,#2daf5c);
-                            border-radius:8px;display:flex;align-items:center;justify-content:center;
-                            font-weight:800;font-size:15px;color:white;letter-spacing:-0.5px">iG</div>
+                <div style="width:38px;height:38px;background:linear-gradient(135deg,#1a6b35,#2daf5c);
+                            border-radius:10px;display:flex;align-items:center;justify-content:center;
+                            font-weight:900;font-size:20px;color:white;letter-spacing:-1px;
+                            box-shadow:0 2px 8px rgba(0,0,0,0.3)">G</div>
                 <div>
                 <div style="color:#ffffff;font-weight:700;font-size:14px">i<span style='color:#2daf5c'>Green</span></div>
                 <div style="color:#5a9a70;font-size:10px;text-transform:uppercase;letter-spacing:1px">Performance</div>
