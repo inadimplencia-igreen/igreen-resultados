@@ -202,6 +202,9 @@ footer { display: none !important; }
 [data-testid="stDecoration"] { display: none !important; }
 .viewerBadge_container__1QSob { display: none !important; }
 div[data-testid="stStatusWidget"] { display: none !important; }
+/* Hide expander arrow text */
+.streamlit-expanderHeader svg { display: none !important; }
+details summary span[data-testid="stMarkdownContainer"] p { display: inline !important; }
 
 /* ── CUSTOM ── */
 .val-preview { color: #00c853; font-weight: 700; font-size: 16px; padding-top: 30px; }
@@ -888,31 +891,32 @@ def pagina_metas(mes_ano):
 # ── LANÇAMENTO ─────────────────────────────────
 def pagina_lancamento(mes_ano):
     u = st.session_state.usuario
-    header_page("Lançamento de Resultado",mes_ano.replace("-"," "))
+    header_page("Lançamento de Resultado", mes_ano.replace("-"," "))
     equipe_id = seletor_equipe(u["equipe"])
     ops = buscar_operadores(equipe_id)
 
     if not ops:
-        st.warning("Cadastre operadores primeiro em Operadores."); return
+        st.warning("Cadastre operadores primeiro em Operadores.")
+        return
 
-    metas_salvas  = buscar_metas_equipe(mes_ano,equipe_id)
-    meta_gest_doc = buscar_meta_gestora(mes_ano,equipe_id)
-    mg = float(meta_gest_doc.get("metaGestora",0))
+    metas_salvas  = buscar_metas_equipe(mes_ano, equipe_id)
+    meta_gest_doc = buscar_meta_gestora(mes_ano, equipe_id)
+    mg = float(meta_gest_doc.get("metaGestora", 0))
 
-    if "ultimo_salvo" in st.session_state and st.session_state.ultimo_salvo:
+    if st.session_state.get("ultimo_salvo"):
         st.success(f"✅ {st.session_state.ultimo_salvo}")
         st.session_state.ultimo_salvo = ""
 
-    hoje = date.today()
-    
     st.markdown("### Configuração do Lançamento")
     c1,c2,c3 = st.columns([2,1,1])
     with c1:
-        data_sel      = st.date_input("Data do Resultado", value=hoje,
-                                       min_value=date(hoje.year,1,1),
-                                       max_value=date(hoje.year,12,31),
-                                       key=f"data_{equipe_id}_{mes_ano}")
-        eh_fechamento = st.checkbox("Fechamento do Mês", key=f"fech_{equipe_id}_{mes_ano}")
+        hoje = date.today()
+        data_sel = st.date_input("Data do Resultado", value=hoje,
+                                  min_value=date(hoje.year,1,1),
+                                  max_value=date(hoje.year,12,31),
+                                  key=f"data_{equipe_id}_{mes_ano}")
+        eh_fechamento = st.checkbox("Fechamento do Mês",
+                                     key=f"fech_{equipe_id}_{mes_ano}")
     with c2:
         dt = st.number_input("Dias Trabalhados", min_value=0, max_value=31, value=0,
                               key=f"dt_{equipe_id}_{mes_ano}")
@@ -924,10 +928,11 @@ def pagina_lancamento(mes_ano):
     vg = st.number_input("Valor Total Geral Recebido (R$)",
                           min_value=0.0, step=1000.0, format="%.2f",
                           key=f"vg_{equipe_id}_{mes_ano}")
+    st.markdown(f"<div style='color:#00c853;font-size:14px;font-weight:700;margin-top:4px'>{fmt_brl(vg)}</div>",
+                unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("### Valores por Operador")
-
     c1,c2,c3 = st.columns([3,2,2])
     c1.markdown("**Operador**")
     c2.markdown("**Meta**")
@@ -935,104 +940,101 @@ def pagina_lancamento(mes_ano):
 
     vi = {}
     for op in ops:
-        meta = float(metas_salvas.get(op["_id"],0))
+        meta = float(metas_salvas.get(op["_id"], 0))
         c1,c2,c3 = st.columns([3,2,2])
         with c1:
-            nome_label = ("★ " if op.get("pleno") else "") + op["nome"]
-            st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{nome_label}</div>",
-                        unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>"
+                f"{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",
+                unsafe_allow_html=True
+            )
         with c2:
-            st.markdown(f"<div style='padding-top:10px;color:#5a9a70;font-size:13px'>{fmt_brl(meta) if meta>0 else '—'}</div>",
-                        unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='padding-top:10px;color:#5a9a70;font-size:13px'>"
+                f"{fmt_brl(meta) if meta>0 else '—'}</div>",
+                unsafe_allow_html=True
+            )
         with c3:
-            val = st.number_input("v", label_visibility="collapsed",
-                                   min_value=0.0, step=100.0, format="%.2f",
-                                   key=f"op_{equipe_id}_{mes_ano}_{op['_id']}")
+            val = st.number_input(
+                "v", label_visibility="collapsed",
+                min_value=0.0, step=100.0, format="%.2f",
+                key=f"op_{equipe_id}_{mes_ano}_{op['_id']}"
+            )
         vi[op["_id"]] = val
 
     tc  = sum(vi.values())
     sem = max(0, vg - tc)
 
     st.markdown("---")
-    if st.button("Salvar Lançamento", use_container_width=True, key=f"btn_salvar_{equipe_id}_{mes_ano}"):
-        # Lê valores diretamente do session_state para garantir captura correta
-        vi_final = {}
-        for op in ops:
-            sk = f"op_{equipe_id}_{mes_ano}_{op['_id']}"
-            vi_final[op["_id"]] = float(st.session_state.get(sk, 0))
-        
-        vg_final   = float(st.session_state.get(f"vg_{equipe_id}_{mes_ano}", vg))
-        dt_final   = int(st.session_state.get(f"dt_{equipe_id}_{mes_ano}", dt))
-        td_final   = int(st.session_state.get(f"td_{equipe_id}_{mes_ano}", td))
-        data_final = st.session_state.get(f"data_{equipe_id}_{mes_ano}", data_sel)
-        fech_final = st.session_state.get(f"fech_{equipe_id}_{mes_ano}", eh_fechamento)
-        
-        tc_final  = sum(vi_final.values())
-        sem_final = max(0, vg_final - tc_final)
-        label     = "Fechamento do Mês" if fech_final else data_final.strftime("%d/%m/%Y")
-
-        if not any(v>0 for v in vi_final.values()) and vg_final == 0:
+    if st.button("Salvar Lançamento", use_container_width=True,
+                  key=f"btn_{equipe_id}_{mes_ano}"):
+        label = "Fechamento do Mês" if eh_fechamento else data_sel.strftime("%d/%m/%Y")
+        if tc == 0 and vg == 0:
             st.warning("Preencha pelo menos um valor.")
         else:
-            agentes_data = {op["_id"]:{"valorRecebido":vi_final[op["_id"]],"nome":op["nome"]} for op in ops}
-            criar_lancamento(mes_ano, equipe_id, str(data_final), label,
-                             agentes_data, tc_final, vg_final, sem_final, dt_final, td_final)
-            st.success(f"✅ Lançamento de {label} salvo! Total: {fmt_brl(tc_final)}")
+            agentes_data = {
+                op["_id"]: {"valorRecebido": vi[op["_id"]], "nome": op["nome"]}
+                for op in ops
+            }
+            criar_lancamento(
+                mes_ano, equipe_id, str(data_sel), label,
+                agentes_data, tc, vg, sem, dt, td
+            )
+            st.session_state.ultimo_salvo = f"Lançamento de {label} salvo! Com interação: {fmt_brl(tc)}"
             st.rerun()
 
-    # ── MINI HISTÓRICO abaixo do botão
+    # ── MINI HISTÓRICO
     st.markdown("---")
     lancs = buscar_lancamentos(mes_ano, equipe_id)
     if lancs:
-        st.markdown("<p style='color:#81c784;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Lançamentos do mês</p>", unsafe_allow_html=True)
-        # Ordena do mais antigo para o mais recente para calcular evolução
+        st.markdown(
+            "<p style='color:#81c784;font-size:11px;text-transform:uppercase;"
+            "letter-spacing:1px;margin-bottom:8px'>Lançamentos do mês</p>",
+            unsafe_allow_html=True
+        )
         lancs_ord = list(reversed(lancs))
         for i, lanc in enumerate(lancs_ord):
             lanc_ant = lancs_ord[i-1] if i > 0 else None
-            # Soma todos os operadores deste lançamento
             soma_ops = sum(
-                float(v.get("valorRecebido", 0))
-                for v in lanc.get("agentes", {}).values()
+                float(v.get("valorRecebido",0) if isinstance(v,dict) else v)
+                for v in lanc.get("agentes",{}).values()
             )
             soma_ant = sum(
-                float(v.get("valorRecebido", 0))
-                for v in lanc_ant.get("agentes", {}).values()
+                float(v.get("valorRecebido",0) if isinstance(v,dict) else v)
+                for v in lanc_ant.get("agentes",{}).values()
             ) if lanc_ant else 0
-            diff_geral = soma_ops - soma_ant if lanc_ant else 0
-            cor_d  = "#2daf5c" if diff_geral >= 0 else "#e53935"
-            sinal  = "+" if diff_geral >= 0 else ""
+            diff   = soma_ops - soma_ant if lanc_ant else 0
+            cor_d  = "#2daf5c" if diff >= 0 else "#e53935"
+            sinal  = "+" if diff >= 0 else ""
 
-            with st.expander(f"Lançamento {lanc.get('label','')} — {fmt_brl(soma_ops)}", expanded=False):
-                st.markdown(f"""
-                <div style="margin-bottom:8px;font-size:12px;color:#c8e6c9">
-                    Com Interação: <strong style="color:#ffffff">{fmt_brl(soma_ops)}</strong>
-                    &nbsp;·&nbsp; Geral: <strong style="color:#ffffff">{fmt_brl(float(lanc.get('valorGeral',0)))}</strong>
-                    {f'&nbsp;·&nbsp; Evolução: <strong style="color:{cor_d}">{sinal}{fmt_brl(abs(diff_geral))}</strong>' if lanc_ant else ""}
-                </div>
-                """, unsafe_allow_html=True)
-
+            with st.expander(f"{lanc.get('label','')} — {fmt_brl(soma_ops)}"):
+                st.markdown(
+                    f"<div style='font-size:12px;color:#c8e6c9;margin-bottom:8px'>"
+                    f"Com Interação: <strong style='color:#fff'>{fmt_brl(soma_ops)}</strong>"
+                    f" &nbsp;·&nbsp; Geral: <strong style='color:#fff'>{fmt_brl(float(lanc.get('valorGeral',0)))}</strong>"
+                    f"{f' &nbsp;·&nbsp; Evolução: <strong style=chr(34)color:{cor_d}{chr(34)}>{sinal}{fmt_brl(abs(diff))}</strong>' if lanc_ant else ''}"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
                 rows = []
                 for op in ops:
-                    v_op  = float(lanc.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0))
-                    v_ant = float(lanc_ant.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0)) if lanc_ant else 0
+                    ag   = lanc.get("agentes",{})
+                    v_op = 0.0
+                    if op["_id"] in ag:
+                        v_op = float(ag[op["_id"]].get("valorRecebido",0) if isinstance(ag[op["_id"]],dict) else ag[op["_id"]])
+                    v_ant = 0.0
+                    if lanc_ant:
+                        ag_ant = lanc_ant.get("agentes",{})
+                        if op["_id"] in ag_ant:
+                            v_ant = float(ag_ant[op["_id"]].get("valorRecebido",0) if isinstance(ag_ant[op["_id"]],dict) else ag_ant[op["_id"]])
                     diff_op = v_op - v_ant if lanc_ant else 0
-                    if v_op == 0 and v_ant == 0:
-                        ev_op = "—"
-                    elif lanc_ant:
-                        sinal_op = "+" if diff_op >= 0 else ""
-                        ev_op = f"{sinal_op}{fmt_brl(abs(diff_op))}"
-                    else:
-                        ev_op = "—"
-                    rows.append({
-                        "Operador": op["nome"],
-                        "Valor": fmt_brl(v_op) if v_op > 0 else "—",
-                        "Evolução": ev_op
-                    })
+                    ev = f"{'+'if diff_op>=0 else ''}{fmt_brl(abs(diff_op))}" if lanc_ant and (v_op>0 or v_ant>0) else "—"
+                    rows.append({"Operador":op["nome"],"Valor":fmt_brl(v_op) if v_op>0 else "—","Evolução":ev})
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-                del_key = f"del_mini_{lanc['_id']}"
-                if st.button("Excluir", key=del_key):
+                if st.button("Excluir", key=f"del_{lanc['_id']}"):
                     excluir_lancamento(lanc["_id"])
                     st.rerun()
+
 
 # ── QUADRO DE RESULTADOS ───────────────────────
 def pagina_quadro(mes_ano):
