@@ -463,8 +463,10 @@ def calc_pontos(media):
         if lo<=media<=hi: return pts
     return 0
 
-def calc_media_operador(op_id):
+def calc_media_operador(op_id, mes_ano=None):
     monts = buscar_monitorias_operador(op_id)
+    if mes_ano:
+        monts = [m for m in monts if m.get("mesAno") == mes_ano]
     if not monts: return 0, 0
     notas = [m["nota"] for m in monts if "nota" in m]
     if not notas: return 0, 0
@@ -1098,10 +1100,11 @@ def pagina_monitorias(mes_ano):
             if not protocolo.strip():
                 st.error("⚠ Preencha o protocolo da ligação!"); return
             doc_id = salvar_monitoria(equipe_id,op_obj["_id"],op_sel,protocolo,obs,criterios_resultado,erros_marcados,nota,mes_ano)
-            media, n = calc_media_operador(op_obj["_id"])
-            st.success(f"✅ Monitoria salva! Nota: {nota:.0f}% | Média geral: {media:.1f}% ({n} monitorias) | Pontos: {calc_pontos(media)}")
+            media, n = calc_media_operador(op_obj["_id"], mes_ano)
+            st.success(f"Monitoria salva! Nota: {nota:.0f}% | Média de {mes_ano.replace('-',' ')}: {media:.1f}% ({n} monitorias) | Pontos: {calc_pontos(media)}")
 
-            html = gerar_pdf_monitoria(op_sel,protocolo,obs,criterios_resultado,erros_marcados,nota,media,n,mes_ano)
+            media_mes, n_mes = calc_media_operador(op_obj["_id"], mes_ano)
+            html = gerar_pdf_monitoria(op_sel,protocolo,obs,criterios_resultado,erros_marcados,nota,media_mes,n_mes,mes_ano)
             b64  = base64.b64encode(html.encode()).decode()
             st.markdown(f'<a href="data:text/html;base64,{b64}" download="Monitoria_{op_sel.replace(" ","_")}_{protocolo}.html" style="display:inline-block;background:linear-gradient(135deg,#1a6b35,#2daf5c);color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px">📥 Baixar Relatório PDF</a>',unsafe_allow_html=True)
 
@@ -1167,7 +1170,7 @@ def pagina_monitorias_diretor(mes_ano):
 
         medias_ops = {}
         for op in ops:
-            media,n = calc_media_operador(op["_id"])
+            media,n = calc_media_operador(op["_id"], mes_ano)  # média mensal
             if n>0: medias_ops[op["nome"]] = (media,n,calc_pontos(media))
 
         if not medias_ops: continue
