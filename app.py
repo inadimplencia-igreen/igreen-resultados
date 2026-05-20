@@ -1792,42 +1792,80 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
 
     df_pagos["uc_cpf"] = df_pagos["uc_cpf"].astype(str).str.strip()
 
-    # Lê abas de contato
+    # Lê abas de contato e consolida data mínima por CPF/UC
     contatos = []
     abas_lidas = []
     for busca, nome in [
         (["CHAT"], "CHAT"),
         (["LIG"], "LIGAÇÕES"),
-        (["DISPAR"], "DISPAROS")
+        (["DISPAR","DISPARO"], "DISPAROS")
     ]:
         aba = next((abas_orig[i] for i,a in enumerate(abas_upper) if any(b in a for b in busca)), None)
         if aba:
             try:
                 df_c = pd.read_excel(xls, sheet_name=aba, header=0)
+                if df_c.empty or len(df_c.columns) < 2:
+                    continue
                 dc = pd.DataFrame()
-                col_id = detectar_coluna(df_c, ["uc","cpf","instalacao","instalação","contrato","cliente","cod"])
-                col_dt = detectar_coluna(df_c, ["baixa","data","dt_","pagamento","contato","data_contato"])
+                # Identificador: CPF/UC
+                col_id = detectar_coluna(df_c, ["cpf","uc","instalacao","instalação","cod_uc","codigo","contrato","cliente","cod"])
+                # Data: qualquer coluna de data
+                col_dt = detectar_coluna(df_c, ["data","dt_","baixa","pagamento","contato","interacao","ligacao","disparo","chat"])
+                
                 dc["uc_cpf"] = (df_c[col_id] if col_id else df_c.iloc[:,0]).astype(str).str.strip()
                 dc["data_contato"] = pd.to_datetime(
                     df_c[col_dt] if col_dt else df_c.iloc[:,1],
                     dayfirst=True, errors="coerce"
                 )
-                contatos.append(dc)
-                abas_lidas.append(nome)
-            except: pass
+                # Remove linhas sem data válida
+                dc = dc.dropna(subset=["data_contato"])
+                dc = dc[dc["uc_cpf"].str.len() > 3]  # Remove identificadores vazios
+                if not dc.empty:
+                    contatos.append(dc)
+                    abas_lidas.append(nome)
+            except Exception as e:
+                pass
 
     primeiro_contato = pd.DataFrame()
     if contatos:
-        df_todos = pd.concat(contatos, ignore_index=True).dropna(subset=["data_contato"])
-        primeiro_contato = df_todos.groupby("uc_cpf")["data_contato"].min().reset_index().rename(
-            columns={"data_contato":"primeiro_contato"})
+        # Junta todas as interações e pega a DATA MÍNIMA por CPF/UC
+        df_todos = pd.concat(contatos, ignore_index=True)
+        # Agrupa por CPF e pega menor data — 1 linha por CPF
+        primeiro_contato = (
+            df_todos
+            .groupby("uc_cpf", as_index=False)["data_contato"]
+            .min()
+            .rename(columns={"data_contato": "primeiro_contato"})
+        )
 
-    df_res = df_pagos.merge(primeiro_contato, on="uc_cpf", how="left") if not primeiro_contato.empty else df_pagos.copy()
+    # Remove duplicatas da base PAGOS
+    # Cada boleto único = CPF + data_pagamento + valor
+    cols_dedup = ["uc_cpf"]
+    if "data_pagamento" in df_pagos.columns: cols_dedup.append("data_pagamento")
+    if "valor"          in df_pagos.columns: cols_dedup.append("valor")
+    
+    qtd_original = len(df_pagos)
+    df_pagos = df_pagos.drop_duplicates(subset=cols_dedup, keep="first").reset_index(drop=True)
+    qtd_dedup = len(df_pagos)
+
+    # Merge LEFT — PAGOS é a base, nunca cresce
+    # primeiro_contato tem 1 linha por CPF (data mínima) — merge seguro
+    if not primeiro_contato.empty:
+        df_res = pd.merge(df_pagos, primeiro_contato, on="uc_cpf", how="left")
+    else:
+        df_res = df_pagos.copy()
+        df_res["primeiro_contato"] = pd.NaT
+
+    # Verifica integridade — df_res deve ter EXATAMENTE o mesmo tamanho que df_pagos
+    if len(df_res) != qtd_dedup:
+        # Algo duplicou — força deduplicação
+        df_res = df_res.drop_duplicates(subset=cols_dedup, keep="first").reset_index(drop=True)
+
     if "primeiro_contato" not in df_res.columns:
         df_res["primeiro_contato"] = pd.NaT
 
     if "data_pagamento" in df_res.columns:
-        df_res["diferenca_dias"] = (df_res["data_pagamento"] - df_res.get("primeiro_contato", pd.NaT)).dt.days
+        df_res["diferenca_dias"] = (df_res["data_pagamento"] - df_res["primeiro_contato"]).dt.days
     else:
         df_res["diferenca_dias"] = None
 
@@ -1854,6 +1892,7 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
 
     df_res["equipe"]  = equipe_id
     df_res["mes_ano"] = mes_ano
+    
     return df_res, [], abas_lidas
 
 def pagina_upload(mes_ano):
