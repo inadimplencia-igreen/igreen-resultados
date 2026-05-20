@@ -3,6 +3,7 @@ import pandas as pd
 from pymongo import MongoClient
 from datetime import datetime, date
 import io
+import base64
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -10,33 +11,43 @@ st.set_page_config(page_title="iGreen | Gestão Inadimplência", page_icon="🌿
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 * { font-family: 'Inter', sans-serif !important; }
 .stApp { background-color: #071a0e; }
 [data-testid="stSidebar"] { background: linear-gradient(180deg,#0a2414,#071a0e); border-right:1px solid #1a4d2e; }
 [data-testid="stMetric"] { background:linear-gradient(135deg,#0a2414,#0d2e1a); border:1px solid #1a4d2e; border-radius:12px; padding:20px !important; border-left:3px solid #2daf5c; }
-[data-testid="stMetricValue"] { color:#ffffff !important; font-size:24px !important; font-weight:700 !important; }
-[data-testid="stMetricLabel"] { color:#5a9a70 !important; font-size:11px !important; text-transform:uppercase; letter-spacing:1px; }
-.stButton > button { background:linear-gradient(135deg,#1a6b35,#2daf5c) !important; color:white !important; border:none !important; border-radius:8px !important; font-weight:600 !important; }
-.stButton > button:hover { background:linear-gradient(135deg,#2daf5c,#3dd670) !important; }
+[data-testid="stMetricValue"] { color:#ffffff !important; font-size:22px !important; font-weight:700 !important; }
+[data-testid="stMetricLabel"] { color:#5a9a70 !important; font-size:10px !important; text-transform:uppercase; letter-spacing:1px; }
+.stButton > button { background:linear-gradient(135deg,#1a6b35,#2daf5c) !important; color:white !important; border:none !important; border-radius:8px !important; font-weight:600 !important; transition: all 0.2s !important; }
+.stButton > button:hover { background:linear-gradient(135deg,#2daf5c,#3dd670) !important; transform:translateY(-1px) !important; }
 h1 { color:#ffffff !important; font-size:22px !important; font-weight:700 !important; }
 h2 { color:#e0f0e8 !important; font-size:18px !important; }
-h3 { color:#5a9a70 !important; font-size:12px !important; text-transform:uppercase; letter-spacing:1.5px; }
-hr { border-color:#1a4d2e !important; }
-p, label { color:#b8d4c0 !important; }
-.stTextInput input, .stNumberInput input { background:#0a2414 !important; border:1px solid #1a4d2e !important; color:#e0f0e8 !important; border-radius:8px !important; }
-[data-testid="stFileUploader"] { background:#0a2414 !important; border:2px dashed #1a4d2e !important; border-radius:12px !important; }
+h3 { color:#5a9a70 !important; font-size:11px !important; text-transform:uppercase; letter-spacing:1.5px; }
+hr { border-color:#1a4d2e !important; margin:16px 0 !important; }
+p, label, div { color:#b8d4c0; }
+.stTextInput input, .stNumberInput input, .stTextArea textarea {
+    background:#0a2414 !important; border:1px solid #1a4d2e !important;
+    color:#e0f0e8 !important; border-radius:8px !important; }
+.stSelectbox > div > div { background:#0a2414 !important; border:1px solid #1a4d2e !important; color:#e0f0e8 !important; }
+[data-testid="stSidebar"] .stRadio label { color:#b8d4c0 !important; font-size:13px !important; }
 .stTabs [data-baseweb="tab-list"] { background:#0a2414 !important; border-radius:8px !important; padding:4px !important; }
 .stTabs [data-baseweb="tab"] { color:#5a9a70 !important; border-radius:6px !important; }
 .stTabs [aria-selected="true"] { background:#1a6b35 !important; color:#ffffff !important; }
-.stSelectbox > div > div { background:#0a2414 !important; border:1px solid #1a4d2e !important; color:#e0f0e8 !important; }
-[data-testid="stSidebar"] .stRadio label { color:#b8d4c0 !important; font-size:13px !important; }
-::-webkit-scrollbar { width:6px; height:6px; }
+.stCheckbox label { color:#e0f0e8 !important; }
+[data-testid="stFileUploader"] > div { background:#0a2414 !important; border:2px dashed #1a4d2e !important; border-radius:12px !important; }
+[data-testid="stFileUploader"] label { color:#5a9a70 !important; }
+.stSuccess > div { background:rgba(45,175,92,0.15) !important; border:1px solid rgba(45,175,92,0.3) !important; color:#2daf5c !important; border-radius:8px !important; }
+.stWarning > div { background:rgba(240,165,0,0.15) !important; border:1px solid rgba(240,165,0,0.3) !important; color:#f0a500 !important; border-radius:8px !important; }
+.stError > div { background:rgba(224,60,60,0.15) !important; border:1px solid rgba(224,60,60,0.3) !important; color:#e03c3c !important; border-radius:8px !important; }
+.stInfo > div { background:rgba(59,130,246,0.15) !important; border:1px solid rgba(59,130,246,0.3) !important; color:#3b82f6 !important; border-radius:8px !important; }
+::-webkit-scrollbar { width:5px; height:5px; }
 ::-webkit-scrollbar-track { background:#071a0e; }
 ::-webkit-scrollbar-thumb { background:#1a4d2e; border-radius:3px; }
+.val-preview { color:#2daf5c; font-weight:700; font-size:18px; padding-top:28px; }
 </style>
 """, unsafe_allow_html=True)
 
+# ── DADOS ──────────────────────────────────────
 USUARIOS = {
     "tamires": {"senha":"tamires123","equipe":"tamires","role":"admin",  "nome":"Tamires"},
     "luciano": {"senha":"luciano123","equipe":"luciano","role":"gestor", "nome":"Luciano"},
@@ -53,114 +64,149 @@ EQUIPES = {
 MESES_NOMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
                "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
 
+CRITERIOS = [
+    {"id":"c1","num":"1º","nome":"Abertura e Identificação","peso":5,
+     "itens":["Saudação adequada","Identificação do operador e da empresa","Sem conversas paralelas fora do mudo"],"obrigatorio":False},
+    {"id":"c2","num":"2º","nome":"Comunicação e Postura","peso":5,
+     "itens":["Clareza na fala e respeito com o cliente","Tom respeitoso, sem ironia ou pressão","Escuta ativa — não interromper"],"obrigatorio":False},
+    {"id":"c3","num":"3º","nome":"Diagnóstico da Dívida","peso":10,
+     "itens":["Questionar o motivo da inadimplência","Recorda do contrato? Recebeu boleto? Tem acesso ao app? Previsão de pagamento?"],"obrigatorio":False},
+    {"id":"c4","num":"4º","nome":"Negociação","peso":40,
+     "itens":["Argumentação de benefícios do pagamento pontual","! Obrigatório: perguntar sobre dúvidas em boletos","! Obrigatório: perguntar sobre acesso ao app","! Obrigatório: falar sobre iGreen Club (mín. 2)"],"obrigatorio":True},
+    {"id":"c5","num":"5º","nome":"Conformidade","peso":20,
+     "itens":["Questionar o motivo do cancelamento","Não ameaçar ou constranger"],"obrigatorio":False},
+    {"id":"c6","num":"6º","nome":"Registros e Procedimentos","peso":10,
+     "itens":["Registro correto no sistema","Classificação adequada da ligação"],"obrigatorio":False},
+    {"id":"c7","num":"7º","nome":"Encerramento","peso":10,
+     "itens":["Esclarecimento do acordo fechado","Agradecimento e cordialidade"],"obrigatorio":False},
+]
+
+ERROS_CRITICOS = [
+    {"id":"e1","nome":"Informação incorreta","desc":"Passou informação incorreta, incompleta ou errada ao cliente"},
+    {"id":"e2","nome":"Postura ríspida","desc":"Agiu de forma ríspida ou ameaçadora"},
+    {"id":"e3","nome":"Linguagem agressiva","desc":"Usar linguajar agressivo com o cliente"},
+    {"id":"e4","nome":"Retenção de ligação","desc":"Segurar a ligação até dar o tempo legível para cota"},
+    {"id":"e5","nome":"Contra-argumentação indevida","desc":"Cliente reclama do desconto e você oferta conta única"},
+]
+
+FAIXAS_PONTOS = [
+    (0,   60,  0),
+    (61,  70,  300),
+    (71,  80,  500),
+    (81,  90,  700),
+    (91,  99,  1000),
+    (100, 100, 1100),
+]
+
+OPERADORES_PADRAO = {
+    "luciano": [
+        ("Jennifer Silveira",True),("Paulo Roberto",False),("Samires Barros",False),
+        ("Maycow Gabriel",False),("Otaides Junior",False),("Heverton Tavares",False),
+        ("Camila Nara",False),("Caua Alves",False),("Eduarda Sanqueta",False),
+        ("Jheniffer Santos",False),("Ketie Silva",False),("Emanuel Cardoso",False),
+        ("Victória Silva",False),("Grasielli Santos",False),("Laura Silva",False),
+        ("Michelle Batista",False),("Lorenzzo Pereira",False),("Diogo Oliveira",False),
+        ("Maria Paulino",False),("Gabrielle Martins",False),("Marcos Martins",False),
+    ],
+    "deborah": [
+        ("Mikael Dias",False),("Amanda Eduarda",False),("Larissa Barcelos",False),
+        ("Nicole Amaral",False),("Sara Rocha",False),("Isabelly Araujo",False),("Silye Paula",False),
+    ],
+    "tamires": [
+        ("Danilo Rodrigues",True),("Raiane Pereira",False),("Wynara Dos Reis",False),
+        ("Esteffany Souza",False),("André Gomes",False),("Wanessa Cardoso",False),
+        ("Larisse Garcia",False),("Arthur Alves",False),
+    ],
+    "metcool": [],
+}
+
 # ── MONGODB ────────────────────────────────────
 @st.cache_resource
 def get_db():
     client = MongoClient(st.secrets["mongo"]["uri"], serverSelectionTimeoutMS=5000)
     return client[st.secrets["mongo"]["db"]]
 
-# ── OPERADORES (dinâmico por equipe) ──────────
 def buscar_operadores(equipe_id):
-    docs = list(get_db().operadores.find({"equipeId": equipe_id}).sort("nome", 1))
-    return docs
+    return list(get_db().operadores.find({"equipeId":equipe_id}).sort("nome",1))
 
 def salvar_operador(equipe_id, nome, pleno=False):
     import uuid
     op_id = str(uuid.uuid4())[:12].replace("-","")
-    get_db().operadores.insert_one({
-        "_id": op_id, "equipeId": equipe_id,
-        "nome": nome, "pleno": pleno,
-        "criadoEm": datetime.now()
-    })
+    get_db().operadores.insert_one({"_id":op_id,"equipeId":equipe_id,"nome":nome,"pleno":pleno,"criadoEm":datetime.now()})
     return op_id
 
 def excluir_operador(op_id):
-    get_db().operadores.delete_one({"_id": op_id})
+    get_db().operadores.delete_one({"_id":op_id})
 
 def atualizar_operador(op_id, nome, pleno):
-    get_db().operadores.update_one({"_id": op_id}, {"$set": {"nome": nome, "pleno": pleno}})
+    get_db().operadores.update_one({"_id":op_id},{"$set":{"nome":nome,"pleno":pleno}})
 
-# ── METAS ──────────────────────────────────────
 def salvar_meta_operador(mes_ano, equipe_id, op_id, valor):
     doc_id = f"meta_op__{mes_ano}__{equipe_id}__{op_id}"
-    get_db().metas.update_one(
-        {"_id": doc_id},
-        {"$set": {"_id": doc_id, "mesAno": mes_ano, "equipeId": equipe_id,
-                  "opId": op_id, "valor": valor}},
-        upsert=True
-    )
+    get_db().metas.update_one({"_id":doc_id},{"$set":{"_id":doc_id,"mesAno":mes_ano,"equipeId":equipe_id,"opId":op_id,"valor":valor}},upsert=True)
 
 def buscar_metas_equipe(mes_ano, equipe_id):
-    docs = list(get_db().metas.find({"mesAno": mes_ano, "equipeId": equipe_id}))
-    return {d["opId"]: d.get("valor", 0) for d in docs}
+    docs = list(get_db().metas.find({"mesAno":mes_ano,"equipeId":equipe_id}))
+    return {d["opId"]:d.get("valor",0) for d in docs if "opId" in d}
 
 def salvar_meta_gestora(mes_ano, equipe_id, meta, target_pct):
     doc_id = f"meta_gest__{mes_ano}__{equipe_id}"
-    get_db().metas.update_one(
-        {"_id": doc_id},
-        {"$set": {"_id": doc_id, "mesAno": mes_ano, "equipeId": equipe_id,
-                  "metaGestora": meta, "targetPct": target_pct, "tipo": "gestora"}},
-        upsert=True
-    )
+    get_db().metas.update_one({"_id":doc_id},{"$set":{"_id":doc_id,"mesAno":mes_ano,"equipeId":equipe_id,"metaGestora":meta,"targetPct":target_pct,"tipo":"gestora"}},upsert=True)
 
 def buscar_meta_gestora(mes_ano, equipe_id):
     doc_id = f"meta_gest__{mes_ano}__{equipe_id}"
-    doc = get_db().metas.find_one({"_id": doc_id})
-    return doc or {"metaGestora": 0, "targetPct": 100}
+    return get_db().metas.find_one({"_id":doc_id}) or {"metaGestora":0,"targetPct":125}
 
-# ── LANÇAMENTOS ────────────────────────────────
 def criar_lancamento(mes_ano, equipe_id, data_ref, label, agentes_data, total, vg, sem_int, dt, td):
-    ts    = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
     doc_id = f"lanc__{mes_ano}__{equipe_id}__{ts}"
-    get_db().lancamentos.insert_one({
-        "_id": doc_id, "mesAno": mes_ano, "equipeId": equipe_id,
-        "dataRef": data_ref, "label": label,
-        "agentes": agentes_data, "totalEquipe": total,
-        "valorGeral": vg, "semInteracao": sem_int,
-        "diasTrabalhados": dt, "totalDias": td,
-        "criadoEm": datetime.now()
-    })
+    get_db().lancamentos.insert_one({"_id":doc_id,"mesAno":mes_ano,"equipeId":equipe_id,"dataRef":data_ref,"label":label,"agentes":agentes_data,"totalEquipe":total,"valorGeral":vg,"semInteracao":sem_int,"diasTrabalhados":dt,"totalDias":td,"criadoEm":datetime.now()})
     return doc_id
 
 def buscar_lancamentos(mes_ano, equipe_id):
-    docs = list(get_db().lancamentos.find(
-        {"mesAno": mes_ano, "equipeId": equipe_id}
-    ).sort("criadoEm", -1))
-    return docs
+    return list(get_db().lancamentos.find({"mesAno":mes_ano,"equipeId":equipe_id}).sort("criadoEm",-1))
 
 def buscar_lancamentos_mes_todas(mes_ano):
-    docs = list(get_db().lancamentos.find({"mesAno": mes_ano}).sort("criadoEm", -1))
-    return docs
+    return list(get_db().lancamentos.find({"mesAno":mes_ano}).sort("criadoEm",-1))
 
 def excluir_lancamento(doc_id):
-    get_db().lancamentos.delete_one({"_id": doc_id})
+    get_db().lancamentos.delete_one({"_id":doc_id})
 
-def buscar_ultimo_lancamento(mes_ano, equipe_id):
-    doc = get_db().lancamentos.find_one(
-        {"mesAno": mes_ano, "equipeId": equipe_id},
-        sort=[("criadoEm", -1)]
-    )
-    return doc or {}
+def salvar_monitoria(equipe_id, op_id, op_nome, protocolo, obs, criterios_resultado, erros_criticos_marcados, nota, mes_ano):
+    ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    doc_id = f"mon__{equipe_id}__{op_id}__{ts}"
+    get_db().monitorias.insert_one({
+        "_id":doc_id,"equipeId":equipe_id,"opId":op_id,"opNome":op_nome,
+        "protocolo":protocolo,"observacao":obs,
+        "criterios":criterios_resultado,"errosCriticos":erros_criticos_marcados,
+        "nota":nota,"mesAno":mes_ano,"criadoEm":datetime.now()
+    })
+    return doc_id
 
-def buscar_todos_lancamentos_equipe(equipe_id):
-    docs = list(get_db().lancamentos.find({"equipeId": equipe_id}).sort("criadoEm", -1))
-    return docs
+def buscar_monitorias_operador(op_id):
+    return list(get_db().monitorias.find({"opId":op_id}).sort("criadoEm",-1))
 
-# ── BASES PROCESSADAS ──────────────────────────
+def buscar_monitorias_equipe(equipe_id, mes_ano=None):
+    filtro = {"equipeId":equipe_id}
+    if mes_ano: filtro["mesAno"] = mes_ano
+    return list(get_db().monitorias.find(filtro).sort("criadoEm",-1))
+
+def buscar_todas_monitorias(mes_ano=None):
+    filtro = {"mesAno":mes_ano} if mes_ano else {}
+    return list(get_db().monitorias.find(filtro).sort("criadoEm",-1))
+
+def excluir_monitoria(doc_id):
+    get_db().monitorias.delete_one({"_id":doc_id})
+
 def salvar_processamento(mes_ano, equipe_id, df):
     doc_id = f"proc__{mes_ano}__{equipe_id}"
-    get_db().processamentos.update_one(
-        {"_id": doc_id},
-        {"$set": {"_id": doc_id, "mesAno": mes_ano, "equipeId": equipe_id,
-                  "registros": df.to_dict("records"), "atualizadoEm": datetime.now()}},
-        upsert=True
-    )
+    get_db().processamentos.update_one({"_id":doc_id},{"$set":{"_id":doc_id,"mesAno":mes_ano,"equipeId":equipe_id,"registros":df.to_dict("records"),"atualizadoEm":datetime.now()}},upsert=True)
 
 def buscar_processamentos(mes_ano=None, equipe_id=None):
     filtro = {}
     if mes_ano:   filtro["mesAno"]   = mes_ano
     if equipe_id: filtro["equipeId"] = equipe_id
-    docs   = list(get_db().processamentos.find(filtro))
+    docs = list(get_db().processamentos.find(filtro))
     frames = []
     for d in docs:
         if d.get("registros"):
@@ -168,15 +214,15 @@ def buscar_processamentos(mes_ano=None, equipe_id=None):
             df["_equipe"]  = d["equipeId"]
             df["_mes_ano"] = d["mesAno"]
             frames.append(df)
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    return pd.concat(frames,ignore_index=True) if frames else pd.DataFrame()
 
 def listar_meses_processados():
-    return sorted(get_db().processamentos.distinct("mesAno"), reverse=True)
+    return sorted(get_db().processamentos.distinct("mesAno"),reverse=True)
 
 # ── HELPERS ────────────────────────────────────
 def fmt_brl(v):
     if v is None or v == "": return "R$ 0,00"
-    try: return "R$ " + f"{float(v):_.2f}".replace(".", ",").replace("_", ".")
+    try: return "R$ "+f"{float(v):_.2f}".replace(".",",").replace("_",".")
     except: return "R$ 0,00"
 
 def parse_brl(s):
@@ -185,65 +231,99 @@ def parse_brl(s):
     except: return 0.0
 
 def fmt_input(v):
-    if not v or float(v) == 0: return ""
-    return f"{float(v):_.2f}".replace(".", ",").replace("_", ".")
+    if not v or float(v)==0: return ""
+    return f"{float(v):_.2f}".replace(".",",").replace("_",".")
 
-def calc_projecao(valor, dias_trab, total_dias):
-    if not dias_trab or dias_trab <= 0: return 0
-    return (valor / dias_trab) * total_dias
+def calc_projecao(valor,dias_trab,total_dias):
+    if not dias_trab or dias_trab<=0: return 0
+    return (valor/dias_trab)*total_dias
 
-def calc_variacao(atual, anterior):
-    if not anterior or anterior == 0: return None
-    return ((atual - anterior) / anterior) * 100
+def calc_variacao(atual,anterior):
+    if not anterior or anterior==0: return None
+    return ((atual-anterior)/anterior)*100
 
 def cor_pct(pct):
-    if pct >= 80: return "#2daf5c"
-    if pct >= 50: return "#f0a500"
+    if pct>=80: return "#2daf5c"
+    if pct>=50: return "#f0a500"
     return "#e03c3c"
 
 def status_pct(pct):
-    if pct >= 80: return "🟢"
-    if pct >= 50: return "🟡"
+    if pct>=80: return "🟢"
+    if pct>=50: return "🟡"
     return "🔴"
 
-def get_mes_ano_atual():
-    hoje = datetime.now()
-    return f"{MESES_NOMES[hoje.month-1]}-{hoje.year}"
+def calc_pontos(media):
+    for lo,hi,pts in FAIXAS_PONTOS:
+        if lo<=media<=hi: return pts
+    return 0
+
+def calc_media_operador(op_id):
+    monts = buscar_monitorias_operador(op_id)
+    if not monts: return 0, 0
+    notas = [m["nota"] for m in monts if "nota" in m]
+    if not notas: return 0, 0
+    return round(sum(notas)/len(notas),1), len(notas)
+
+def get_meses_disponiveis():
+    hoje = datetime.now(); meses=[]
+    for i in range(6):
+        m=hoje.month-i; a=hoje.year
+        if m<=0: m+=12; a-=1
+        meses.append(f"{MESES_NOMES[m-1]}-{a}")
+    return meses
 
 def get_todos_meses_ano(ano=None):
-    if not ano: ano = datetime.now().year
+    if not ano: ano=datetime.now().year
     return [f"{m}-{ano}" for m in MESES_NOMES]
 
 def get_anos_disponiveis():
-    hoje = datetime.now()
-    return [str(hoje.year), str(hoje.year - 1)]
+    hoje=datetime.now()
+    return [str(hoje.year),str(hoje.year-1)]
 
 def aging_faixa(dias):
     if pd.isna(dias): return "ND"
-    if dias <= 30: return "D0-30"
-    if dias <= 60: return "D31-60"
-    if dias <= 90: return "D61-90"
+    if dias<=30: return "D0-30"
+    if dias<=60: return "D31-60"
+    if dias<=90: return "D61-90"
     return "D90+"
 
-def header_page(titulo, sub=""):
+def header_page(titulo,sub=""):
     st.markdown(f"""
     <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;
                 border-radius:14px;padding:20px 24px;margin-bottom:20px;border-left:4px solid #2daf5c">
-        <h1 style="margin:0">{titulo}</h1>
-        {"<p style='color:#5a9a70;margin:4px 0 0;font-size:13px'>" + sub + "</p>" if sub else ""}
+        <h1 style="margin:0;color:#ffffff">{titulo}</h1>
+        {"<p style='color:#5a9a70;margin:4px 0 0;font-size:13px'>"+sub+"</p>" if sub else ""}
     </div>
-    """, unsafe_allow_html=True)
+    """,unsafe_allow_html=True)
 
-# ── PROCESSAMENTO DE BASES ─────────────────────
+def val_input(label, key, placeholder="0"):
+    """Campo numérico com preview R$ em tempo real"""
+    c1,c2 = st.columns([2,1])
+    with c1:
+        v = st.number_input(label, min_value=0.0, step=100.0, format="%.2f", key=key, value=0.0)
+    with c2:
+        st.markdown(f"<div class='val-preview'>{fmt_brl(v)}</div>", unsafe_allow_html=True)
+    return v
+
+def seletor_equipe(default=None):
+    u = st.session_state.usuario
+    if u["role"] == "admin":
+        eq_opts   = list(EQUIPES.keys())
+        eq_labels = [f"{EQUIPES[e]['emoji']} Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
+        default_idx = eq_opts.index(default) if default and default in eq_opts else 0
+        sel = st.selectbox("🏢 Gerenciando equipe:", eq_labels, index=default_idx, key="admin_eq_sel")
+        return eq_opts[eq_labels.index(sel)]
+    return u["equipe"]
+
+# ── PROCESSAMENTO BASES ────────────────────────
 def processar_bases(pagos_file, chat_file, lig_file, disp_file, equipe_id, mes_ano):
     def ler(f):
         if f is None: return None
-        try: return pd.read_csv(f, header=0) if f.name.endswith(".csv") else pd.read_excel(f, header=0)
+        try: return pd.read_csv(f,header=0) if f.name.endswith(".csv") else pd.read_excel(f,header=0)
         except: return None
 
     df_pagos = ler(pagos_file)
-    if df_pagos is None or df_pagos.empty:
-        return None, ["Arquivo PAGOS inválido ou vazio!"]
+    if df_pagos is None or df_pagos.empty: return None,["Arquivo PAGOS inválido!"]
 
     cols = list(df_pagos.columns)
     mapa = {}
@@ -256,55 +336,126 @@ def processar_bases(pagos_file, chat_file, lig_file, disp_file, equipe_id, mes_a
 
     for col in ["data_vencimento","data_pagamento"]:
         if col in df_pagos.columns:
-            df_pagos[col] = pd.to_datetime(df_pagos[col], dayfirst=True, errors="coerce")
+            df_pagos[col] = pd.to_datetime(df_pagos[col],dayfirst=True,errors="coerce")
 
     if "valor" in df_pagos.columns:
-        df_pagos["valor"] = pd.to_numeric(
-            df_pagos["valor"].astype(str).str.replace("R$","").str.replace(".","").str.replace(",",".").str.strip(),
-            errors="coerce"
-        ).fillna(0)
+        df_pagos["valor"] = pd.to_numeric(df_pagos["valor"].astype(str).str.replace("R$","").str.replace(".","").str.replace(",",".").str.strip(),errors="coerce").fillna(0)
 
     df_pagos["uc_cpf"] = df_pagos["uc_cpf"].astype(str).str.strip()
 
     contatos = []
-    for arq, nome in [(chat_file,"CHAT"),(lig_file,"LIGACOES"),(disp_file,"DISPAROS")]:
+    for arq,nome in [(chat_file,"CHAT"),(lig_file,"LIGACOES"),(disp_file,"DISPAROS")]:
         df = ler(arq)
-        if df is not None and len(df.columns) >= 2:
+        if df is not None and len(df.columns)>=2:
             dc = pd.DataFrame()
             dc["uc_cpf"]       = df.iloc[:,0].astype(str).str.strip()
-            dc["data_contato"] = pd.to_datetime(df.iloc[:,1], dayfirst=True, errors="coerce")
+            dc["data_contato"] = pd.to_datetime(df.iloc[:,1],dayfirst=True,errors="coerce")
             contatos.append(dc)
 
     primeiro_contato = pd.DataFrame()
     if contatos:
-        df_todos = pd.concat(contatos, ignore_index=True).dropna(subset=["data_contato"])
-        primeiro_contato = df_todos.groupby("uc_cpf")["data_contato"].min().reset_index().rename(
-            columns={"data_contato":"primeiro_contato"})
+        df_todos = pd.concat(contatos,ignore_index=True).dropna(subset=["data_contato"])
+        primeiro_contato = df_todos.groupby("uc_cpf")["data_contato"].min().reset_index().rename(columns={"data_contato":"primeiro_contato"})
 
-    if not primeiro_contato.empty:
-        df_res = df_pagos.merge(primeiro_contato, on="uc_cpf", how="left")
-    else:
-        df_res = df_pagos.copy()
-        df_res["primeiro_contato"] = pd.NaT
+    df_res = df_pagos.merge(primeiro_contato,on="uc_cpf",how="left") if not primeiro_contato.empty else df_pagos.copy()
+    if "primeiro_contato" not in df_res.columns: df_res["primeiro_contato"] = pd.NaT
 
-    df_res["diferenca_dias"] = (df_res["data_pagamento"] - df_res["primeiro_contato"]).dt.days
+    df_res["diferenca_dias"] = (df_res["data_pagamento"]-df_res["primeiro_contato"]).dt.days
 
     def classif(row):
         if pd.isna(row["primeiro_contato"]): return "ND"
-        if row["diferenca_dias"] >= 0: return "Elegível"
+        if row["diferenca_dias"]>=0: return "Elegível"
         return "Não Elegível"
 
-    df_res["elegibilidade"] = df_res.apply(classif, axis=1)
-    df_res["dias_vencidos"]  = (df_res["data_pagamento"] - df_res["data_vencimento"]).dt.days
+    df_res["elegibilidade"] = df_res.apply(classif,axis=1)
+    df_res["dias_vencidos"]  = (df_res["data_pagamento"]-df_res["data_vencimento"]).dt.days
     df_res["aging"]          = df_res["dias_vencidos"].apply(aging_faixa)
 
     for col in ["data_vencimento","data_pagamento","primeiro_contato"]:
         if col in df_res.columns:
-            df_res[col] = df_res[col].dt.strftime("%Y-%m-%d").where(df_res[col].notna(), other=None)
+            df_res[col] = df_res[col].dt.strftime("%Y-%m-%d").where(df_res[col].notna(),other=None)
 
     df_res["equipe"]  = equipe_id
     df_res["mes_ano"] = mes_ano
-    return df_res, []
+    return df_res,[]
+
+# ── PDF MONITORIA ──────────────────────────────
+def gerar_pdf_monitoria(op_nome, protocolo, obs, criterios_resultado, erros_marcados, nota, media, n_monitorias, mes_ano):
+    pontos = calc_pontos(media)
+    linhas = []
+    linhas.append(f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
+<style>
+body{{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#1a1a1a;margin:0;padding:0}}
+.header{{background:linear-gradient(135deg,#0a2414,#1a6b35);color:#fff;padding:32px 40px;}}
+.logo{{font-size:24px;font-weight:800;color:#2daf5c;letter-spacing:2px}}
+.subtitle{{font-size:13px;color:#5a9a70;margin-top:4px}}
+.body{{padding:32px 40px}}
+.info-row{{display:flex;gap:32px;margin-bottom:24px;background:#f8fdf9;border-radius:10px;padding:16px 20px;border-left:4px solid #2daf5c}}
+.info-item .lbl{{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#5a9a70;font-weight:600}}
+.info-item .val{{font-size:15px;font-weight:700;color:#0a2414;margin-top:2px}}
+table{{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px}}
+thead th{{background:#0a2414;color:#fff;padding:10px 14px;text-align:left;font-weight:600}}
+tbody tr:nth-child(even){{background:#f0f9f3}}
+tbody td{{padding:10px 14px;border-bottom:1px solid #e0ede5;vertical-align:top}}
+.passou{{color:#1a6b35;font-weight:700}}.nao{{color:#c0392b;font-weight:700}}
+.nota-box{{background:linear-gradient(135deg,#0a2414,#1a6b35);color:#fff;border-radius:12px;padding:24px 32px;text-align:center;margin-bottom:24px}}
+.nota-num{{font-size:48px;font-weight:800;color:#2daf5c}}
+.media-box{{background:#f0f9f3;border:1px solid #c3e6cb;border-radius:10px;padding:16px 20px;margin-bottom:24px;display:flex;gap:32px}}
+.critico{{background:#fdf0f0;border:1px solid #f5c6cb;border-radius:10px;padding:16px 20px;margin-bottom:24px}}
+.critico h4{{color:#c0392b;margin:0 0 8px 0}}
+.obs-box{{background:#f8fdf9;border:1px solid #c3e6cb;border-radius:10px;padding:16px 20px;margin-bottom:24px}}
+.footer{{background:#f0f9f3;padding:16px 40px;text-align:center;font-size:11px;color:#5a9a70;border-top:2px solid #2daf5c}}
+</style></head><body>
+<div class='header'>
+  <div class='logo'>🌿 iGREEN ENERGY</div>
+  <div class='subtitle'>Relatório de Monitoria — Inadimplência Comercial</div>
+</div>
+<div class='body'>
+<div class='info-row'>
+  <div class='info-item'><div class='lbl'>Operador</div><div class='val'>{op_nome}</div></div>
+  <div class='info-item'><div class='lbl'>Protocolo</div><div class='val'>{protocolo}</div></div>
+  <div class='info-item'><div class='lbl'>Mês</div><div class='val'>{mes_ano.replace('-',' ')}</div></div>
+  <div class='info-item'><div class='lbl'>Data</div><div class='val'>{datetime.now().strftime('%d/%m/%Y')}</div></div>
+</div>""")
+
+    if erros_marcados:
+        linhas.append(f"<div class='critico'><h4>⚠ MONITORIA ZERADA — Erro Crítico</h4>")
+        for e in erros_marcados:
+            linhas.append(f"<div>• <strong>{e['nome']}</strong>: {e['desc']}</div>")
+        linhas.append("</div>")
+
+    linhas.append("""<table>
+<thead><tr><th>#</th><th>Critério</th><th>Itens Avaliados</th><th>Peso</th><th>Resultado</th></tr></thead><tbody>""")
+
+    for c in criterios_resultado:
+        passou_txt = "<span class='passou'>✓ Passou</span>" if c["passou"] else "<span class='nao'>✗ Não passou</span>"
+        itens_html = "<br>".join([f"• {i}" for i in c["itens"]])
+        linhas.append(f"<tr><td>{c['num']}</td><td><strong>{c['nome']}</strong></td><td>{itens_html}</td><td style='text-align:center;font-weight:700;color:#{'1a6b35' if c['peso']>=20 else '0a2414'}'>{c['peso']}</td><td>{passou_txt}</td></tr>")
+
+    linhas.append("</tbody></table>")
+
+    linhas.append(f"""
+<div class='nota-box'>
+  <div style='font-size:13px;color:#5a9a70;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Nota desta Monitoria</div>
+  <div class='nota-num'>{nota:.0f}%</div>
+</div>
+<div class='media-box'>
+  <div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#5a9a70'>Média Geral ({n_monitorias} monitorias)</div>
+       <div style='font-size:24px;font-weight:800;color:#0a2414'>{media:.1f}%</div></div>
+  <div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#5a9a70'>Pontuação Atual</div>
+       <div style='font-size:24px;font-weight:800;color:#1a6b35'>{pontos} pts</div></div>
+  <div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#5a9a70'>Faixa</div>
+       <div style='font-size:18px;font-weight:700;color:#0a2414'>{'Abaixo 61%' if media<61 else '61-70%' if media<=70 else '71-80%' if media<=80 else '81-90%' if media<=90 else '91-99%' if media<=99 else '100%'}</div></div>
+</div>""")
+
+    if obs:
+        linhas.append(f"<div class='obs-box'><strong>📝 Observações:</strong><br>{obs}</div>")
+
+    linhas.append(f"""</div>
+<div class='footer'>iGreen Energy · Relatório gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')} · Inadimplência Comercial</div>
+</body></html>""")
+
+    return "".join(linhas)
 
 # ── LOGIN ──────────────────────────────────────
 def tela_login():
@@ -319,17 +470,15 @@ def tela_login():
             <h1 style="color:#ffffff;margin:0;font-size:24px">iGreen Resultados</h1>
             <p style="color:#5a9a70;margin:6px 0 0;font-size:13px">Gestão de Inadimplência Comercial</p>
         </div>
-        """, unsafe_allow_html=True)
-        usuario = st.text_input("Usuário", placeholder="Digite seu usuário")
-        senha   = st.text_input("Senha", type="password", placeholder="••••••••")
-        if st.button("Entrar", use_container_width=True):
+        """,unsafe_allow_html=True)
+        usuario = st.text_input("Usuário",placeholder="Digite seu usuário")
+        senha   = st.text_input("Senha",type="password",placeholder="••••••••")
+        if st.button("Entrar",use_container_width=True):
             u = USUARIOS.get(usuario.lower().strip())
-            if u and u["senha"] == senha.strip():
-                st.session_state.usuario = {"id": usuario.lower(), **u}
-                st.rerun()
-            else:
-                st.error("⚠ Usuário ou senha incorretos.")
-        st.markdown('<p style="text-align:center;color:#1a4d2e;font-size:11px;margin-top:32px">iGreen Energy © 2026</p>', unsafe_allow_html=True)
+            if u and u["senha"]==senha.strip():
+                st.session_state.usuario={"id":usuario.lower(),**u}; st.rerun()
+            else: st.error("⚠ Usuário ou senha incorretos.")
+        st.markdown('<p style="text-align:center;color:#1a4d2e;font-size:11px;margin-top:32px">iGreen Energy © 2026</p>',unsafe_allow_html=True)
 
 # ── SIDEBAR ────────────────────────────────────
 def render_sidebar():
@@ -342,7 +491,7 @@ def render_sidebar():
                             border-radius:10px;display:flex;align-items:center;justify-content:center;
                             font-weight:800;font-size:18px;color:white">G</div>
                 <div><div style="color:#ffffff;font-weight:700;font-size:14px">iGreen</div>
-                     <div style="color:#5a9a70;font-size:11px">Inadimplência</div></div>
+                <div style="color:#5a9a70;font-size:11px">Inadimplência</div></div>
             </div>
             <div style="background:rgba(45,175,92,0.1);border:1px solid rgba(45,175,92,0.2);
                         border-radius:8px;padding:10px 12px;margin-bottom:16px">
@@ -352,37 +501,30 @@ def render_sidebar():
                 <div style="color:#ffffff;font-size:14px;font-weight:600;margin-top:2px">{u['nome']}</div>
             </div>
         </div><hr>
-        """, unsafe_allow_html=True)
+        """,unsafe_allow_html=True)
 
-        # Seletor de ano e mês
         st.markdown("**📅 Período**")
-        anos   = get_anos_disponiveis()
-        ano    = st.selectbox("Ano", anos, label_visibility="collapsed")
-        meses  = get_todos_meses_ano(int(ano))
+        anos  = get_anos_disponiveis()
+        ano   = st.selectbox("Ano",anos,label_visibility="collapsed")
+        meses = get_todos_meses_ano(int(ano))
         mes_labels = [m.split("-")[0] for m in meses]
-        mes_idx    = datetime.now().month - 1
-        mes_sel    = st.selectbox("Mês", mes_labels, index=mes_idx, label_visibility="collapsed")
+        mes_idx    = datetime.now().month-1
+        mes_sel    = st.selectbox("Mês",mes_labels,index=mes_idx,label_visibility="collapsed")
         mes_ano    = f"{mes_sel}-{ano}"
 
-        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown("<hr>",unsafe_allow_html=True)
         st.markdown("**📌 Navegação**")
 
-        if u["role"] == "diretor":
-            pags = ["🏆 Quadro de Resultados", "📊 Dashboard Executivo",
-                    "📈 Análise de Projeção", "📋 Histórico"]
-        elif u["role"] == "admin":
-            pags = ["🏆 Quadro de Resultados", "✏️ Lançamento",
-                    "📊 Dashboard Executivo", "📈 Análise de Projeção",
-                    "📁 Upload de Bases", "📋 Histórico",
-                    "👥 Operadores", "🎯 Metas"]
+        if u["role"]=="diretor":
+            pags=["🏆 Quadro de Resultados","📊 Dashboard Executivo","📈 Análise de Projeção","📋 Monitorias","📅 Histórico"]
+        elif u["role"]=="admin":
+            pags=["🏆 Quadro de Resultados","✏️ Lançamento","📊 Dashboard Executivo","📈 Análise de Projeção","📋 Monitorias","📁 Upload de Bases","📅 Histórico","👥 Operadores","🎯 Metas"]
         else:
-            pags = ["🏆 Quadro de Resultados", "✏️ Lançamento",
-                    "📈 Análise de Projeção", "📁 Upload de Bases",
-                    "📋 Histórico", "👥 Operadores", "🎯 Metas"]
+            pags=["🏆 Quadro de Resultados","✏️ Lançamento","📈 Análise de Projeção","📋 Monitorias","📁 Upload de Bases","📅 Histórico","👥 Operadores","🎯 Metas"]
 
-        pag = st.radio("", pags, label_visibility="collapsed")
-        st.markdown("<hr>", unsafe_allow_html=True)
-        if st.button("⏻ Sair", use_container_width=True):
+        pag = st.radio("",pags,label_visibility="collapsed")
+        st.markdown("<hr>",unsafe_allow_html=True)
+        if st.button("⏻ Sair",use_container_width=True):
             del st.session_state.usuario; st.rerun()
 
     return mes_ano, pag
@@ -390,406 +532,421 @@ def render_sidebar():
 # ── OPERADORES ─────────────────────────────────
 def pagina_operadores():
     u = st.session_state.usuario
-    equipe_id = u["equipe"]
+    header_page("👥 Operadores","Gerencie os operadores da equipe")
+    equipe_id = seletor_equipe(u["equipe"])
     eq = EQUIPES[equipe_id]
 
-    header_page("👥 Operadores", f"Equipe {eq['nome']} · Gerencie seus operadores")
-
-    # Cadastro
-    with st.expander("➕ Cadastrar Novo Operador", expanded=False):
+    with st.expander("➕ Cadastrar Novo Operador",expanded=False):
         c1,c2,c3 = st.columns([3,1,1])
-        with c1: novo_nome = st.text_input("Nome do Operador", placeholder="Nome completo")
+        with c1: novo_nome = st.text_input("Nome",placeholder="Nome completo")
         with c2: novo_pleno = st.checkbox("Pleno")
         with c3:
-            st.markdown("<div style='margin-top:28px'>", unsafe_allow_html=True)
-            if st.button("➕ Cadastrar", use_container_width=True):
+            st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
+            if st.button("➕ Cadastrar",use_container_width=True):
                 if novo_nome.strip():
-                    salvar_operador(equipe_id, novo_nome.strip(), novo_pleno)
-                    st.success(f"✅ {novo_nome} cadastrado!")
-                    st.rerun()
-                else:
-                    st.error("Digite o nome do operador.")
-            st.markdown("</div>", unsafe_allow_html=True)
+                    salvar_operador(equipe_id,novo_nome.strip(),novo_pleno)
+                    st.success(f"✅ {novo_nome} cadastrado!"); st.rerun()
+                else: st.error("Digite o nome.")
+            st.markdown("</div>",unsafe_allow_html=True)
 
     st.markdown("---")
-
-    OPERADORES_PADRAO = {
-        "luciano": [
-            ("Jennifer Silveira", True),("Paulo Roberto", False),("Samires Barros", False),
-            ("Maycow Gabriel", False),("Otaides Junior", False),("Heverton Tavares", False),
-            ("Camila Nara", False),("Caua Alves", False),("Eduarda Sanqueta", False),
-            ("Jheniffer Santos", False),("Ketie Silva", False),("Emanuel Cardoso", False),
-            ("Victória Silva", False),("Grasielli Santos", False),("Laura Silva", False),
-            ("Michelle Batista", False),("Lorenzzo Pereira", False),("Diogo Oliveira", False),
-            ("Maria Paulino", False),("Gabrielle Martins", False),("Marcos Martins", False),
-        ],
-        "deborah": [
-            ("Mikael Dias", False),("Amanda Eduarda", False),("Larissa Barcelos", False),
-            ("Nicole Amaral", False),("Sara Rocha", False),("Isabelly Araujo", False),("Silye Paula", False),
-        ],
-        "tamires": [
-            ("Danilo Rodrigues", True),("Raiane Pereira", False),("Wynara Dos Reis", False),
-            ("Esteffany Souza", False),("André Gomes", False),("Wanessa Cardoso", False),
-            ("Larisse Garcia", False),("Arthur Alves", False),
-        ],
-        "metcool": [],
-    }
     ops = buscar_operadores(equipe_id)
-    if not ops:
-        st.info("Nenhum operador cadastrado ainda.")
-        padrao = OPERADORES_PADRAO.get(equipe_id, [])
-        if padrao:
-            if st.button("📥 Importar Operadores Padrão", use_container_width=True):
-                for nome, pleno in padrao:
-                    salvar_operador(equipe_id, nome, pleno)
-                st.success(f"✅ {len(padrao)} operadores importados!")
-                st.rerun()
-        return
-    st.markdown(f"**{len(ops)} operadores cadastrados**")
 
+    if not ops:
+        st.info("Nenhum operador cadastrado.")
+        padrao = OPERADORES_PADRAO.get(equipe_id,[])
+        if padrao:
+            if st.button("📥 Importar Operadores Padrão",use_container_width=True):
+                for nome,pleno in padrao:
+                    salvar_operador(equipe_id,nome,pleno)
+                st.success(f"✅ {len(padrao)} operadores importados!"); st.rerun()
+        return
+
+    st.markdown(f"**{len(ops)} operadores — {eq['emoji']} Equipe {eq['nome']}**")
     for op in ops:
         c1,c2,c3,c4 = st.columns([3,1,1,1])
-        with c1:
-            novo_n = st.text_input("n", value=op["nome"], label_visibility="collapsed",
-                                    key=f"n_{op['_id']}")
-        with c2:
-            novo_p = st.checkbox("Pleno", value=op.get("pleno", False), key=f"p_{op['_id']}")
+        with c1: nn = st.text_input("n",value=op["nome"],label_visibility="collapsed",key=f"n_{op['_id']}")
+        with c2: np_ = st.checkbox("Pleno",value=op.get("pleno",False),key=f"p_{op['_id']}")
         with c3:
-            if st.button("💾", key=f"s_{op['_id']}", help="Salvar"):
-                atualizar_operador(op["_id"], novo_n, novo_p)
-                st.success("Salvo!")
-                st.rerun()
+            if st.button("💾",key=f"s_{op['_id']}",help="Salvar"):
+                atualizar_operador(op["_id"],nn,np_); st.success("Salvo!"); st.rerun()
         with c4:
-            if st.button("🗑️", key=f"d_{op['_id']}", help="Excluir"):
-                excluir_operador(op["_id"])
-                st.warning(f"{op['nome']} removido.")
-                st.rerun()
+            if st.button("🗑️",key=f"d_{op['_id']}",help="Excluir"):
+                excluir_operador(op["_id"]); st.warning(f"{op['nome']} removido."); st.rerun()
 
 # ── METAS ──────────────────────────────────────
 def pagina_metas(mes_ano):
     u = st.session_state.usuario
-    equipe_id = u["equipe"]
+    header_page("🎯 Metas",mes_ano.replace("-"," "))
+    equipe_id = seletor_equipe(u["equipe"])
     eq = EQUIPES[equipe_id]
     ops = buscar_operadores(equipe_id)
 
-    header_page("🎯 Metas", f"Equipe {eq['nome']} · {mes_ano.replace('-',' ')}")
-
     if not ops:
-        st.warning("Cadastre operadores primeiro em 👥 Operadores.")
-        return
+        st.warning("Cadastre operadores primeiro."); return
 
-    # Meta da gestora
     st.markdown("### 🏆 Meta da Gestora")
-    meta_gest_doc = buscar_meta_gestora(mes_ano, equipe_id)
+    meta_gest_doc = buscar_meta_gestora(mes_ano,equipe_id)
     c1,c2,c3 = st.columns([2,1,1])
     with c1:
-        meta_gest_str = st.text_input("💰 Meta Base do Mês (R$)",
-            value=fmt_input(meta_gest_doc.get("metaGestora", 0)),
-            placeholder="Ex: 1.600.000,00", key="meta_gest")
+        mg_val = st.number_input("💰 Meta Base do Mês (R$)",min_value=0.0,step=1000.0,format="%.2f",
+            value=float(meta_gest_doc.get("metaGestora",0)),key="meta_gest_val")
     with c2:
-        target_pct = st.number_input("🎯 Target (%)", min_value=100, max_value=200,
-            value=int(meta_gest_doc.get("targetPct", 125)), key="target_pct")
+        target_pct = st.number_input("🎯 Target (%)",min_value=100,max_value=200,
+            value=int(meta_gest_doc.get("targetPct",125)),key="target_pct")
     with c3:
-        mg = parse_brl(meta_gest_str)
-        target_val = mg * (target_pct / 100)
-        st.markdown(f"<div style='padding-top:28px;color:#2daf5c;font-weight:700'>{fmt_brl(target_val)}</div>",
-                    unsafe_allow_html=True)
+        target_val = mg_val*(target_pct/100)
+        st.markdown(f"<div style='padding-top:28px;color:#2daf5c;font-weight:700;font-size:16px'>{fmt_brl(target_val)}</div>",unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("### 👤 Metas por Operador")
-
-    metas_salvas = buscar_metas_equipe(mes_ano, equipe_id)
+    metas_salvas = buscar_metas_equipe(mes_ano,equipe_id)
     metas_novas  = {}
 
-    cols_h = st.columns([3,2])
-    cols_h[0].markdown("**Operador**")
-    cols_h[1].markdown("**Meta Mensal (R$)**")
+    c1,c2 = st.columns([3,2])
+    c1.markdown("**Operador**"); c2.markdown("**Meta Mensal (R$)**")
 
     for op in ops:
-        meta_salva = metas_salvas.get(op["_id"], 0)
+        meta_salva = float(metas_salvas.get(op["_id"],0))
         c1,c2 = st.columns([3,2])
         with c1:
-            st.markdown(f"<div style='padding-top:10px;color:#e0f0e8'>{'⭐ ' if op.get('pleno') else ''}{op['nome']}</div>",
-                        unsafe_allow_html=True)
+            st.markdown(f"<div style='padding-top:10px;color:#e0f0e8'>{'⭐ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
         with c2:
-            val = st.text_input("m", label_visibility="collapsed",
-                value=fmt_input(meta_salva), placeholder="R$ 0,00",
-                key=f"mg_{mes_ano}_{op['_id']}")
-            metas_novas[op["_id"]] = parse_brl(val)
+            v = st.number_input("m",label_visibility="collapsed",min_value=0.0,step=100.0,
+                format="%.2f",value=meta_salva,key=f"mg_{mes_ano}_{op['_id']}")
+            metas_novas[op["_id"]] = v
 
     st.markdown("---")
-    if st.button("💾 Salvar Todas as Metas", use_container_width=True):
-        for op_id, val in metas_novas.items():
-            salvar_meta_operador(mes_ano, equipe_id, op_id, val)
-        salvar_meta_gestora(mes_ano, equipe_id,
-                            parse_brl(meta_gest_str), target_pct)
-        st.success("✅ Metas salvas com sucesso!")
-        st.rerun()
+    if st.button("💾 Salvar Todas as Metas",use_container_width=True):
+        for op_id,val in metas_novas.items():
+            salvar_meta_operador(mes_ano,equipe_id,op_id,val)
+        salvar_meta_gestora(mes_ano,equipe_id,mg_val,target_pct)
+        st.success("✅ Metas salvas!"); st.rerun()
 
 # ── LANÇAMENTO ─────────────────────────────────
 def pagina_lancamento(mes_ano):
     u = st.session_state.usuario
-    equipe_id = u["equipe"]
+    header_page("✏️ Lançamento de Resultado",mes_ano.replace("-"," "))
+    equipe_id = seletor_equipe(u["equipe"])
     eq = EQUIPES[equipe_id]
     ops = buscar_operadores(equipe_id)
 
-    header_page("✏️ Lançamento de Resultado", f"Equipe {eq['nome']} · {mes_ano.replace('-',' ')}")
-
     if not ops:
-        st.warning("⚠ Cadastre operadores primeiro em 👥 Operadores.")
-        return
+        st.warning("⚠ Cadastre operadores primeiro em 👥 Operadores."); return
 
-    metas_salvas  = buscar_metas_equipe(mes_ano, equipe_id)
-    meta_gest_doc = buscar_meta_gestora(mes_ano, equipe_id)
+    metas_salvas  = buscar_metas_equipe(mes_ano,equipe_id)
+    meta_gest_doc = buscar_meta_gestora(mes_ano,equipe_id)
 
-    # Config do lançamento
     st.markdown("### ⚙️ Configuração do Lançamento")
-    c1,c2,c3,c4 = st.columns([2,1,1,1])
+    c1,c2,c3 = st.columns([2,1,1])
     with c1:
         hoje = date.today()
-        data_sel = st.date_input("📅 Data do Resultado", value=hoje,
-                                  min_value=date(hoje.year,1,1),
-                                  max_value=date(hoje.year,12,31))
-        eh_fechamento = st.checkbox("📌 Este é o Fechamento do Mês")
+        data_sel = st.date_input("📅 Data do Resultado",value=hoje,
+                                  min_value=date(hoje.year,1,1),max_value=date(hoje.year,12,31))
+        eh_fechamento = st.checkbox("📌 Fechamento do Mês")
         label = "Fechamento do Mês" if eh_fechamento else data_sel.strftime("%d/%m/%Y")
     with c2:
-        dt = st.number_input("Dias Trabalhados", min_value=0, max_value=31, value=0)
+        dt = st.number_input("Dias Trabalhados",min_value=0,max_value=31,value=0)
     with c3:
-        td = st.number_input("Total de Dias no Mês", min_value=1, max_value=31, value=22)
-    with c4:
-        vgs = st.text_input("💰 Valor Geral (R$)", placeholder="Ex: 200.000,00")
+        td = st.number_input("Total de Dias no Mês",min_value=1,max_value=31,value=22)
+
+    st.markdown("---")
+    # Valor Geral
+    c1,c2 = st.columns([2,1])
+    with c1:
+        vg = st.number_input("💰 Valor Total Geral Recebido (R$)",min_value=0.0,step=100.0,format="%.2f",key="vg_lanc")
+    with c2:
+        st.markdown(f"<div class='val-preview'>{fmt_brl(vg)}</div>",unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("### 👤 Valores por Operador")
 
-    cols_h = st.columns([3,2,2,2,2])
-    for h,t in zip(cols_h, ["**Operador**","**Meta**","**Valor Recebido (R$)**","**Projeção**","**% Meta**"]):
-        h.markdown(t)
+    c1,c2,c3,c4,c5 = st.columns([3,2,2,2,2])
+    c1.markdown("**Operador**"); c2.markdown("**Meta**")
+    c3.markdown("**Valor Recebido (R$)**"); c4.markdown("**Projeção**"); c5.markdown("**% Meta**")
 
     vi = {}
     for op in ops:
-        meta = metas_salvas.get(op["_id"], 0)
+        meta = float(metas_salvas.get(op["_id"],0))
         c1,c2,c3,c4,c5 = st.columns([3,2,2,2,2])
-        c1.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{'⭐ ' if op.get('pleno') else ''}{op['nome']}</div>",
-                    unsafe_allow_html=True)
-        c2.markdown(f"<div style='padding-top:10px;color:#5a9a70'>{fmt_brl(meta) if meta > 0 else '—'}</div>",
-                    unsafe_allow_html=True)
-        val_str = c3.text_input("v", label_visibility="collapsed",
-                                 placeholder="R$ 0,00", key=f"vl_{op['_id']}")
-        val  = parse_brl(val_str)
-        proj = calc_projecao(val, dt, td)
-        pct  = (val/meta*100) if meta > 0 else 0
-        c4.markdown(f"<div style='padding-top:10px;color:#5a9a70'>{fmt_brl(proj) if proj > 0 else '—'}</div>",
-                    unsafe_allow_html=True)
-        c5.markdown(f"<div style='padding-top:10px;color:{cor_pct(pct)};font-weight:700'>{status_pct(pct) if meta > 0 else '⚪'} {f'{pct:.1f}%' if meta > 0 else '—'}</div>",
-                    unsafe_allow_html=True)
+        with c1: st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{'⭐ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
+        with c2: st.markdown(f"<div style='padding-top:10px;color:#5a9a70'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
+        with c3:
+            val = st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"vl_{equipe_id}_{op['_id']}")
+        proj = calc_projecao(val,dt,td)
+        pct  = (val/meta*100) if meta>0 else 0
+        with c4: st.markdown(f"<div style='padding-top:10px;color:#5a9a70'>{fmt_brl(proj) if proj>0 else '—'}</div>",unsafe_allow_html=True)
+        with c5: st.markdown(f"<div style='padding-top:10px;color:{cor_pct(pct)};font-weight:700'>{status_pct(pct) if meta>0 else '⚪'} {f'{pct:.1f}%' if meta>0 else '—'}</div>",unsafe_allow_html=True)
         vi[op["_id"]] = val
 
     tc  = sum(vi.values())
-    vg  = parse_brl(vgs)
-    sem = max(0, vg - tc)
-    mg  = meta_gest_doc.get("metaGestora", 0)
-    tpct = meta_gest_doc.get("targetPct", 125)
-    pct_gest = (tc/mg*100) if mg > 0 else 0
+    sem = max(0,vg-tc)
+    mg  = float(meta_gest_doc.get("metaGestora",0))
+    pct_gest = (tc/mg*100) if mg>0 else 0
 
     st.markdown("---")
     c1,c2,c3,c4,c5 = st.columns(5)
-    c1.metric("🤝 Com Interação",  fmt_brl(tc))
-    c2.metric("🔕 Sem Interação",  fmt_brl(sem))
-    c3.metric("💰 Total Geral",    fmt_brl(vg))
-    c4.metric("📈 Projeção",       fmt_brl(calc_projecao(tc, dt, td)))
-    c5.metric(f"🎯 Meta ({pct_gest:.1f}%)", fmt_brl(mg))
+    c1.metric("🤝 Com Interação",fmt_brl(tc))
+    c2.metric("🔕 Sem Interação",fmt_brl(sem))
+    c3.metric("💰 Total Geral",  fmt_brl(vg))
+    c4.metric("📈 Projeção",     fmt_brl(calc_projecao(tc,dt,td)))
+    c5.metric(f"🎯 Meta ({pct_gest:.1f}%)",fmt_brl(mg))
 
     st.markdown("---")
-    if st.button("💾 Salvar Lançamento", use_container_width=True):
-        if not any(v > 0 for v in vi.values()):
-            st.warning("⚠ Preencha pelo menos um valor antes de salvar.")
-            return
-        agentes_data = {op["_id"]: {"valorRecebido": vi[op["_id"]], "nome": op["nome"]} for op in ops}
-        criar_lancamento(mes_ano, equipe_id, str(data_sel), label,
-                         agentes_data, tc, vg, sem, dt, td)
-        st.success(f"✅ Lançamento de {label} salvo com sucesso!")
-        st.rerun()
+    if st.button("💾 Salvar Lançamento",use_container_width=True):
+        if not any(v>0 for v in vi.values()):
+            st.warning("⚠ Preencha pelo menos um valor."); return
+        agentes_data = {op["_id"]:{"valorRecebido":vi[op["_id"]],"nome":op["nome"]} for op in ops}
+        criar_lancamento(mes_ano,equipe_id,str(data_sel),label,agentes_data,tc,vg,sem,dt,td)
+        st.success(f"✅ Lançamento de {label} salvo!"); st.rerun()
 
 # ── QUADRO DE RESULTADOS ───────────────────────
 def pagina_quadro(mes_ano):
     u = st.session_state.usuario
-    is_dir = u["role"] == "diretor"
-    equipes_ver = list(EQUIPES.keys()) if is_dir else [u["equipe"]]
+    is_dir = u["role"] in ["diretor"]
+    is_admin = u["role"] == "admin"
+    equipes_ver = list(EQUIPES.keys()) if (is_dir or is_admin) else [u["equipe"]]
 
-    header_page("🏆 Quadro de Resultados", mes_ano.replace("-"," "))
+    header_page("🏆 Quadro de Resultados",mes_ano.replace("-"," "))
 
     for equipe_id in equipes_ver:
         eq  = EQUIPES[equipe_id]
         ops = buscar_operadores(equipe_id)
-        if not ops and not is_dir: continue
+        lancs = buscar_lancamentos(mes_ano,equipe_id)
+        if not lancs: continue
 
-        lancs = buscar_lancamentos(mes_ano, equipe_id)
-        if not lancs:
-            st.info(f"{eq['emoji']} Equipe {eq['nome']} — Nenhum lançamento ainda.")
-            continue
-
-        # Pega o lançamento mais recente
         ultimo = lancs[0]
-        meta_gest_doc = buscar_meta_gestora(mes_ano, equipe_id)
-        metas_ops     = buscar_metas_equipe(mes_ano, equipe_id)
-        mg   = meta_gest_doc.get("metaGestora", 0)
-        tpct = meta_gest_doc.get("targetPct", 125)
-        tc   = ultimo.get("totalEquipe", 0)
-        dt   = ultimo.get("diasTrabalhados", 0)
-        td   = ultimo.get("totalDias", 22)
-        proj = calc_projecao(tc, dt, td)
-        pct_mg   = (tc/mg*100) if mg > 0 else 0
-        target_v = mg * (tpct/100)
-        pct_tg   = (tc/target_v*100) if target_v > 0 else 0
+        meta_gest_doc = buscar_meta_gestora(mes_ano,equipe_id)
+        metas_ops     = buscar_metas_equipe(mes_ano,equipe_id)
+        mg   = float(meta_gest_doc.get("metaGestora",0))
+        tpct = int(meta_gest_doc.get("targetPct",125))
+        tc   = float(ultimo.get("totalEquipe",0))
+        dt   = int(ultimo.get("diasTrabalhados",0))
+        td   = int(ultimo.get("totalDias",22))
+        proj = calc_projecao(tc,dt,td)
+        pct_mg  = (tc/mg*100) if mg>0 else 0
+        target_v = mg*(tpct/100)
+        pct_tg   = (tc/target_v*100) if target_v>0 else 0
 
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;
                     border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid {eq['cor']}">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                 <div style="font-size:16px;font-weight:700;color:#ffffff">{eq['emoji']} Equipe {eq['nome']} · {ultimo.get('label','')}</div>
-                <div style="display:flex;gap:16px">
-                    <div style="text-align:center">
-                        <div style="color:#5a9a70;font-size:10px;text-transform:uppercase">% Meta</div>
-                        <div style="color:{cor_pct(pct_mg)};font-size:22px;font-weight:800">{pct_mg:.1f}%</div>
-                    </div>
-                    <div style="text-align:center">
-                        <div style="color:#5a9a70;font-size:10px;text-transform:uppercase">% Target {tpct}%</div>
-                        <div style="color:{cor_pct(pct_tg)};font-size:22px;font-weight:800">{pct_tg:.1f}%</div>
-                    </div>
+                <div style="display:flex;gap:20px">
+                    <div style="text-align:center"><div style="color:#5a9a70;font-size:10px;text-transform:uppercase">% Meta</div>
+                        <div style="color:{cor_pct(pct_mg)};font-size:22px;font-weight:800">{pct_mg:.1f}%</div></div>
+                    <div style="text-align:center"><div style="color:#5a9a70;font-size:10px;text-transform:uppercase">% Target {tpct}%</div>
+                        <div style="color:{cor_pct(pct_tg)};font-size:22px;font-weight:800">{pct_tg:.1f}%</div></div>
                 </div>
             </div>
             <div style="display:flex;gap:24px;margin-top:12px;flex-wrap:wrap">
-                <div><span style="color:#5a9a70;font-size:11px">RECEBIDO</span><br>
-                     <span style="color:#2daf5c;font-weight:700;font-size:15px">{fmt_brl(tc)}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">META</span><br>
-                     <span style="color:#e0f0e8;font-weight:600">{fmt_brl(mg)}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">TARGET {tpct}%</span><br>
-                     <span style="color:#e0f0e8;font-weight:600">{fmt_brl(target_v)}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">PROJEÇÃO</span><br>
-                     <span style="color:#e0f0e8;font-weight:600">{fmt_brl(proj)}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">DIAS</span><br>
-                     <span style="color:#e0f0e8;font-weight:600">{dt}/{td}</span></div>
+                <div><span style="color:#5a9a70;font-size:11px">RECEBIDO</span><br><span style="color:#2daf5c;font-weight:700;font-size:15px">{fmt_brl(tc)}</span></div>
+                <div><span style="color:#5a9a70;font-size:11px">META</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(mg)}</span></div>
+                <div><span style="color:#5a9a70;font-size:11px">TARGET {tpct}%</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(target_v)}</span></div>
+                <div><span style="color:#5a9a70;font-size:11px">PROJEÇÃO</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(proj)}</span></div>
+                <div><span style="color:#5a9a70;font-size:11px">DIAS</span><br><span style="color:#e0f0e8;font-weight:600">{dt}/{td}</span></div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,unsafe_allow_html=True)
 
-        # Tabela operadores
-        rows = []
-        for op in ops:
-            val  = ultimo.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0)
-            meta = metas_ops.get(op["_id"], 0)
-            proj_op = calc_projecao(val, dt, td)
-            pct  = (val/meta*100) if meta > 0 else 0
-            rows.append({
-                "Status":   status_pct(pct) if meta > 0 else "⚪",
-                "Operador": ("⭐ " if op.get("pleno") else "") + op["nome"],
-                "Recebido": fmt_brl(val),
-                "Meta":     fmt_brl(meta) if meta > 0 else "—",
-                "% Meta":   f"{pct:.1f}%" if meta > 0 else "—",
-                "Projeção": fmt_brl(proj_op) if proj_op > 0 else "—",
-                "_v": val
-            })
-
-        df = pd.DataFrame(rows).sort_values("_v", ascending=False).drop(columns=["_v"]).reset_index(drop=True)
-        df.index = range(1, len(df)+1)
-        st.dataframe(df, use_container_width=True, height=min(600,(len(df)+1)*38+40))
+        if ops:
+            rows = []
+            for op in ops:
+                val  = float(ultimo.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0))
+                meta = float(metas_ops.get(op["_id"],0))
+                proj_op = calc_projecao(val,dt,td)
+                pct  = (val/meta*100) if meta>0 else 0
+                rows.append({"Status":status_pct(pct) if meta>0 else "⚪","Operador":("⭐ " if op.get("pleno") else "")+op["nome"],"Recebido":fmt_brl(val),"Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if proj_op>0 else "—","_v":val})
+            df = pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
+            df.index = range(1,len(df)+1)
+            st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
         st.markdown("---")
 
-    # Export
     if st.button("📥 Exportar Excel"):
         out = io.BytesIO()
-        with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
+        with pd.ExcelWriter(out,engine="xlsxwriter") as writer:
             for equipe_id in equipes_ver:
-                eq   = EQUIPES[equipe_id]
-                ops  = buscar_operadores(equipe_id)
+                ops = buscar_operadores(equipe_id)
                 if not ops: continue
-                lancs = buscar_lancamentos(mes_ano, equipe_id)
+                lancs = buscar_lancamentos(mes_ano,equipe_id)
                 if not lancs: continue
-                ultimo = lancs[0]
-                metas_ops = buscar_metas_equipe(mes_ano, equipe_id)
-                rows = []
-                for op in ops:
-                    val  = ultimo.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0)
-                    meta = metas_ops.get(op["_id"],0)
-                    pct  = (val/meta*100) if meta > 0 else 0
-                    rows.append({"Operador":op["nome"],"Recebido":val,"Meta":meta,"% Meta":f"{pct:.1f}%"})
-                pd.DataFrame(rows).to_excel(writer, sheet_name=f"Equipe {eq['nome']}", index=False)
-        st.download_button("⬇️ Baixar Excel", data=out.getvalue(),
-            file_name=f"iGreen_Resultado_{mes_ano}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                ultimo = lancs[0]; metas_ops = buscar_metas_equipe(mes_ano,equipe_id)
+                rows=[{"Operador":op["nome"],"Recebido":float(ultimo.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0)),"Meta":float(metas_ops.get(op["_id"],0))} for op in ops]
+                pd.DataFrame(rows).to_excel(writer,sheet_name=f"{EQUIPES[equipe_id]['nome']}",index=False)
+        st.download_button("⬇️ Baixar Excel",data=out.getvalue(),file_name=f"iGreen_{mes_ano}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# ── HISTÓRICO ──────────────────────────────────
-def pagina_historico(mes_ano):
+# ── MONITORIAS ─────────────────────────────────
+def pagina_monitorias(mes_ano):
     u = st.session_state.usuario
-    equipe_id = u["equipe"]
+    is_dir = u["role"] == "diretor"
 
-    header_page("📋 Histórico", mes_ano.replace("-"," "))
+    header_page("📋 Monitorias","Avaliação de qualidade · Inadimplência Comercial")
 
-    t1,t2 = st.tabs(["📈 Lançamentos de Resultado","📁 Bases Processadas"])
+    if is_dir:
+        pagina_monitorias_diretor(mes_ano)
+        return
+
+    equipe_id = seletor_equipe(u["equipe"])
+    ops = buscar_operadores(equipe_id)
+
+    t1,t2 = st.tabs(["➕ Nova Monitoria","📊 Histórico de Monitorias"])
 
     with t1:
-        if not equipe_id:
-            st.info("Selecione uma equipe específica para ver lançamentos.")
-            return
+        if not ops:
+            st.warning("Cadastre operadores primeiro."); return
 
-        lancs = buscar_lancamentos(mes_ano, equipe_id)
-        ops   = buscar_operadores(equipe_id)
-        if not lancs:
-            st.info("Nenhum lançamento para este mês.")
+        st.markdown("### 👤 Operador e Protocolo")
+        c1,c2 = st.columns([2,2])
+        with c1:
+            op_nomes = [op["nome"] for op in ops]
+            op_sel   = st.selectbox("Operador",op_nomes)
+            op_obj   = next(o for o in ops if o["nome"]==op_sel)
+        with c2:
+            protocolo = st.text_input("📞 Protocolo da Ligação",placeholder="Ex: 20260520-001")
+
+        obs = st.text_area("📝 Observações",placeholder="Anotações sobre a monitoria...",height=80)
+
+        st.markdown("---")
+        st.markdown("### ⚠️ Erros Críticos — Zera a Monitoria")
+        erros_marcados = []
+        c1,c2 = st.columns(2)
+        for i,ec in enumerate(ERROS_CRITICOS):
+            with (c1 if i%2==0 else c2):
+                if st.checkbox(f"🔴 {ec['nome']} — {ec['desc']}",key=f"ec_{ec['id']}"):
+                    erros_marcados.append(ec)
+
+        st.markdown("---")
+        st.markdown("### 📋 Critérios de Avaliação")
+
+        zerada = len(erros_marcados)>0
+        criterios_resultado = []
+        nota = 0 if zerada else 100
+
+        if zerada:
+            st.error("🚨 MONITORIA ZERADA — Erro crítico marcado!")
+            for c in CRITERIOS:
+                criterios_resultado.append({**c,"passou":False})
         else:
-            for lanc in lancs:
-                with st.expander(f"📅 {lanc.get('label','')} — {fmt_brl(lanc.get('totalEquipe',0))} — {lanc.get('criadoEm','')[:16] if lanc.get('criadoEm') else ''}", expanded=False):
-                    rows = []
-                    for op in ops:
-                        val = lanc.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0)
-                        rows.append({"Operador": op["nome"], "Valor": fmt_brl(val)})
-                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-                    c1,c2,c3 = st.columns(3)
-                    c1.metric("Com Interação", fmt_brl(lanc.get("totalEquipe",0)))
-                    c2.metric("Sem Interação", fmt_brl(lanc.get("semInteracao",0)))
-                    c3.metric("Total Geral",   fmt_brl(lanc.get("valorGeral",0)))
-                    st.markdown("---")
-                    if st.button(f"🗑️ Excluir este lançamento", key=f"del_{lanc['_id']}"):
-                        excluir_lancamento(lanc["_id"])
-                        st.warning("Lançamento excluído!")
-                        st.rerun()
+            for crit in CRITERIOS:
+                cor_borda = "#f0a500" if crit["obrigatorio"] else "#1a4d2e"
+                st.markdown(f"""
+                <div style="background:#0a2414;border:1px solid {cor_borda};border-radius:10px;
+                            padding:14px 18px;margin-bottom:8px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                        <span style="color:#ffffff;font-weight:600">{crit['num']} {crit['nome']}</span>
+                        <span style="background:{'rgba(240,165,0,0.2)' if crit['obrigatorio'] else 'rgba(45,175,92,0.1)'};
+                               color:{'#f0a500' if crit['obrigatorio'] else '#2daf5c'};
+                               padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">
+                            Peso {crit['peso']} {'⚠️ Obrigatório' if crit['obrigatorio'] else ''}
+                        </span>
+                    </div>
+                """,unsafe_allow_html=True)
+                for item in crit["itens"]:
+                    obrig_style = "color:#f0a500;font-weight:600" if "Obrigatório" in item else "color:#b8d4c0"
+                    st.markdown(f"<div style='font-size:12px;{obrig_style};margin-left:8px'>• {item}</div>",unsafe_allow_html=True)
+                passou = st.checkbox(f"✓ Critério passou",key=f"cr_{crit['id']}",value=True)
+                st.markdown("</div>",unsafe_allow_html=True)
+                if not passou:
+                    nota -= crit["peso"]
+                criterios_resultado.append({**crit,"passou":passou})
+
+        nota = max(0,nota)
+
+        st.markdown("---")
+        st.markdown(f"""
+        <div style="background:linear-gradient(135deg,#0a2414,#1a6b35);border-radius:12px;
+                    padding:20px 24px;text-align:center;margin-bottom:16px">
+            <div style="color:#5a9a70;font-size:12px;text-transform:uppercase;letter-spacing:1px">Nota desta Monitoria</div>
+            <div style="color:{'#2daf5c' if nota>=80 else '#f0a500' if nota>=60 else '#e03c3c'};
+                         font-size:48px;font-weight:800;margin:8px 0">{nota:.0f}%</div>
+        </div>
+        """,unsafe_allow_html=True)
+
+        if st.button("💾 Salvar Monitoria",use_container_width=True):
+            if not protocolo.strip():
+                st.error("⚠ Preencha o protocolo da ligação!"); return
+            doc_id = salvar_monitoria(equipe_id,op_obj["_id"],op_sel,protocolo,obs,criterios_resultado,erros_marcados,nota,mes_ano)
+            media, n = calc_media_operador(op_obj["_id"])
+            st.success(f"✅ Monitoria salva! Nota: {nota:.0f}% | Média geral: {media:.1f}% ({n} monitorias) | Pontos: {calc_pontos(media)}")
+
+            html = gerar_pdf_monitoria(op_sel,protocolo,obs,criterios_resultado,erros_marcados,nota,media,n,mes_ano)
+            b64  = base64.b64encode(html.encode()).decode()
+            st.markdown(f'<a href="data:text/html;base64,{b64}" download="Monitoria_{op_sel.replace(" ","_")}_{protocolo}.html" style="display:inline-block;background:linear-gradient(135deg,#1a6b35,#2daf5c);color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px">📥 Baixar Relatório PDF</a>',unsafe_allow_html=True)
 
     with t2:
-        mp = listar_meses_processados()
-        if not mp:
-            st.info("Nenhuma base processada ainda.")
+        monts = buscar_monitorias_equipe(equipe_id,mes_ano)
+        if not monts:
+            st.info("Nenhuma monitoria registrada neste mês.")
         else:
-            mh = st.selectbox("Selecione o mês", mp)
-            df = buscar_processamentos(mh, equipe_id)
-            if df.empty:
-                st.info("Sem dados para este mês.")
-            else:
-                df["valor"] = pd.to_numeric(df["valor"], errors="coerce").fillna(0)
-                c1,c2,c3 = st.columns(3)
-                c1.metric("Valor Elegível", fmt_brl(df[df["elegibilidade"]=="Elegível"]["valor"].sum()))
-                c2.metric("Boletos",        f'{len(df):,}')
-                c3.metric("Clientes",       f'{df["uc_cpf"].nunique():,}')
-                st.dataframe(df[["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging"]].head(100), use_container_width=True)
+            rows = []
+            for m in monts:
+                media,n = calc_media_operador(m["opId"])
+                rows.append({"Operador":m["opNome"],"Protocolo":m.get("protocolo","—"),"Nota":f"{m['nota']:.0f}%","Média Geral":f"{media:.1f}%","Pontos":calc_pontos(media),"Data":str(m.get("criadoEm",""))[:10],"_id":m["_id"]})
+            df = pd.DataFrame(rows)
+            st.dataframe(df.drop(columns=["_id"]),use_container_width=True,hide_index=True)
+
+            st.markdown("---")
+            sel_excluir = st.selectbox("Excluir monitoria (protocolo):", ["—"]+[f"{r['Protocolo']} — {r['Operador']} — {r['Data']}" for _,r in df.iterrows()])
+            if sel_excluir != "—":
+                idx = df[df.apply(lambda r: f"{r['Protocolo']} — {r['Operador']} — {r['Data']}"==sel_excluir,axis=1)].index
+                if len(idx)>0 and st.button("🗑️ Confirmar Exclusão"):
+                    excluir_monitoria(df.loc[idx[0],"_id"])
+                    st.warning("Monitoria excluída."); st.rerun()
+
+def pagina_monitorias_diretor(mes_ano):
+    st.markdown("### 📊 Visão Geral — Monitorias por Equipe")
+    equipes_ids = list(EQUIPES.keys())
+
+    for equipe_id in equipes_ids:
+        eq   = EQUIPES[equipe_id]
+        ops  = buscar_operadores(equipe_id)
+        if not ops: continue
+        monts = buscar_monitorias_equipe(equipe_id,mes_ano)
+        if not monts: continue
+
+        medias_ops = {}
+        for op in ops:
+            media,n = calc_media_operador(op["_id"])
+            if n>0: medias_ops[op["nome"]] = (media,n,calc_pontos(media))
+
+        if not medias_ops: continue
+
+        media_equipe = sum(m[0] for m in medias_ops.values())/len(medias_ops)
+
+        st.markdown(f"""
+        <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;
+                    border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid {eq['cor']}">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="font-size:15px;font-weight:700;color:#ffffff">{eq['emoji']} Equipe {eq['nome']}</div>
+                <div style="text-align:right">
+                    <div style="color:#5a9a70;font-size:10px;text-transform:uppercase">Média da Equipe</div>
+                    <div style="color:{cor_pct(media_equipe)};font-size:24px;font-weight:800">{media_equipe:.1f}%</div>
+                </div>
+            </div>
+        </div>
+        """,unsafe_allow_html=True)
+
+        rows = [{"Operador":nome,"Média":f"{m[0]:.1f}%","Monitorias":m[1],"Pontos":m[2]} for nome,(m) in sorted(medias_ops.items(),key=lambda x:-x[1][0])]
+        df = pd.DataFrame(rows)
+        df.index = range(1,len(df)+1)
+        st.dataframe(df,use_container_width=True)
+        st.markdown("---")
 
 # ── ANÁLISE DE PROJEÇÃO ────────────────────────
 def pagina_analise_projecao(mes_ano):
     u = st.session_state.usuario
-    is_dir = u["role"] == "diretor"
+    is_dir  = u["role"] in ["diretor","admin"]
     equipes_ver = list(EQUIPES.keys()) if is_dir else [u["equipe"]]
 
-    header_page("📈 Análise de Projeção", f"Comparativo com mês anterior · {mes_ano.replace('-',' ')}")
+    header_page("📈 Análise de Projeção",f"Comparativo com mês anterior · {mes_ano.replace('-',' ')}")
 
-    # Mês anterior
     partes = mes_ano.split("-")
     mes_idx = MESES_NOMES.index(partes[0])
     ano_int = int(partes[1])
-    if mes_idx == 0:
-        mes_ant = f"{MESES_NOMES[11]}-{ano_int-1}"
-    else:
-        mes_ant = f"{MESES_NOMES[mes_idx-1]}-{ano_int}"
+    mes_ant = f"{MESES_NOMES[11]}-{ano_int-1}" if mes_idx==0 else f"{MESES_NOMES[mes_idx-1]}-{ano_int}"
 
-    st.markdown(f"<p style='color:#5a9a70'>Comparando <strong style='color:#2daf5c'>{mes_ano.replace('-',' ')}</strong> vs <strong style='color:#e0f0e8'>{mes_ant.replace('-',' ')}</strong></p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:#5a9a70'>Comparando <strong style='color:#2daf5c'>{mes_ano.replace('-',' ')}</strong> vs <strong style='color:#e0f0e8'>{mes_ant.replace('-',' ')}</strong></p>",unsafe_allow_html=True)
     st.markdown("---")
 
     for equipe_id in equipes_ver:
@@ -797,26 +954,17 @@ def pagina_analise_projecao(mes_ano):
         ops = buscar_operadores(equipe_id)
         if not ops: continue
 
-        lancs_atual = buscar_lancamentos(mes_ano, equipe_id)
-        lancs_ant   = buscar_lancamentos(mes_ant,  equipe_id)
+        lancs_at = buscar_lancamentos(mes_ano,equipe_id)
+        lancs_an = buscar_lancamentos(mes_ant, equipe_id)
+        if not lancs_at: continue
 
-        if not lancs_atual:
-            st.info(f"{eq['emoji']} Equipe {eq['nome']} — Sem lançamentos no mês atual.")
-            continue
-
-        ultimo_atual = lancs_atual[0]
-        ultimo_ant   = lancs_ant[0] if lancs_ant else {}
-
-        dt_at = ultimo_atual.get("diasTrabalhados", 0)
-        td_at = ultimo_atual.get("totalDias", 22)
-        dt_an = ultimo_ant.get("diasTrabalhados", 0) if ultimo_ant else 0
-        td_an = ultimo_ant.get("totalDias", 22) if ultimo_ant else 22
-
-        tc_at = ultimo_atual.get("totalEquipe", 0)
-        tc_an = ultimo_ant.get("totalEquipe", 0) if ultimo_ant else 0
-        proj_at = calc_projecao(tc_at, dt_at, td_at)
-        proj_an = calc_projecao(tc_an, dt_an, td_an) if tc_an > 0 else 0
-        var_eq  = calc_variacao(proj_at, proj_an)
+        ul_at = lancs_at[0]; ul_an = lancs_an[0] if lancs_an else {}
+        dt_at = int(ul_at.get("diasTrabalhados",0)); td_at = int(ul_at.get("totalDias",22))
+        dt_an = int(ul_an.get("diasTrabalhados",0)) if ul_an else 0
+        td_an = int(ul_an.get("totalDias",22))      if ul_an else 22
+        tc_at = float(ul_at.get("totalEquipe",0));   tc_an = float(ul_an.get("totalEquipe",0)) if ul_an else 0
+        proj_at = calc_projecao(tc_at,dt_at,td_at);  proj_an = calc_projecao(tc_an,dt_an,td_an) if tc_an>0 else 0
+        var_eq  = calc_variacao(proj_at,proj_an)
 
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;
@@ -828,189 +976,206 @@ def pagina_analise_projecao(mes_ano):
                 <div><span style="color:#5a9a70;font-size:11px">PROJEÇÃO MÊS ANT.</span><br>
                      <span style="color:#e0f0e8;font-weight:600">{fmt_brl(proj_an)}</span></div>
                 <div><span style="color:#5a9a70;font-size:11px">VARIAÇÃO</span><br>
-                     <span style="color:{cor_pct(100 if (var_eq or 0)>=0 else 0)};font-weight:700;font-size:15px">
-                        {'↑' if (var_eq or 0)>=0 else '↓'} {abs(var_eq):.1f}% {"vs mês ant." if var_eq is not None else "sem comparativo"}
+                     <span style="color:{'#2daf5c' if (var_eq or 0)>=0 else '#e03c3c'};font-weight:700">
+                        {'↑' if (var_eq or 0)>=0 else '↓'} {f'{abs(var_eq):.1f}%' if var_eq is not None else '—'}
                      </span></div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,unsafe_allow_html=True)
 
-        # Por operador
         rows = []
         for op in ops:
-            val_at  = ultimo_atual.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0)
-            val_an  = ultimo_ant.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0) if ultimo_ant else 0
-            proj_op_at = calc_projecao(val_at, dt_at, td_at)
-            proj_op_an = calc_projecao(val_an, dt_an, td_an) if val_an > 0 else 0
-            var_op  = calc_variacao(proj_op_at, proj_op_an)
-            rows.append({
-                "Operador":       ("⭐ " if op.get("pleno") else "") + op["nome"],
-                "Proj. Atual":    fmt_brl(proj_op_at) if proj_op_at > 0 else "—",
-                "Proj. Mês Ant.": fmt_brl(proj_op_an) if proj_op_an > 0 else "—",
-                "Variação":       f"{'↑' if (var_op or 0)>=0 else '↓'} {abs(var_op):.1f}%" if var_op is not None else "—",
-                "_proj": proj_op_at
-            })
-
-        df = pd.DataFrame(rows).sort_values("_proj", ascending=False).drop(columns=["_proj"]).reset_index(drop=True)
-        df.index = range(1, len(df)+1)
-        st.dataframe(df, use_container_width=True)
+            val_at = float(ul_at.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0))
+            val_an = float(ul_an.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0)) if ul_an else 0
+            proj_op_at = calc_projecao(val_at,dt_at,td_at)
+            proj_op_an = calc_projecao(val_an,dt_an,td_an) if val_an>0 else 0
+            var_op = calc_variacao(proj_op_at,proj_op_an)
+            rows.append({"Operador":("⭐ " if op.get("pleno") else "")+op["nome"],"Proj. Atual":fmt_brl(proj_op_at) if proj_op_at>0 else "—","Proj. Mês Ant.":fmt_brl(proj_op_an) if proj_op_an>0 else "—","Variação":f"{'↑' if (var_op or 0)>=0 else '↓'} {abs(var_op):.1f}%" if var_op is not None else "—","_p":proj_op_at})
+        df = pd.DataFrame(rows).sort_values("_p",ascending=False).drop(columns=["_p"]).reset_index(drop=True)
+        df.index = range(1,len(df)+1)
+        st.dataframe(df,use_container_width=True)
         st.markdown("---")
+
+# ── HISTÓRICO ──────────────────────────────────
+def pagina_historico(mes_ano):
+    u = st.session_state.usuario
+    is_admin = u["role"] == "admin"
+    equipe_id = seletor_equipe(u["equipe"]) if u["role"] in ["admin","gestor"] else u["equipe"]
+
+    header_page("📅 Histórico",mes_ano.replace("-"," "))
+
+    t1,t2 = st.tabs(["📈 Lançamentos","📁 Bases Processadas"])
+
+    with t1:
+        if not equipe_id: st.info("Use o Dashboard Executivo para histórico completo."); return
+        lancs = buscar_lancamentos(mes_ano,equipe_id)
+        ops   = buscar_operadores(equipe_id)
+        if not lancs: st.info("Nenhum lançamento para este mês.")
+        else:
+            for lanc in lancs:
+                dt_str = str(lanc.get("criadoEm",""))[:16]
+                with st.expander(f"📅 {lanc.get('label','')} — {fmt_brl(lanc.get('totalEquipe',0))} — {dt_str}",expanded=False):
+                    rows = [{"Operador":op["nome"],"Valor":fmt_brl(float(lanc.get("agentes",{}).get(op["_id"],{}).get("valorRecebido",0)))} for op in ops]
+                    st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
+                    c1,c2,c3 = st.columns(3)
+                    c1.metric("Com Interação",fmt_brl(lanc.get("totalEquipe",0)))
+                    c2.metric("Sem Interação",fmt_brl(lanc.get("semInteracao",0)))
+                    c3.metric("Total Geral",  fmt_brl(lanc.get("valorGeral",0)))
+                    if st.button(f"🗑️ Excluir",key=f"del_{lanc['_id']}"):
+                        excluir_lancamento(lanc["_id"]); st.warning("Excluído!"); st.rerun()
+
+    with t2:
+        mp = listar_meses_processados()
+        if not mp: st.info("Nenhuma base processada.")
+        else:
+            mh = st.selectbox("Selecione o mês",mp)
+            df = buscar_processamentos(mh,equipe_id)
+            if df.empty: st.info("Sem dados.")
+            else:
+                df["valor"] = pd.to_numeric(df["valor"],errors="coerce").fillna(0)
+                c1,c2,c3 = st.columns(3)
+                c1.metric("Valor Elegível",fmt_brl(df[df["elegibilidade"]=="Elegível"]["valor"].sum()))
+                c2.metric("Boletos",f'{len(df):,}'); c3.metric("Clientes",f'{df["uc_cpf"].nunique():,}')
+                st.dataframe(df[["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging"]].head(100),use_container_width=True)
 
 # ── DASHBOARD EXECUTIVO ─────────────────────────
 def pagina_dashboard_executivo():
-    header_page("📊 Dashboard Executivo", "Gestão de Inadimplência Comercial · Visão consolidada")
-
-    meses_proc = listar_meses_processados()
-    if not meses_proc:
-        st.info("📭 Nenhuma base processada ainda.")
-        return
+    header_page("📊 Dashboard Executivo","Gestão de Inadimplência Comercial")
+    mp = listar_meses_processados()
+    if not mp: st.info("📭 Nenhuma base processada ainda."); return
 
     c1,c2,c3 = st.columns(3)
-    with c1: mes_f = st.selectbox("📅 Mês", ["Todos"] + meses_proc)
-    with c2: eq_f  = st.selectbox("👥 Equipe", ["Todas","luciano","deborah","tamires"])
-
+    with c1: mes_f = st.selectbox("📅 Mês",["Todos"]+mp)
+    with c2: eq_f  = st.selectbox("👥 Equipe",["Todas","luciano","deborah","tamires"])
     df = buscar_processamentos(None if mes_f=="Todos" else mes_f, None if eq_f=="Todas" else eq_f)
-    if df.empty:
-        st.warning("Nenhum dado encontrado.")
-        return
+    if df.empty: st.warning("Nenhum dado."); return
 
-    df["valor"] = pd.to_numeric(df["valor"], errors="coerce").fillna(0)
-
+    df["valor"] = pd.to_numeric(df["valor"],errors="coerce").fillna(0)
     with c3:
-        forns  = ["Todas"] + sorted(df["fornecedora"].dropna().unique().tolist())
-        forn_f = st.selectbox("🏢 Fornecedora", forns)
-    if forn_f != "Todas":
-        df = df[df["fornecedora"] == forn_f]
+        forns = ["Todas"]+sorted(df["fornecedora"].dropna().unique().tolist())
+        forn_f = st.selectbox("🏢 Fornecedora",forns)
+    if forn_f!="Todas": df = df[df["fornecedora"]==forn_f]
 
     st.markdown("---")
-    elig  = df[df["elegibilidade"]=="Elegível"]
-    nelig = df[df["elegibilidade"]=="Não Elegível"]
-    nd    = df[df["elegibilidade"]=="ND"]
-
+    elig=df[df["elegibilidade"]=="Elegível"]; nelig=df[df["elegibilidade"]=="Não Elegível"]; nd=df[df["elegibilidade"]=="ND"]
     c1,c2,c3,c4,c5,c6 = st.columns(6)
-    c1.metric("💰 Valor Recuperado",  fmt_brl(elig["valor"].sum()))
-    c2.metric("👥 Clientes Únicos",   f'{df["uc_cpf"].nunique():,}')
-    c3.metric("📋 Boletos",           f'{len(df):,}')
-    c4.metric("✅ Elegíveis",         f'{len(elig):,}')
-    c5.metric("❌ Não Elegíveis",     f'{len(nelig):,}')
-    c6.metric("⬜ ND",               f'{len(nd):,}')
-
+    c1.metric("💰 Valor Recuperado",fmt_brl(elig["valor"].sum()))
+    c2.metric("👥 Clientes",f'{df["uc_cpf"].nunique():,}')
+    c3.metric("📋 Boletos",f'{len(df):,}')
+    c4.metric("✅ Elegíveis",f'{len(elig):,}')
+    c5.metric("❌ Não Elegíveis",f'{len(nelig):,}')
+    c6.metric("⬜ ND",f'{len(nd):,}')
     st.markdown("---")
-    t1,t2,t3,t4 = st.tabs(["📊 Aging","🏢 Fornecedoras","📅 Evolução Mensal","👥 Por Equipe"])
 
+    t1,t2,t3,t4 = st.tabs(["📊 Aging","🏢 Fornecedoras","📅 Evolução","👥 Por Equipe"])
     with t1:
-        ag = df.groupby("aging").agg(Boletos=("uc_cpf","count"),Clientes=("uc_cpf","nunique"),Valor=("valor","sum")).reset_index()
-        ag["Valor"] = ag["Valor"].apply(fmt_brl)
-        st.dataframe(ag.rename(columns={"aging":"Faixa"}), use_container_width=True, hide_index=True)
-        st.bar_chart(df.groupby("aging")["uc_cpf"].count(), color="#2daf5c")
-
+        ag=df.groupby("aging").agg(Boletos=("uc_cpf","count"),Clientes=("uc_cpf","nunique"),Valor=("valor","sum")).reset_index()
+        ag["Valor"]=ag["Valor"].apply(fmt_brl)
+        st.dataframe(ag.rename(columns={"aging":"Faixa"}),use_container_width=True,hide_index=True)
+        st.bar_chart(df.groupby("aging")["uc_cpf"].count(),color="#2daf5c")
     with t2:
-        fdf = df.groupby("fornecedora").agg(Boletos=("uc_cpf","count"),Clientes=("uc_cpf","nunique"),Valor=("valor","sum")).reset_index()
-        fdf["Valor"] = fdf["Valor"].apply(fmt_brl)
-        st.dataframe(fdf.rename(columns={"fornecedora":"Fornecedora"}), use_container_width=True, hide_index=True)
-
+        fdf=df.groupby("fornecedora").agg(Boletos=("uc_cpf","count"),Clientes=("uc_cpf","nunique"),Valor=("valor","sum")).reset_index()
+        fdf["Valor"]=fdf["Valor"].apply(fmt_brl)
+        st.dataframe(fdf.rename(columns={"fornecedora":"Fornecedora"}),use_container_width=True,hide_index=True)
     with t3:
-        dfall = buscar_processamentos()
-        if not dfall.empty:
-            dfall["valor"] = pd.to_numeric(dfall["valor"], errors="coerce").fillna(0)
-            evol = dfall[dfall["elegibilidade"]=="Elegível"].groupby("_mes_ano")["valor"].sum().reset_index()
-            evol.columns = ["Mês","Valor"]
-            st.bar_chart(evol.sort_values("Mês").set_index("Mês"), color="#2daf5c")
-
+        da=buscar_processamentos()
+        if not da.empty:
+            da["valor"]=pd.to_numeric(da["valor"],errors="coerce").fillna(0)
+            evol=da[da["elegibilidade"]=="Elegível"].groupby("_mes_ano")["valor"].sum().reset_index()
+            evol.columns=["Mês","Valor"]
+            st.bar_chart(evol.sort_values("Mês").set_index("Mês"),color="#2daf5c")
     with t4:
-        edf = df.groupby("_equipe").agg(Boletos=("uc_cpf","count"),Clientes=("uc_cpf","nunique"),Valor=("valor","sum")).reset_index()
-        edf["Equipe"] = edf["_equipe"].map(lambda x: EQUIPES.get(x,{}).get("nome",x))
-        edf["Valor"]  = edf["Valor"].apply(fmt_brl)
-        st.dataframe(edf[["Equipe","Boletos","Clientes","Valor"]], use_container_width=True, hide_index=True)
+        edf=df.groupby("_equipe").agg(Boletos=("uc_cpf","count"),Clientes=("uc_cpf","nunique"),Valor=("valor","sum")).reset_index()
+        edf["Equipe"]=edf["_equipe"].map(lambda x:EQUIPES.get(x,{}).get("nome",x))
+        edf["Valor"]=edf["Valor"].apply(fmt_brl)
+        st.dataframe(edf[["Equipe","Boletos","Clientes","Valor"]],use_container_width=True,hide_index=True)
 
     st.markdown("---")
     if st.button("📥 Exportar Excel"):
-        out = io.BytesIO()
-        with pd.ExcelWriter(out, engine="xlsxwriter") as w:
-            df.to_excel(w, sheet_name="Dados Completos", index=False)
-            elig.to_excel(w, sheet_name="Elegíveis", index=False)
-        st.download_button("⬇️ Baixar Excel", data=out.getvalue(),
-            file_name=f"iGreen_{mes_f}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        out=io.BytesIO()
+        with pd.ExcelWriter(out,engine="xlsxwriter") as w:
+            df.to_excel(w,sheet_name="Dados",index=False)
+            elig.to_excel(w,sheet_name="Elegíveis",index=False)
+        st.download_button("⬇️ Baixar",data=out.getvalue(),file_name=f"iGreen_{mes_f}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ── UPLOAD ─────────────────────────────────────
 def pagina_upload(mes_ano):
     u = st.session_state.usuario
-    equipe_id = u["equipe"] or "tamires"
-
-    header_page("📁 Upload de Bases Mensais", "Aceita .xlsx e .csv · Processamento automático")
+    header_page("📁 Upload de Bases Mensais","Aceita .xlsx e .csv · Processamento automático")
+    equipe_id = seletor_equipe(u["equipe"] or "tamires")
 
     c1,c2 = st.columns(2)
     with c1:
         st.markdown("#### 📄 PAGOS *(obrigatório)*")
-        pf = st.file_uploader("PAGOS",    type=["xlsx","csv"], label_visibility="collapsed", key="pagos")
+        pf = st.file_uploader("Arquivo PAGOS",type=["xlsx","csv"],label_visibility="collapsed",key="pagos")
         st.markdown("#### 📞 LIGAÇÕES")
-        lf = st.file_uploader("LIGAÇÕES", type=["xlsx","csv"], label_visibility="collapsed", key="lig")
+        lf = st.file_uploader("Arquivo LIGAÇÕES",type=["xlsx","csv"],label_visibility="collapsed",key="lig")
     with c2:
         st.markdown("#### 💬 CHAT")
-        cf = st.file_uploader("CHAT",     type=["xlsx","csv"], label_visibility="collapsed", key="chat")
+        cf = st.file_uploader("Arquivo CHAT",type=["xlsx","csv"],label_visibility="collapsed",key="chat")
         st.markdown("#### 📣 DISPAROS")
-        df_u = st.file_uploader("DISPAROS",type=["xlsx","csv"], label_visibility="collapsed", key="disp")
+        df_u = st.file_uploader("Arquivo DISPAROS",type=["xlsx","csv"],label_visibility="collapsed",key="disp")
 
     st.markdown("---")
-    c1,c2,c3,c4 = st.columns(4)
-    for col,arq,nome in [(c1,pf,"PAGOS"),(c2,cf,"CHAT"),(c3,lf,"LIGAÇÕES"),(c4,df_u,"DISPAROS")]:
-        with col:
-            st.success(f"✅ {nome}") if arq else st.warning(f"⏳ {nome}")
+    col1,col2,col3,col4 = st.columns(4)
+    with col1: st.success("✅ PAGOS carregado") if pf else st.warning("⏳ PAGOS aguardando")
+    with col2: st.success("✅ CHAT carregado")  if cf else st.info("ℹ️ CHAT opcional")
+    with col3: st.success("✅ LIGAÇÕES carregado") if lf else st.info("ℹ️ LIGAÇÕES opcional")
+    with col4: st.success("✅ DISPAROS carregado") if df_u else st.info("ℹ️ DISPAROS opcional")
 
     st.markdown("---")
-    if st.button("⚡ PROCESSAR MÊS", use_container_width=True):
-        if not pf:
-            st.error("⚠ PAGOS é obrigatório!")
-            return
-        with st.spinner("Processando..."):
-            df_res, erros = processar_bases(pf, cf, lf, df_u, equipe_id, mes_ano)
+    if st.button("⚡ PROCESSAR MÊS",use_container_width=True):
+        if not pf: st.error("⚠ PAGOS é obrigatório!"); return
+        with st.spinner("Processando bases..."):
+            df_res,erros = processar_bases(pf,cf,lf,df_u,equipe_id,mes_ano)
         for e in erros: st.error(e)
         if df_res is not None and not df_res.empty:
-            salvar_processamento(mes_ano, equipe_id, df_res)
+            salvar_processamento(mes_ano,equipe_id,df_res)
             elig = df_res[df_res["elegibilidade"]=="Elegível"]
             st.success(f"✅ {len(df_res):,} registros processados!")
             c1,c2,c3,c4,c5 = st.columns(5)
-            c1.metric("💰 Valor Elegível",  fmt_brl(elig["valor"].sum()))
-            c2.metric("📋 Boletos",         f"{len(df_res):,}")
-            c3.metric("👥 Clientes",        f"{df_res['uc_cpf'].nunique():,}")
-            c4.metric("✅ Elegíveis",       f"{len(elig):,}")
-            c5.metric("❌ Não Elegíveis",   f"{len(df_res[df_res['elegibilidade']=='Não Elegível']):,}")
-            st.dataframe(df_res[["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging"]].head(50), use_container_width=True)
+            c1.metric("💰 Valor Elegível",fmt_brl(elig["valor"].sum()))
+            c2.metric("📋 Boletos",f"{len(df_res):,}")
+            c3.metric("👥 Clientes",f"{df_res['uc_cpf'].nunique():,}")
+            c4.metric("✅ Elegíveis",f"{len(elig):,}")
+            c5.metric("❌ Não Elegíveis",f"{len(df_res[df_res['elegibilidade']=='Não Elegível']):,}")
+            st.dataframe(df_res[["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging"]].head(50),use_container_width=True)
 
 # ── MAIN ───────────────────────────────────────
 def main():
     if "usuario" not in st.session_state:
-        tela_login()
-        return
+        tela_login(); return
 
-    mes_ano, pagina = render_sidebar()
+    mes_ano,pagina = render_sidebar()
     u = st.session_state.usuario
 
-    if u["role"] == "diretor":
-        if "Quadro"     in pagina: pagina_quadro(mes_ano)
+    if u["role"]=="diretor":
+        if "Quadro"      in pagina: pagina_quadro(mes_ano)
         elif "Dashboard" in pagina: pagina_dashboard_executivo()
         elif "Projeção"  in pagina: pagina_analise_projecao(mes_ano)
+        elif "Monitorias" in pagina: pagina_monitorias(mes_ano)
         elif "Histórico" in pagina: pagina_historico(mes_ano)
 
-    elif u["role"] == "admin":
+    elif u["role"]=="admin":
         if "Quadro"      in pagina: pagina_quadro(mes_ano)
         elif "Lançamento" in pagina: pagina_lancamento(mes_ano)
         elif "Dashboard"  in pagina: pagina_dashboard_executivo()
         elif "Projeção"   in pagina: pagina_analise_projecao(mes_ano)
+        elif "Monitorias" in pagina: pagina_monitorias(mes_ano)
         elif "Upload"     in pagina: pagina_upload(mes_ano)
         elif "Histórico"  in pagina: pagina_historico(mes_ano)
         elif "Operadores" in pagina: pagina_operadores()
         elif "Metas"      in pagina: pagina_metas(mes_ano)
 
-    else:  # gestor
+    else:
         if "Quadro"      in pagina: pagina_quadro(mes_ano)
         elif "Lançamento" in pagina: pagina_lancamento(mes_ano)
         elif "Projeção"   in pagina: pagina_analise_projecao(mes_ano)
+        elif "Monitorias" in pagina: pagina_monitorias(mes_ano)
         elif "Upload"     in pagina: pagina_upload(mes_ano)
         elif "Histórico"  in pagina: pagina_historico(mes_ano)
         elif "Operadores" in pagina: pagina_operadores()
         elif "Metas"      in pagina: pagina_metas(mes_ano)
 
-if __name__ == "__main__":
+if __name__=="__main__":
     main()
