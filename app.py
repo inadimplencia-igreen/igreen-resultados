@@ -623,7 +623,10 @@ def processar_bases(pagos_file, chat_file, lig_file, disp_file, equipe_id, mes_a
     if "valor" in df_pagos.columns:
         df_pagos["valor"] = pd.to_numeric(df_pagos["valor"].astype(str).str.replace("R$","").str.replace(".","").str.replace(",",".").str.strip(),errors="coerce").fillna(0)
 
-    df_pagos["uc_cpf"] = df_pagos["uc_cpf"].astype(str).str.strip()
+    # Normaliza CPF/UC — remove pontos, traços, espaços para garantir match
+    def normalizar_cpf(s):
+        return str(s).strip().replace(".","").replace("-","").replace("/","").replace(" ","")
+    df_pagos["uc_cpf"] = df_pagos["uc_cpf"].apply(normalizar_cpf)
 
     contatos = []
     for arq,nome in [(chat_file,"CHAT"),(lig_file,"LIGACOES"),(disp_file,"DISPAROS")]:
@@ -1746,7 +1749,10 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
     df_pagos = df_pagos.rename(columns=mapa)
 
     # Converte tipos
-    df_pagos["uc_cpf"] = df_pagos["uc_cpf"].astype(str).str.strip()
+    # Normaliza CPF/UC — remove pontos, traços, espaços para garantir match
+    def normalizar_cpf(s):
+        return str(s).strip().replace(".","").replace("-","").replace("/","").replace(" ","")
+    df_pagos["uc_cpf"] = df_pagos["uc_cpf"].apply(normalizar_cpf)
     df_pagos["data_pagamento"] = pd.to_datetime(df_pagos["data_pagamento"], dayfirst=True, errors="coerce")
     # Converte valor preservando centavos
     def conv_valor(v):
@@ -1781,7 +1787,7 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
             # Acha coluna data
             col_dt  = next((c for c in df_c.columns if any(x in str(c).lower() for x in ["data","dt_","baixa","contato","ligac","chat","dispar"])), df_c.columns[1] if len(df_c.columns)>1 else df_c.columns[0])
             dc = pd.DataFrame({
-                "uc_cpf": df_c[col_cpf].astype(str).str.strip(),
+                "uc_cpf": df_c[col_cpf].astype(str).str.strip().str.replace(".","",regex=False).str.replace("-","",regex=False).str.replace("/","",regex=False).str.replace(" ","",regex=False),
                 "data_contato": pd.to_datetime(df_c[col_dt], dayfirst=True, errors="coerce")
             }).dropna(subset=["data_contato"])
             if not dc.empty:
