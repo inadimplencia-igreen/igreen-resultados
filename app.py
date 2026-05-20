@@ -899,55 +899,58 @@ def pagina_lancamento(mes_ano):
         st.success(f"✅ {st.session_state.ultimo_salvo}")
         st.session_state.ultimo_salvo = ""
 
-    with st.form(key=f"form_lanc_{mes_ano}_{equipe_id}"):
-        st.markdown("### Configuração do Lançamento")
-        c1,c2,c3 = st.columns([2,1,1])
-        with c1:
-            hoje = date.today()
-            data_sel = st.date_input("Data do Resultado", value=hoje,
-                                      min_value=date(hoje.year,1,1),
-                                      max_value=date(hoje.year,12,31))
-            eh_fechamento = st.checkbox("Fechamento do Mês")
-        with c2:
-            dt = st.number_input("Dias Trabalhados", min_value=0, max_value=31, value=0)
-        with c3:
-            td = st.number_input("Total de Dias no Mês", min_value=1, max_value=31, value=22)
+    hoje = date.today()
+    
+    st.markdown("### Configuração do Lançamento")
+    c1,c2,c3 = st.columns([2,1,1])
+    with c1:
+        data_sel      = st.date_input("Data do Resultado", value=hoje,
+                                       min_value=date(hoje.year,1,1),
+                                       max_value=date(hoje.year,12,31),
+                                       key=f"data_{equipe_id}_{mes_ano}")
+        eh_fechamento = st.checkbox("Fechamento do Mês", key=f"fech_{equipe_id}_{mes_ano}")
+    with c2:
+        dt = st.number_input("Dias Trabalhados", min_value=0, max_value=31, value=0,
+                              key=f"dt_{equipe_id}_{mes_ano}")
+    with c3:
+        td = st.number_input("Total de Dias no Mês", min_value=1, max_value=31, value=22,
+                              key=f"td_{equipe_id}_{mes_ano}")
 
-        st.markdown("---")
-        vg = st.number_input("💰 Valor Total Geral Recebido (R$)",
-                              min_value=0.0, step=1000.0, format="%.2f")
+    st.markdown("---")
+    vg = st.number_input("Valor Total Geral Recebido (R$)",
+                          min_value=0.0, step=1000.0, format="%.2f",
+                          key=f"vg_{equipe_id}_{mes_ano}")
 
-        st.markdown("---")
-        st.markdown("### Valores por Operador")
+    st.markdown("---")
+    st.markdown("### Valores por Operador")
 
+    c1,c2,c3 = st.columns([3,2,2])
+    c1.markdown("**Operador**")
+    c2.markdown("**Meta**")
+    c3.markdown("**Valor Recebido (R$)**")
+
+    vi = {}
+    for op in ops:
+        meta = float(metas_salvas.get(op["_id"],0))
         c1,c2,c3 = st.columns([3,2,2])
-        c1.markdown("**Operador**")
-        c2.markdown("**Meta**")
-        c3.markdown("**Valor Recebido (R$)**")
+        with c1:
+            nome_label = ("★ " if op.get("pleno") else "") + op["nome"]
+            st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{nome_label}</div>",
+                        unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"<div style='padding-top:10px;color:#5a9a70;font-size:13px'>{fmt_brl(meta) if meta>0 else '—'}</div>",
+                        unsafe_allow_html=True)
+        with c3:
+            val = st.number_input("v", label_visibility="collapsed",
+                                   min_value=0.0, step=100.0, format="%.2f",
+                                   key=f"op_{equipe_id}_{mes_ano}_{op['_id']}")
+        vi[op["_id"]] = val
 
-        vi = {}
-        for op in ops:
-            meta = float(metas_salvas.get(op["_id"],0))
-            c1,c2,c3 = st.columns([3,2,2])
-            with c1:
-                nome_label = ("★ " if op.get("pleno") else "") + op["nome"]
-                st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{nome_label}</div>",
-                            unsafe_allow_html=True)
-            with c2:
-                st.markdown(f"<div style='padding-top:10px;color:#5a9a70;font-size:13px'>{fmt_brl(meta) if meta>0 else '—'}</div>",
-                            unsafe_allow_html=True)
-            with c3:
-                val = st.number_input("v", label_visibility="collapsed",
-                                      min_value=0.0, step=100.0, format="%.2f",
-                                      key=f"fi_{op['_id']}")
-            vi[op["_id"]] = val
+    tc  = sum(vi.values())
+    sem = max(0, vg - tc)
 
-        tc  = sum(vi.values())
-        sem = max(0, vg - tc)
-
-        submitted = st.form_submit_button("Salvar Lançamento", use_container_width=True)
-
-    if submitted:
+    st.markdown("---")
+    if st.button("Salvar Lançamento", use_container_width=True, key=f"btn_salvar_{equipe_id}_{mes_ano}"):
         label = "Fechamento do Mês" if eh_fechamento else data_sel.strftime("%d/%m/%Y")
         if not any(v>0 for v in vi.values()) and vg == 0:
             st.warning("Preencha pelo menos um valor.")
@@ -955,8 +958,7 @@ def pagina_lancamento(mes_ano):
             agentes_data = {op["_id"]:{"valorRecebido":vi[op["_id"]],"nome":op["nome"]} for op in ops}
             criar_lancamento(mes_ano, equipe_id, str(data_sel), label,
                              agentes_data, tc, vg, sem, dt, td)
-            st.session_state.ultimo_salvo = f"Lançamento de {label} salvo com sucesso!"
-            st.rerun()
+            st.success(f"✅ Lançamento de {label} salvo com sucesso!")
 
     # ── MINI HISTÓRICO abaixo do botão
     st.markdown("---")
