@@ -548,13 +548,16 @@ def val_input(label, key, placeholder="0"):
         st.markdown(f"<div class='val-preview'>{fmt_brl(v)}</div>", unsafe_allow_html=True)
     return v
 
-def seletor_equipe(default=None):
+def seletor_equipe(default=None, key_suffix=""):
     u = st.session_state.usuario
     if u["role"] == "admin":
         eq_opts   = list(EQUIPES.keys())
-        eq_labels = [f"{EQUIPES[e]['emoji']} Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
+        eq_labels = [f"Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
         default_idx = eq_opts.index(default) if default and default in eq_opts else 0
-        sel = st.selectbox("Gerenciando equipe:", eq_labels, index=default_idx, key="admin_eq_sel")
+        import traceback
+        caller = traceback.extract_stack()[-2].name
+        sel = st.selectbox("Gerenciando equipe:", eq_labels, index=default_idx,
+                           key=f"admin_eq_{caller}{key_suffix}")
         return eq_opts[eq_labels.index(sel)]
     return u["equipe"]
 
