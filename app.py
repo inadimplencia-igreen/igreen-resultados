@@ -865,15 +865,24 @@ def pagina_lancamento(mes_ano):
     c2.metric("Sem Interação",fmt_brl(sem))
     c3.metric("Total Geral",  fmt_brl(vg))
     c4.metric("Projeção",     fmt_brl(calc_projecao(tc,dt,td)))
-    c5.metric(f"🎯 Meta ({pct_gest:.1f}%)",fmt_brl(mg))
+    c5.metric(f"Meta ({pct_gest:.1f}%)",fmt_brl(mg))
 
     st.markdown("---")
-    if st.button("Salvar Lançamento",use_container_width=True):
+    col_btn1, col_btn2 = st.columns([1,3])
+    with col_btn1:
+        salvar = st.button("Salvar Lançamento", use_container_width=True)
+    with col_btn2:
+        if "ultimo_salvo" in st.session_state:
+            st.success(f"✅ {st.session_state.ultimo_salvo}")
+
+    if salvar:
         if not any(v>0 for v in vi.values()):
-            st.warning("⚠ Preencha pelo menos um valor."); return
-        agentes_data = {op["_id"]:{"valorRecebido":vi[op["_id"]],"nome":op["nome"]} for op in ops}
-        criar_lancamento(mes_ano,equipe_id,str(data_sel),label,agentes_data,tc,vg,sem,dt,td)
-        st.success(f"✅ Lançamento de {label} salvo!"); st.rerun()
+            st.warning("Preencha pelo menos um valor.")
+        else:
+            agentes_data = {op["_id"]:{"valorRecebido":vi[op["_id"]],"nome":op["nome"]} for op in ops}
+            criar_lancamento(mes_ano,equipe_id,str(data_sel),label,agentes_data,tc,vg,sem,dt,td)
+            st.session_state.ultimo_salvo = f"Lançamento de {label} salvo com sucesso!"
+            st.rerun()
 
 # ── QUADRO DE RESULTADOS ───────────────────────
 def pagina_quadro(mes_ano):
@@ -893,15 +902,17 @@ def pagina_quadro(mes_ano):
         ultimo = lancs[0]
         meta_gest_doc = buscar_meta_gestora(mes_ano,equipe_id)
         metas_ops     = buscar_metas_equipe(mes_ano,equipe_id)
-        mg   = float(meta_gest_doc.get("metaGestora",0))
-        tpct = int(meta_gest_doc.get("targetPct",125))
-        tc   = float(ultimo.get("totalEquipe",0))
-        dt   = int(ultimo.get("diasTrabalhados",0))
-        td   = int(ultimo.get("totalDias",22))
-        proj = calc_projecao(tc,dt,td)
-        pct_mg  = (tc/mg*100) if mg>0 else 0
+        mg       = float(meta_gest_doc.get("metaGestora",0))
+        tpct     = int(meta_gest_doc.get("targetPct",125))
+        # RECEBIDO = valor geral informado pela gestora (não soma dos operadores)
+        vg_geral = float(ultimo.get("valorGeral",0))
+        tc_ops   = float(ultimo.get("totalEquipe",0))  # soma dos operadores
+        dt       = int(ultimo.get("diasTrabalhados",0))
+        td       = int(ultimo.get("totalDias",22))
+        proj     = calc_projecao(vg_geral,dt,td)
+        pct_mg   = (vg_geral/mg*100) if mg>0 else 0
         target_v = mg*(tpct/100)
-        pct_tg   = (tc/target_v*100) if target_v>0 else 0
+        pct_tg   = (vg_geral/target_v*100) if target_v>0 else 0
 
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;
@@ -916,7 +927,8 @@ def pagina_quadro(mes_ano):
                 </div>
             </div>
             <div style="display:flex;gap:24px;margin-top:12px;flex-wrap:wrap">
-                <div><span style="color:#5a9a70;font-size:11px">RECEBIDO</span><br><span style="color:#2daf5c;font-weight:700;font-size:15px">{fmt_brl(tc)}</span></div>
+                <div><span style="color:#5a9a70;font-size:11px">RECEBIDO GERAL</span><br><span style="color:#2daf5c;font-weight:700;font-size:15px">{fmt_brl(vg_geral)}</span></div>
+                <div><span style="color:#5a9a70;font-size:11px">COM INTERAÇÃO</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(tc_ops)}</span></div>
                 <div><span style="color:#5a9a70;font-size:11px">META</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(mg)}</span></div>
                 <div><span style="color:#5a9a70;font-size:11px">TARGET {tpct}%</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(target_v)}</span></div>
                 <div><span style="color:#5a9a70;font-size:11px">PROJEÇÃO</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(proj)}</span></div>
