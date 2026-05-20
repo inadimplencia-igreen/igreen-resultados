@@ -1140,14 +1140,15 @@ def pagina_monitorias(mes_ano):
                         medias = [calc_media_operador(op_id, mes_atual)[0] for op_id,_ in ops_unicos]
                         media_equipe_mes = sum(medias)/len(medias) if medias else 0
 
+                        # Cabeçalho do mês
                         st.markdown(f"""
-                        <div style="background:linear-gradient(135deg,#003318,#004d20);border:1px solid #005a25;
-                                    border-radius:10px;padding:12px 18px;margin:12px 0 8px;
+                        <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;
+                                    padding:14px 20px;margin:16px 0 12px;
                                     display:flex;justify-content:space-between;align-items:center">
-                            <div style="color:#ffffff;font-weight:700;font-size:15px">{mes_atual.replace('-',' ')}</div>
+                            <div style="color:#1b5e20;font-weight:700;font-size:16px">{mes_atual.replace('-',' ')}</div>
                             <div style="text-align:right">
-                                <div style="color:#81c784;font-size:10px;text-transform:uppercase">Média da Equipe no Mês</div>
-                                <div style="color:#00c853;font-size:20px;font-weight:800">{media_equipe_mes:.1f}%</div>
+                                <div style="color:#2e7d32;font-size:10px;text-transform:uppercase;letter-spacing:1px">Média da Equipe</div>
+                                <div style="color:#00c853;font-size:22px;font-weight:800">{media_equipe_mes:.1f}%</div>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
@@ -1156,66 +1157,111 @@ def pagina_monitorias(mes_ano):
                             media_op, n_op = calc_media_operador(m["opId"], mes_atual)
                             pontos_op = calc_pontos(media_op)
                             nota = float(m.get("nota", 0))
+                            cor_nota = "#2e7d32" if nota >= 80 else "#f57f17" if nota >= 60 else "#c62828"
+                            status_nota = "Aprovado" if nota >= 60 else "Reprovado"
 
-                            with st.expander(
-                                f"{m['opNome']} · Protocolo {m.get('protocolo','—')} · Nota {nota:.0f}% · {str(m.get('criadoEm',''))[:10]}",
-                                expanded=False
-                            ):
-                                c1,c2,c3,c4 = st.columns(4)
-                                c1.metric("Nota", f"{nota:.0f}%")
-                                c2.metric(f"Média {mes_atual.split('-')[0]}", f"{media_op:.1f}%")
-                                c3.metric("Pontos", f"{pontos_op} pts")
-                                c4.metric("Monitorias no mês", f"{n_op}")
+                            # Card de cada monitoria
+                            st.markdown(f"""
+                            <div style="background:#ffffff;border:1px solid #c8e6c9;border-radius:10px;
+                                        padding:16px 20px;margin-bottom:10px;
+                                        border-left:4px solid {cor_nota}">
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+                                    <div>
+                                        <div style="color:#1b5e20;font-weight:700;font-size:15px">{m['opNome']}</div>
+                                        <div style="color:#555;font-size:12px;margin-top:2px">
+                                            Protocolo: <strong>{m.get('protocolo','—')}</strong> &nbsp;·&nbsp;
+                                            Data: <strong>{str(m.get('criadoEm',''))[:10]}</strong>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex;gap:20px;text-align:center">
+                                        <div>
+                                            <div style="font-size:10px;color:#666;text-transform:uppercase">Nota</div>
+                                            <div style="font-size:20px;font-weight:800;color:{cor_nota}">{nota:.0f}%</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size:10px;color:#666;text-transform:uppercase">Média {mes_atual.split('-')[0]}</div>
+                                            <div style="font-size:20px;font-weight:800;color:#1b5e20">{media_op:.1f}%</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size:10px;color:#666;text-transform:uppercase">Pontos</div>
+                                            <div style="font-size:20px;font-weight:800;color:#2e7d32">{pontos_op}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            """, unsafe_allow_html=True)
 
-                                crits = m.get("criterios", [])
-                                if crits:
-                                    st.markdown("**Critérios avaliados:**")
-                                    for c in crits:
-                                        passou = c.get("passou", True)
-                                        cor = "#00c853" if passou else "#e53935"
-                                        status = "Passou" if passou else "Não passou"
-                                        st.markdown(
-                                            f"<div style='display:flex;justify-content:space-between;"
-                                            f"padding:6px 12px;background:#e8f5e9;border-radius:6px;"
-                                            f"margin-bottom:4px;border-left:3px solid {cor}'>"
-                                            f"<span style='color:#1b5e20;font-weight:500'>{c.get('num','')} {c.get('nome','')}</span>"
-                                            f"<span style='color:{cor};font-weight:700'>{status}</span></div>",
-                                            unsafe_allow_html=True
-                                        )
+                            # Critérios
+                            crits = m.get("criterios", [])
+                            if crits:
+                                st.markdown("""
+                                <div style="margin-top:12px;border-top:1px solid #e0e0e0;padding-top:10px">
+                                    <div style="font-size:11px;color:#666;text-transform:uppercase;
+                                                letter-spacing:1px;margin-bottom:8px;font-weight:600">
+                                        Critérios Avaliados
+                                    </div>
+                                """, unsafe_allow_html=True)
+                                crit_html = ""
+                                for c in crits:
+                                    passou = c.get("passou", True)
+                                    cor_c = "#2e7d32" if passou else "#c62828"
+                                    bg_c  = "#f1f8f1" if passou else "#fff5f5"
+                                    ic    = "✓" if passou else "✗"
+                                    crit_html += (
+                                        f"<div style='display:flex;justify-content:space-between;"
+                                        f"padding:6px 12px;background:{bg_c};border-radius:6px;"
+                                        f"margin-bottom:4px;border-left:3px solid {cor_c}'>"
+                                        f"<span style='color:#333;font-size:13px'>{c.get('num','')} {c.get('nome','')}</span>"
+                                        f"<span style='color:{cor_c};font-weight:700;font-size:13px'>{ic} {('Passou' if passou else 'Não passou')}</span></div>"
+                                    )
+                                st.markdown(crit_html + "</div>", unsafe_allow_html=True)
 
-                                erros = m.get("errosCriticos", [])
-                                if erros:
-                                    st.markdown("**Erros críticos:**")
-                                    for e in erros:
-                                        st.markdown(
-                                            f"<div style='padding:6px 12px;background:#ffebee;"
-                                            f"border-radius:6px;margin-bottom:4px;border-left:3px solid #e53935;"
-                                            f"color:#c62828;font-weight:600'>"
-                                            f"{e.get('nome','')} — {e.get('desc','')}</div>",
-                                            unsafe_allow_html=True
-                                        )
+                            # Erros críticos
+                            erros = m.get("errosCriticos", [])
+                            if erros:
+                                erros_html = "<div style='margin-top:8px'><div style='font-size:11px;color:#c62828;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:600'>Erros Críticos</div>"
+                                for e in erros:
+                                    erros_html += (
+                                        f"<div style='padding:6px 12px;background:#ffebee;"
+                                        f"border-radius:6px;margin-bottom:4px;border-left:3px solid #e53935;"
+                                        f"color:#c62828;font-size:13px'>"
+                                        f"<strong>{e.get('nome','')}</strong> — {e.get('desc','')}</div>"
+                                    )
+                                st.markdown(erros_html + "</div>", unsafe_allow_html=True)
 
-                                if m.get("observacao"):
-                                    st.markdown(f"**Observação:** {m['observacao']}")
-
-                                html_pdf = gerar_pdf_monitoria(
-                                    m["opNome"], m.get("protocolo",""), m.get("observacao",""),
-                                    m.get("criterios",[]), m.get("errosCriticos",[]),
-                                    nota, media_op, n_op, mes_atual
+                            # Observação
+                            if m.get("observacao"):
+                                st.markdown(
+                                    f"<div style='margin-top:8px;padding:8px 12px;background:#f9fbe7;"
+                                    f"border-radius:6px;border-left:3px solid #c6e02b;"
+                                    f"color:#555;font-size:13px'>"
+                                    f"<strong>Observação:</strong> {m['observacao']}</div>",
+                                    unsafe_allow_html=True
                                 )
-                                b64 = base64.b64encode(html_pdf.encode()).decode()
+
+                            st.markdown("</div>", unsafe_allow_html=True)
+
+                            # Botões PDF e Excluir
+                            col_pdf, col_del, col_esp = st.columns([2,2,6])
+                            html_pdf = gerar_pdf_monitoria(
+                                m["opNome"], m.get("protocolo",""), m.get("observacao",""),
+                                m.get("criterios",[]), m.get("errosCriticos",[]),
+                                nota, media_op, n_op, mes_atual
+                            )
+                            b64 = base64.b64encode(html_pdf.encode()).decode()
+                            with col_pdf:
                                 st.markdown(
                                     f'<a href="data:text/html;base64,{b64}" '
                                     f'download="Monitoria_{m["opNome"].replace(" ","_")}_{m.get("protocolo","")}.html" '
-                                    f'style="display:inline-block;background:#00c853;color:white;'
+                                    f'style="display:block;background:#00c853;color:white;text-align:center;'
                                     f'padding:8px 16px;border-radius:6px;text-decoration:none;'
-                                    f'font-weight:600;font-size:13px;margin-top:8px">Baixar PDF</a>',
+                                    f'font-weight:600;font-size:13px">Baixar PDF</a>',
                                     unsafe_allow_html=True
                                 )
-                                st.markdown("---")
-                                if st.button("Excluir esta monitoria", key=f"del_{m['_id']}"):
+                            with col_del:
+                                if st.button("Excluir", key=f"del_{m['_id']}"):
                                     excluir_monitoria(m["_id"])
                                     st.warning("Monitoria excluída."); st.rerun()
+                            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
 
 def pagina_monitorias_diretor(mes_ano):
