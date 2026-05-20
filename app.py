@@ -953,23 +953,22 @@ def pagina_quadro(mes_ano):
         target_v = mg*(tpct/100)
         pct_tg   = (vg_geral/target_v*100) if target_v>0 else 0
 
+        sem_int = max(0, vg_geral - tc_ops)
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;
                     border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid #00c853;box-shadow:0 2px 12px rgba(0,0,0,0.15)">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-                <div style="font-size:16px;font-weight:700;color:#ffffff">{eq['emoji']} Equipe {eq['nome']} · {ultimo.get('label','')}</div>
-                <div style="display:flex;gap:20px">
-                    <div style="text-align:center"><div style="color:#5a9a70;font-size:10px;text-transform:uppercase">% Meta</div>
-                        <div style="color:{cor_pct(pct_mg)};font-size:22px;font-weight:800">{pct_mg:.1f}%</div></div>
-                    <div style="text-align:center"><div style="color:#5a9a70;font-size:10px;text-transform:uppercase">% Target {tpct}%</div>
-                        <div style="color:{cor_pct(pct_tg)};font-size:22px;font-weight:800">{pct_tg:.1f}%</div></div>
+                <div style="font-size:16px;font-weight:700;color:#ffffff">Equipe {eq['nome']} · {ultimo.get('label','')}</div>
+                <div style="text-align:center">
+                    <div style="color:#5a9a70;font-size:10px;text-transform:uppercase">% Meta</div>
+                    <div style="color:{cor_pct(pct_mg)};font-size:22px;font-weight:800">{pct_mg:.1f}%</div>
                 </div>
             </div>
             <div style="display:flex;gap:24px;margin-top:12px;flex-wrap:wrap">
                 <div><span style="color:#5a9a70;font-size:11px">RECEBIDO GERAL</span><br><span style="color:#2daf5c;font-weight:700;font-size:15px">{fmt_brl(vg_geral)}</span></div>
                 <div><span style="color:#5a9a70;font-size:11px">COM INTERAÇÃO</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(tc_ops)}</span></div>
+                <div><span style="color:#5a9a70;font-size:11px">SEM INTERAÇÃO</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(sem_int)}</span></div>
                 <div><span style="color:#5a9a70;font-size:11px">META</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(mg)}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">TARGET {tpct}%</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(target_v)}</span></div>
                 <div><span style="color:#5a9a70;font-size:11px">PROJEÇÃO</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(proj)}</span></div>
                 <div><span style="color:#5a9a70;font-size:11px">DIAS</span><br><span style="color:#e0f0e8;font-weight:600">{dt}/{td}</span></div>
             </div>
@@ -983,7 +982,8 @@ def pagina_quadro(mes_ano):
                 meta = float(metas_ops.get(op["_id"],0))
                 proj_op = calc_projecao(val,dt,td)
                 pct  = (val/meta*100) if meta>0 else 0
-                rows.append({"Status":status_pct(pct) if meta>0 else "—","Operador":("[P] " if op.get("pleno") else "")+op["nome"],"Recebido":fmt_brl(val),"Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if proj_op>0 else "—","_v":val})
+                pleno_label = " ★" if op.get("pleno") else ""
+            rows.append({"Status":status_pct(pct) if meta>0 else "—","Operador":op["nome"]+pleno_label,"Recebido":fmt_brl(val),"Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if proj_op>0 else "—","_v":val})
             df = pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
             df.index = range(1,len(df)+1)
             st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
@@ -1216,7 +1216,7 @@ def pagina_analise_projecao(mes_ano):
             proj_op_at = calc_projecao(val_at,dt_at,td_at)
             proj_op_an = calc_projecao(val_an,dt_an,td_an) if val_an>0 else 0
             var_op = calc_variacao(proj_op_at,proj_op_an)
-            rows.append({"Operador":("[P] " if op.get("pleno") else "")+op["nome"],"Proj. Atual":fmt_brl(proj_op_at) if proj_op_at>0 else "—","Proj. Mês Ant.":fmt_brl(proj_op_an) if proj_op_an>0 else "—","Variação":f"{'↑' if (var_op or 0)>=0 else '↓'} {abs(var_op):.1f}%" if var_op is not None else "—","_p":proj_op_at})
+            rows.append({"Operador":("★ " if op.get("pleno") else "")+op["nome"],"Proj. Atual":fmt_brl(proj_op_at) if proj_op_at>0 else "—","Proj. Mês Ant.":fmt_brl(proj_op_an) if proj_op_an>0 else "—","Variação":f"{'↑' if (var_op or 0)>=0 else '↓'} {abs(var_op):.1f}%" if var_op is not None else "—","_p":proj_op_at})
         df = pd.DataFrame(rows).sort_values("_p",ascending=False).drop(columns=["_p"]).reset_index(drop=True)
         df.index = range(1,len(df)+1)
         st.dataframe(df,use_container_width=True)
