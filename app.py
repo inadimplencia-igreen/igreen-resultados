@@ -616,8 +616,6 @@ def processar_bases(pagos_file, chat_file, lig_file, disp_file, equipe_id, mes_a
     if len(cols)>=3: mapa[cols[2]]="data_pagamento"
     if len(cols)>=4: mapa[cols[3]]="valor"
     if len(cols)>=5: mapa[cols[4]]="fornecedora"
-    df_pagos = df_pagos.rename(columns=mapa)
-
     for col in ["data_vencimento","data_pagamento"]:
         if col in df_pagos.columns:
             df_pagos[col] = pd.to_datetime(df_pagos[col],dayfirst=True,errors="coerce")
@@ -1721,7 +1719,7 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
 
     # Mapeamento inteligente de colunas
     mapa = {}
-    col = detectar_coluna(df_pagos, ["uc","cpf","instalacao","instalação","contrato","cliente","cod"])
+    col = detectar_coluna(df_pagos, ["uc","cpf","instalacao","instalação","contrato","cliente","cod_cliente","codigo_cliente","código","codigo","cod","id_cliente","numero_cliente","num_cliente","matricula","matrícula"])
     if col: mapa[col] = "uc_cpf"
     col = detectar_coluna(df_pagos, ["baixa","data_pagamento","dt_pagamento","data_baixa","dt_baixa","pagamento"])
     if col: mapa[col] = "data_pagamento"
@@ -1732,15 +1730,19 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
     col = detectar_coluna(df_pagos, ["fornecedor","distribuidora","concession","empresa"])
     if col: mapa[col] = "fornecedora"
 
-    # Fallback por posição
+    # Fallback por posição — garante que sempre terá uc_cpf
     cols = list(df_pagos.columns)
     if "uc_cpf"          not in mapa.values() and len(cols)>=1: mapa[cols[0]] = "uc_cpf"
     if "data_vencimento" not in mapa.values() and len(cols)>=2: mapa[cols[1]] = "data_vencimento"
     if "data_pagamento"  not in mapa.values() and len(cols)>=3: mapa[cols[2]] = "data_pagamento"
     if "valor"           not in mapa.values() and len(cols)>=4: mapa[cols[3]] = "valor"
     if "fornecedora"     not in mapa.values() and len(cols)>=5: mapa[cols[4]] = "fornecedora"
-
+    
     df_pagos = df_pagos.rename(columns=mapa)
+    
+    # Garante que uc_cpf existe
+    if "uc_cpf" not in df_pagos.columns:
+        df_pagos = df_pagos.rename(columns={df_pagos.columns[0]: "uc_cpf"})
 
     for col in ["data_vencimento","data_pagamento"]:
         if col in df_pagos.columns:
