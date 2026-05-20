@@ -477,6 +477,20 @@ def salvar_processamento(mes_ano, equipe_id, df):
     doc_id = f"proc__{mes_ano}__{equipe_id}"
     get_db().processamentos.update_one({"_id":doc_id},{"$set":{"_id":doc_id,"mesAno":mes_ano,"equipeId":equipe_id,"registros":df.to_dict("records"),"atualizadoEm":datetime.now()}},upsert=True)
 
+def buscar_ultimo_processamento(mes_ano, equipe_id):
+    return get_db().processamentos.find_one(
+        {"mesAno": mes_ano, "equipeId": equipe_id},
+        sort=[("criadoEm", -1)]
+    ) or {}
+
+def buscar_historico_processamentos(mes_ano, equipe_id):
+    return list(get_db().processamentos.find(
+        {"mesAno": mes_ano, "equipeId": equipe_id}
+    ).sort("criadoEm", -1))
+
+def excluir_processamento(doc_id):
+    get_db().processamentos.delete_one({"_id": doc_id})
+
 def buscar_processamentos(mes_ano=None, equipe_id=None):
     filtro = {}
     if mes_ano:   filtro["mesAno"]   = mes_ano
