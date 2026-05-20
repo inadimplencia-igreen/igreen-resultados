@@ -1943,40 +1943,88 @@ def pagina_upload(mes_ano):
         for e in erros: st.error(e)
 
         if df_res is not None and not df_res.empty:
-            salvar_processamento(mes_ano, equipe_id, df_res)
-            elig = df_res[df_res["elegibilidade"]=="Elegível"]
+            # Guarda temporariamente — NÃO salva ainda
+            st.session_state["df_proc_temp"]  = df_res
+            st.session_state["proc_equipe"]   = equipe_id
+            st.session_state["proc_mes"]      = mes_ano
+            st.session_state["proc_abas"]     = abas_lidas
+            st.rerun()
 
-            if abas_lidas:
-                st.info(f"Abas de contato processadas: {', '.join(abas_lidas)}")
-            st.success(f"✅ {len(df_res):,} registros processados!")
+    # Mostra resultado para conferência
+    if (st.session_state.get("df_proc_temp") is not None and
+        st.session_state.get("proc_equipe") == equipe_id and
+        st.session_state.get("proc_mes") == mes_ano):
 
-            c1,c2,c3,c4,c5 = st.columns(5)
-            elig = df_res[df_res["elegibilidade"] == "Elegível"]
-            valor_elig   = elig["valor"].sum() if "valor" in df_res.columns else 0
-            clientes_elig = elig["uc_cpf"].nunique() if "uc_cpf" in elig.columns else 0
+        df_res     = st.session_state["df_proc_temp"]
+        abas_lidas = st.session_state.get("proc_abas", [])
+        elig       = df_res[df_res["elegibilidade"] == "Elegível"]
+        valor_elig    = elig["valor"].sum() if "valor" in elig.columns else 0
+        clientes_elig = elig["uc_cpf"].nunique() if "uc_cpf" in elig.columns else 0
 
-            c1,c2,c3 = st.columns(3)
-            c1.metric("Valor Recebido",  fmt_brl(valor_elig))
-            c2.metric("Boletos Pagos",   f"{len(elig):,}")
-            c3.metric("Clientes Pagos",  f"{clientes_elig:,}")
+        if abas_lidas:
+            st.info(f"Abas processadas: {', '.join(abas_lidas)}")
+        st.success(f"{len(df_res):,} registros processados!")
 
-            cols_show = [c for c in ["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging","diferenca_dias","primeiro_contato"] if c in df_res.columns]
-            df_show = df_res[cols_show] if cols_show else df_res
-            st.dataframe(df_show.head(50), use_container_width=True)
+        c1,c2,c3 = st.columns(3)
+        c1.metric("Valor Recebido", fmt_brl(valor_elig))
+        c2.metric("Boletos Pagos",  f"{len(elig):,}")
+        c3.metric("Clientes Pagos", f"{clientes_elig:,}")
 
-            # Download Excel completo
-            out = io.BytesIO()
-            with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
-                df_res.to_excel(writer, sheet_name="Resultado", index=False)
-                elig.to_excel(writer, sheet_name="Elegíveis", index=False)
-                df_res[df_res["elegibilidade"]=="ND"].to_excel(writer, sheet_name="ND", index=False)
-                df_res[df_res["elegibilidade"]=="Não Elegível"].to_excel(writer, sheet_name="Não Elegíveis", index=False)
-            st.download_button(
-                "Baixar Excel Completo",
-                data=out.getvalue(),
-                file_name=f"Resultado_{equipe_id}_{mes_ano}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Salvar Resultado", use_container_width=True, key="btn_salvar_proc"):
+                salvar_processamento(mes_ano, equipe_id, df_res)
+                st.session_state["df_proc_temp"] = None
+                st.success("Resultado salvo! Quadro de Resultados atualizado.")
+                st.rerun()
+        with col2:
+            if st.button("Descartar", use_container_width=True, key="btn_descartar_proc"):
+                st.session_state["df_proc_temp"] = None
+                st.rerun()
+
+        st.markdown("---")
+        cols_show = [c for c in ["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging","diferenca_dias","primeiro_contato"] if c in df_res.columns]
+        st.dataframe(df_res[cols_show].head(50) if cols_show else df_res.head(50), use_container_width=True)
+
+        out = io.BytesIO()
+        with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
+            df_res.to_excel(writer, sheet_name="Todos", index=False)
+            elig.to_excel(writer, sheet_name="Elegíveis", index=False)
+        st.download_button("Baixar Excel", data=out.getvalue(),
+            file_name=f"Resultado_{equipe_id}_{mes_ano}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    # Histórico de processamentos
+    st.markdown("---")
+    historico = buscar_historico_processamentos(mes_ano, equipe_id)
+    if historico:
+        st.markdown("<p style='color:#81c784;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Histórico de processamentos</p>", unsafe_allow_html=True)
+        for i, proc in enumerate(historico):
+            ant     = historico[i+1] if i+1 < len(historico) else None
+            val     = float(proc.get("valorElegivel", 0))
+            val_ant = float(ant.get("valorElegivel", 0)) if ant else 0
+            diff    = val - val_ant if ant else 0
+            cor     = "#2daf5c" if diff >= 0 else "#e53935"
+            sinal   = "+" if diff >= 0 else ""
+            with st.expander(f"{proc.get('label','—')} — {fmt_brl(val)}"):
+                c1,c2,c3,c4 = st.columns(4)
+                c1.metric("Valor Recebido", fmt_brl(val))
+                c2.metric("Boletos Pagos",  f"{proc.get('boletosElegiveis',0):,}")
+                c3.metric("Clientes Pagos", f"{proc.get('clientesElegiveis',0):,}")
+                if ant: c4.metric("Evolução", f"{sinal}{fmt_brl(abs(diff))}")
+                if proc.get("registros"):
+                    df_h = pd.DataFrame(proc["registros"])
+                    out2 = io.BytesIO()
+                    with pd.ExcelWriter(out2, engine="xlsxwriter") as w:
+                        df_h.to_excel(w, index=False)
+                    st.download_button("Baixar Excel", data=out2.getvalue(),
+                        file_name=f"Base_{proc.get('label','').replace('/','-').replace(':','-')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"dl_{proc['_id']}")
+                if st.button("Excluir", key=f"del_proc_{proc['_id']}"):
+                    excluir_processamento(proc["_id"])
+                    st.rerun()
 
 
 # ── MAIN ───────────────────────────────────────
