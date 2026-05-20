@@ -1003,8 +1003,10 @@ def pagina_lancamento(mes_ano):
                         "Evolução": ev_op if v_op > 0 or v_ant > 0 else "—"
                     })
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-                if st.button("Excluir", key=f"del_mini_{lanc['_id']}"):
-                    excluir_lancamento(lanc["_id"]); st.rerun()
+                if st.button("Excluir este lançamento", key=f"del_mini_{lanc['_id']}", type="primary"):
+                    excluir_lancamento(lanc["_id"])
+                    st.success("Lançamento excluído!")
+                    st.rerun()
 
 # ── QUADRO DE RESULTADOS ───────────────────────
 def pagina_quadro(mes_ano):
