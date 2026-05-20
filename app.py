@@ -404,7 +404,11 @@ def buscar_lancamentos_mes_todas(mes_ano):
     return list(get_db().lancamentos.find({"mesAno":mes_ano}).sort("criadoEm",-1))
 
 def excluir_lancamento(doc_id):
-    get_db().lancamentos.delete_one({"_id":doc_id})
+    # Tenta excluir da coleção nova
+    r1 = get_db().lancamentos.delete_one({"_id": doc_id})
+    # Se não encontrou, tenta na coleção antiga (resultados)
+    if r1.deleted_count == 0:
+        get_db().resultados.delete_one({"_id": doc_id})
 
 def salvar_monitoria(equipe_id, op_id, op_nome, protocolo, obs, criterios_resultado, erros_criticos_marcados, nota, mes_ano, semana_mon=None):
     ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
@@ -1025,11 +1029,10 @@ def pagina_lancamento(mes_ano):
                         "Evolução": ev_op
                     })
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-                col_d1, col_d2 = st.columns([2,4])
-                with col_d1:
-                    if st.button("Excluir", key=f"del_mini_{lanc['_id']}"):
-                        excluir_lancamento(lanc["_id"])
-                        st.rerun()
+                del_key = f"del_mini_{lanc['_id']}"
+                if st.button("Excluir", key=del_key):
+                    excluir_lancamento(lanc["_id"])
+                    st.rerun()
 
 # ── QUADRO DE RESULTADOS ───────────────────────
 def pagina_quadro(mes_ano):
