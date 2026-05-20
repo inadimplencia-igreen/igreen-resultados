@@ -1717,32 +1717,67 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
 
     df_pagos = pd.read_excel(xls, sheet_name=aba_pagos, header=0)
 
-    # Mapeamento inteligente de colunas
+    # Mapeamento inteligente — CPF/UC tem prioridade sobre Cliente/Nome
     mapa = {}
-    col = detectar_coluna(df_pagos, ["uc","cpf","instalacao","instalação","contrato","cliente","cod_cliente","codigo_cliente","código","codigo","cod","id_cliente","numero_cliente","num_cliente","matricula","matrícula"])
+    
+    # IDENTIFICADOR: CPF ou UC (nunca nome/cliente)
+    col = detectar_coluna(df_pagos, [
+        "cpf","uc","instalacao","instalação","cod_uc","codigo_uc",
+        "num_uc","numero_uc","matricula","matrícula","contrato",
+        "cod_cliente","codigo_cliente","id_cliente","numero_cliente"
+    ])
     if col: mapa[col] = "uc_cpf"
-    col = detectar_coluna(df_pagos, ["baixa","data_pagamento","dt_pagamento","data_baixa","dt_baixa","pagamento"])
+
+    # DATA PAGAMENTO
+    col = detectar_coluna(df_pagos, [
+        "data_pagamento","dt_pagamento","data_baixa","dt_baixa",
+        "baixa","pagamento","data pag","dt pag"
+    ])
     if col: mapa[col] = "data_pagamento"
-    col = detectar_coluna(df_pagos, ["vencimento","venc","data_venc","dt_venc","vencimento_original"])
+
+    # DATA VENCIMENTO
+    col = detectar_coluna(df_pagos, [
+        "vencimento","venc","data_venc","dt_venc",
+        "vencimento_original","data venc","dt venc"
+    ])
     if col: mapa[col] = "data_vencimento"
-    col = detectar_coluna(df_pagos, ["valor","vlr","vl_","montante","vl_pago"])
+
+    # VALOR — inclui "valor a pagar", "valor pago", etc
+    col = detectar_coluna(df_pagos, [
+        "valor","vlr","vl_","montante","vl_pago",
+        "valor_pago","valor_pagar","valor a pagar","valor_recebido"
+    ])
     if col: mapa[col] = "valor"
-    col = detectar_coluna(df_pagos, ["fornecedor","distribuidora","concession","empresa"])
+
+    # FORNECEDORA
+    col = detectar_coluna(df_pagos, [
+        "fornecedor","distribuidora","concession","empresa","fornecedora"
+    ])
     if col: mapa[col] = "fornecedora"
 
-    # Fallback por posição — garante que sempre terá uc_cpf
-    cols = list(df_pagos.columns)
-    if "uc_cpf"          not in mapa.values() and len(cols)>=1: mapa[cols[0]] = "uc_cpf"
-    if "data_vencimento" not in mapa.values() and len(cols)>=2: mapa[cols[1]] = "data_vencimento"
-    if "data_pagamento"  not in mapa.values() and len(cols)>=3: mapa[cols[2]] = "data_pagamento"
-    if "valor"           not in mapa.values() and len(cols)>=4: mapa[cols[3]] = "valor"
-    if "fornecedora"     not in mapa.values() and len(cols)>=5: mapa[cols[4]] = "fornecedora"
-    
     df_pagos = df_pagos.rename(columns=mapa)
-    
-    # Garante que uc_cpf existe
+
+    # Fallback por posição apenas para colunas ainda não mapeadas
+    cols = list(df_pagos.columns)
+    if "data_vencimento" not in df_pagos.columns and len(cols)>=2:
+        for c in cols:
+            if c not in ["uc_cpf","data_pagamento","valor","fornecedora"]:
+                df_pagos = df_pagos.rename(columns={c:"data_vencimento"})
+                break
+
+    # Garante uc_cpf — usa coluna que pareça CPF (11 dígitos) ou UC
     if "uc_cpf" not in df_pagos.columns:
-        df_pagos = df_pagos.rename(columns={df_pagos.columns[0]: "uc_cpf"})
+        # Tenta encontrar coluna com CPFs (formato xxx.xxx.xxx-xx ou 11 dígitos)
+        for c in cols:
+            sample = df_pagos[c].dropna().astype(str).head(5)
+            if any(len(s.replace(".","").replace("-","").replace(" ","")) in [11,14] for s in sample):
+                df_pagos = df_pagos.rename(columns={c:"uc_cpf"})
+                break
+        # Último fallback: segunda coluna (evita nome/cliente que costuma ser a 1ª)
+        if "uc_cpf" not in df_pagos.columns:
+            remaining = [c for c in df_pagos.columns if c not in ["data_pagamento","data_vencimento","valor","fornecedora"]]
+            if remaining:
+                df_pagos = df_pagos.rename(columns={remaining[-1]:"uc_cpf"})
 
     for col in ["data_vencimento","data_pagamento"]:
         if col in df_pagos.columns:
