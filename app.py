@@ -1819,9 +1819,20 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
     # >= 0 = interação foi ANTES ou NO DIA do pagamento = Elegível
     df_res["diferenca_dias"] = (df_res["data_pagamento"] - df_res["primeiro_contato"]).dt.days
 
+    # Garante que datas são comparadas sem componente de hora
+    if "data_pagamento" in df_res.columns:
+        df_res["data_pagamento"] = pd.to_datetime(df_res["data_pagamento"], errors="coerce").dt.normalize()
+    if "primeiro_contato" in df_res.columns:
+        df_res["primeiro_contato"] = pd.to_datetime(df_res["primeiro_contato"], errors="coerce").dt.normalize()
+
+    # Recalcula diferença após normalizar
+    df_res["diferenca_dias"] = (df_res["data_pagamento"] - df_res["primeiro_contato"]).dt.days
+
     def classif(row):
         if pd.isna(row["primeiro_contato"]): return "ND"
-        if row["diferenca_dias"] >= 0: return "Elegível"
+        d = row["diferenca_dias"]
+        if pd.isna(d): return "ND"
+        if d >= 0: return "Elegível"
         return "Não Elegível"
 
     df_res["elegibilidade"] = df_res.apply(classif, axis=1)
