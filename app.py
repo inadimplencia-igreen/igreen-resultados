@@ -194,6 +194,15 @@ hr { border: none !important; border-top: 1px solid #005a25 !important; margin: 
 ::-webkit-scrollbar-track { background: #004d20; }
 ::-webkit-scrollbar-thumb { background: #00c853; border-radius: 2px; }
 
+/* ── HIDE STREAMLIT CHROME ── */
+#MainMenu { visibility: hidden !important; }
+header[data-testid="stHeader"] { display: none !important; }
+footer { display: none !important; }
+[data-testid="stToolbar"] { display: none !important; }
+[data-testid="stDecoration"] { display: none !important; }
+.viewerBadge_container__1QSob { display: none !important; }
+div[data-testid="stStatusWidget"] { display: none !important; }
+
 /* ── CUSTOM ── */
 .val-preview { color: #00c853; font-weight: 700; font-size: 16px; padding-top: 30px; }
 .sec-label {
