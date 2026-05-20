@@ -1702,6 +1702,20 @@ def detectar_coluna(df, keywords):
     return None
 
 def processar_base_unica(arquivo, equipe_id, mes_ano):
+    """
+    REGRA:
+    1. Base PAGOS = fonte única de boletos e valores
+       - Filtra valor >= 0
+       - Cada linha = 1 boleto (sem duplicar)
+       - Valor total = soma da coluna valor
+       - Qtd boletos = qtd linhas após filtro
+    2. Interações (CHAT + LIGAÇÕES + DISPAROS)
+       - Consolida data mínima por CPF/UC
+       - Verifica se interação foi ANTES do pagamento
+       - Se sim = Elegível (com interação)
+       - Se não = Não Elegível
+       - Se sem interação = ND
+    """
     try:
         xls = pd.ExcelFile(arquivo)
     except Exception as e:
@@ -1710,89 +1724,72 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
     abas_upper = [a.upper().strip() for a in xls.sheet_names]
     abas_orig  = xls.sheet_names
 
-    # Localiza aba PAGOS
+    # ── PASSO 1: Lê aba PAGOS
     aba_pagos = next((abas_orig[i] for i,a in enumerate(abas_upper) if "PAGO" in a), None)
     if not aba_pagos:
-        return None, ["Aba PAGOS não encontrada! Verifique a planilha."], []
+        return None, ["Aba PAGOS não encontrada!"], []
 
     df_pagos = pd.read_excel(xls, sheet_name=aba_pagos, header=0)
+    if df_pagos.empty:
+        return None, ["Aba PAGOS está vazia!"], []
 
-    # Mapeamento inteligente — CPF/UC tem prioridade sobre Cliente/Nome
+    # Mapeia colunas
     mapa = {}
-    
-    # IDENTIFICADOR: CPF ou UC (nunca nome/cliente)
-    col = detectar_coluna(df_pagos, [
-        "cpf","uc","instalacao","instalação","cod_uc","codigo_uc",
-        "num_uc","numero_uc","matricula","matrícula","contrato",
-        "cod_cliente","codigo_cliente","id_cliente","numero_cliente"
-    ])
+    col = detectar_coluna(df_pagos, ["cpf","uc","instalacao","instalação","cod_uc","codigo_uc","matricula","matrícula","cod_cliente","codigo_cliente","id_cliente","numero_cliente","contrato"])
     if col: mapa[col] = "uc_cpf"
 
-    # DATA PAGAMENTO
-    col = detectar_coluna(df_pagos, [
-        "data_pagamento","dt_pagamento","data_baixa","dt_baixa",
-        "baixa","pagamento","data pag","dt pag"
-    ])
+    col = detectar_coluna(df_pagos, ["data_pagamento","dt_pagamento","data_baixa","dt_baixa","baixa","data pag","dt pag","pagamento"])
     if col: mapa[col] = "data_pagamento"
 
-    # DATA VENCIMENTO
-    col = detectar_coluna(df_pagos, [
-        "vencimento","venc","data_venc","dt_venc",
-        "vencimento_original","data venc","dt venc"
-    ])
+    col = detectar_coluna(df_pagos, ["vencimento","venc","data_venc","dt_venc","vencimento_original","data venc"])
     if col: mapa[col] = "data_vencimento"
 
-    # VALOR — inclui "valor a pagar", "valor pago", etc
-    col = detectar_coluna(df_pagos, [
-        "valor","vlr","vl_","montante","vl_pago",
-        "valor_pago","valor_pagar","valor a pagar","valor_recebido"
-    ])
+    col = detectar_coluna(df_pagos, ["valor","vlr","vl_","montante","valor_pago","valor_pagar","valor a pagar","valor_recebido"])
     if col: mapa[col] = "valor"
 
-    # FORNECEDORA
-    col = detectar_coluna(df_pagos, [
-        "fornecedor","distribuidora","concession","empresa","fornecedora"
-    ])
+    col = detectar_coluna(df_pagos, ["fornecedor","distribuidora","concession","empresa","fornecedora"])
     if col: mapa[col] = "fornecedora"
 
     df_pagos = df_pagos.rename(columns=mapa)
 
-    # Fallback por posição apenas para colunas ainda não mapeadas
+    # Fallback por posição
     cols = list(df_pagos.columns)
-    if "data_vencimento" not in df_pagos.columns and len(cols)>=2:
-        for c in cols:
-            if c not in ["uc_cpf","data_pagamento","valor","fornecedora"]:
-                df_pagos = df_pagos.rename(columns={c:"data_vencimento"})
-                break
+    if "uc_cpf"          not in df_pagos.columns and len(cols)>=1: df_pagos = df_pagos.rename(columns={cols[0]:"uc_cpf"})
+    if "data_vencimento" not in df_pagos.columns and len(cols)>=2: df_pagos = df_pagos.rename(columns={cols[1]:"data_vencimento"})
+    if "data_pagamento"  not in df_pagos.columns and len(cols)>=3: df_pagos = df_pagos.rename(columns={cols[2]:"data_pagamento"})
+    if "valor"           not in df_pagos.columns and len(cols)>=4: df_pagos = df_pagos.rename(columns={cols[3]:"valor"})
+    if "fornecedora"     not in df_pagos.columns and len(cols)>=5: df_pagos = df_pagos.rename(columns={cols[4]:"fornecedora"})
 
-    # Garante uc_cpf — usa coluna que pareça CPF (11 dígitos) ou UC
-    if "uc_cpf" not in df_pagos.columns:
-        # Tenta encontrar coluna com CPFs (formato xxx.xxx.xxx-xx ou 11 dígitos)
-        for c in cols:
-            sample = df_pagos[c].dropna().astype(str).head(5)
-            if any(len(s.replace(".","").replace("-","").replace(" ","")) in [11,14] for s in sample):
-                df_pagos = df_pagos.rename(columns={c:"uc_cpf"})
-                break
-        # Último fallback: segunda coluna (evita nome/cliente que costuma ser a 1ª)
-        if "uc_cpf" not in df_pagos.columns:
-            remaining = [c for c in df_pagos.columns if c not in ["data_pagamento","data_vencimento","valor","fornecedora"]]
-            if remaining:
-                df_pagos = df_pagos.rename(columns={remaining[-1]:"uc_cpf"})
-
-    for col in ["data_vencimento","data_pagamento"]:
-        if col in df_pagos.columns:
-            df_pagos[col] = pd.to_datetime(df_pagos[col], dayfirst=True, errors="coerce")
+    # Converte tipos
+    if "data_pagamento" in df_pagos.columns:
+        df_pagos["data_pagamento"] = pd.to_datetime(df_pagos["data_pagamento"], dayfirst=True, errors="coerce")
+    if "data_vencimento" in df_pagos.columns:
+        df_pagos["data_vencimento"] = pd.to_datetime(df_pagos["data_vencimento"], dayfirst=True, errors="coerce")
 
     if "valor" in df_pagos.columns:
         df_pagos["valor"] = pd.to_numeric(
             df_pagos["valor"].astype(str)
-            .str.replace("R$","").str.replace(".","").str.replace(",",".").str.strip(),
+            .str.replace("R$","",regex=False)
+            .str.replace(".","",regex=False)
+            .str.replace(",",".",regex=False)
+            .str.strip(),
             errors="coerce"
         ).fillna(0)
 
-    df_pagos["uc_cpf"] = df_pagos["uc_cpf"].astype(str).str.strip()
+    if "uc_cpf" in df_pagos.columns:
+        df_pagos["uc_cpf"] = df_pagos["uc_cpf"].astype(str).str.strip()
 
-    # Lê abas de contato e consolida data mínima por CPF/UC
+    # FILTRA valor >= 0 (regra: só boletos com valor válido)
+    if "valor" in df_pagos.columns:
+        df_pagos = df_pagos[df_pagos["valor"] >= 0].copy()
+
+    # Remove duplicatas — cada boleto entra 1 vez
+    cols_dedup = [c for c in ["uc_cpf","data_pagamento","valor"] if c in df_pagos.columns]
+    df_pagos = df_pagos.drop_duplicates(subset=cols_dedup, keep="first").reset_index(drop=True)
+
+    qtd_boletos = len(df_pagos)  # quantidade real de boletos
+
+    # ── PASSO 2: Lê interações e pega data mínima por CPF
     contatos = []
     abas_lidas = []
     for busca, nome in [
@@ -1801,36 +1798,32 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
         (["DISPAR","DISPARO"], "DISPAROS")
     ]:
         aba = next((abas_orig[i] for i,a in enumerate(abas_upper) if any(b in a for b in busca)), None)
-        if aba:
-            try:
-                df_c = pd.read_excel(xls, sheet_name=aba, header=0)
-                if df_c.empty or len(df_c.columns) < 2:
-                    continue
-                dc = pd.DataFrame()
-                # Identificador: CPF/UC
-                col_id = detectar_coluna(df_c, ["cpf","uc","instalacao","instalação","cod_uc","codigo","contrato","cliente","cod"])
-                # Data: qualquer coluna de data
-                col_dt = detectar_coluna(df_c, ["data","dt_","baixa","pagamento","contato","interacao","ligacao","disparo","chat"])
-                
-                dc["uc_cpf"] = (df_c[col_id] if col_id else df_c.iloc[:,0]).astype(str).str.strip()
-                dc["data_contato"] = pd.to_datetime(
-                    df_c[col_dt] if col_dt else df_c.iloc[:,1],
-                    dayfirst=True, errors="coerce"
-                )
-                # Remove linhas sem data válida
-                dc = dc.dropna(subset=["data_contato"])
-                dc = dc[dc["uc_cpf"].str.len() > 3]  # Remove identificadores vazios
-                if not dc.empty:
-                    contatos.append(dc)
-                    abas_lidas.append(nome)
-            except Exception as e:
-                pass
+        if not aba: continue
+        try:
+            df_c = pd.read_excel(xls, sheet_name=aba, header=0)
+            if df_c.empty or len(df_c.columns) < 2: continue
 
-    primeiro_contato = pd.DataFrame()
+            col_id = detectar_coluna(df_c, ["cpf","uc","instalacao","instalação","cod_uc","matricula","contrato","cod_cliente","cliente","codigo"])
+            col_dt = detectar_coluna(df_c, ["data","dt_","baixa","contato","interacao","ligacao","disparo","chat","pagamento"])
+
+            id_col = df_c[col_id] if col_id else df_c.iloc[:,0]
+            dt_col = df_c[col_dt] if col_dt else df_c.iloc[:,1]
+
+            dc = pd.DataFrame({
+                "uc_cpf":       id_col.astype(str).str.strip(),
+                "data_contato": pd.to_datetime(dt_col, dayfirst=True, errors="coerce")
+            }).dropna(subset=["data_contato"])
+            dc = dc[dc["uc_cpf"].str.len() > 3]
+
+            if not dc.empty:
+                contatos.append(dc)
+                abas_lidas.append(nome)
+        except: pass
+
+    # ── PASSO 3: Consolida data mínima de interação por CPF
+    primeiro_contato = pd.DataFrame(columns=["uc_cpf","primeiro_contato"])
     if contatos:
-        # Junta todas as interações e pega a DATA MÍNIMA por CPF/UC
         df_todos = pd.concat(contatos, ignore_index=True)
-        # Agrupa por CPF e pega menor data — 1 linha por CPF
         primeiro_contato = (
             df_todos
             .groupby("uc_cpf", as_index=False)["data_contato"]
@@ -1838,51 +1831,38 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
             .rename(columns={"data_contato": "primeiro_contato"})
         )
 
-    # Remove duplicatas da base PAGOS
-    # Cada boleto único = CPF + data_pagamento + valor
-    cols_dedup = ["uc_cpf"]
-    if "data_pagamento" in df_pagos.columns: cols_dedup.append("data_pagamento")
-    if "valor"          in df_pagos.columns: cols_dedup.append("valor")
-    
-    qtd_original = len(df_pagos)
-    df_pagos = df_pagos.drop_duplicates(subset=cols_dedup, keep="first").reset_index(drop=True)
-    qtd_dedup = len(df_pagos)
-
-    # Merge LEFT — PAGOS é a base, nunca cresce
-    # primeiro_contato tem 1 linha por CPF (data mínima) — merge seguro
+    # ── PASSO 4: Merge LEFT — PAGOS nunca cresce
     if not primeiro_contato.empty:
         df_res = pd.merge(df_pagos, primeiro_contato, on="uc_cpf", how="left")
     else:
         df_res = df_pagos.copy()
         df_res["primeiro_contato"] = pd.NaT
 
-    # Verifica integridade — df_res deve ter EXATAMENTE o mesmo tamanho que df_pagos
-    if len(df_res) != qtd_dedup:
-        # Algo duplicou — força deduplicação
+    # Garante que merge não duplicou
+    if len(df_res) != qtd_boletos:
         df_res = df_res.drop_duplicates(subset=cols_dedup, keep="first").reset_index(drop=True)
 
-    if "primeiro_contato" not in df_res.columns:
-        df_res["primeiro_contato"] = pd.NaT
-
-    if "data_pagamento" in df_res.columns:
-        df_res["diferenca_dias"] = (df_res["data_pagamento"] - df_res["primeiro_contato"]).dt.days
-    else:
-        df_res["diferenca_dias"] = None
-
+    # ── PASSO 5: Elegibilidade
+    # Elegível = interação existe E ocorreu ANTES ou NO DIA do pagamento
     def classif(row):
-        if pd.isna(row.get("primeiro_contato")): return "ND"
-        d = row.get("diferenca_dias")
-        if d is None or pd.isna(d): return "ND"
-        return "Elegível" if d >= 0 else "Não Elegível"
+        pc = row.get("primeiro_contato")
+        dp = row.get("data_pagamento")
+        if pd.isna(pc): return "ND"
+        if pd.isna(dp): return "ND"
+        # Interação deve ser <= data pagamento
+        if pc <= dp: return "Elegível"
+        return "Não Elegível"
 
     df_res["elegibilidade"] = df_res.apply(classif, axis=1)
 
+    # ── PASSO 6: Aging (dias em atraso)
     if "data_pagamento" in df_res.columns and "data_vencimento" in df_res.columns:
         df_res["dias_vencidos"] = (df_res["data_pagamento"] - df_res["data_vencimento"]).dt.days
     else:
         df_res["dias_vencidos"] = None
     df_res["aging"] = df_res["dias_vencidos"].apply(aging_faixa)
 
+    # Formata datas para string
     for col in ["data_vencimento","data_pagamento","primeiro_contato"]:
         if col in df_res.columns:
             try:
@@ -1892,8 +1872,9 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
 
     df_res["equipe"]  = equipe_id
     df_res["mes_ano"] = mes_ano
-    
+
     return df_res, [], abas_lidas
+
 
 def pagina_upload(mes_ano):
     u = st.session_state.usuario
