@@ -488,9 +488,9 @@ def cor_pct(pct):
     return "#e03c3c"
 
 def status_pct(pct):
-    if pct>=80: return "OK"
+    if pct>=80: return "Ótimo"
     if pct>=50: return "Regular"
-    return "Baixo"
+    return "Abaixo"
 
 def calc_pontos(media):
     for lo,hi,pts in FAIXAS_PONTOS:
@@ -957,11 +957,11 @@ def pagina_lancamento(mes_ano):
             sk = f"op_{equipe_id}_{mes_ano}_{op['_id']}"
             vi_final[op["_id"]] = float(st.session_state.get(sk, 0))
         
-        vg_final  = float(st.session_state.get(f"vg_{equipe_id}_{mes_ano}", 0))
-        dt_final  = int(st.session_state.get(f"dt_{equipe_id}_{mes_ano}", 0))
-        td_final  = int(st.session_state.get(f"td_{equipe_id}_{mes_ano}", 22))
-        data_final = st.session_state.get(f"data_{equipe_id}_{mes_ano}", date.today())
-        fech_final = st.session_state.get(f"fech_{equipe_id}_{mes_ano}", False)
+        vg_final   = float(st.session_state.get(f"vg_{equipe_id}_{mes_ano}", vg))
+        dt_final   = int(st.session_state.get(f"dt_{equipe_id}_{mes_ano}", dt))
+        td_final   = int(st.session_state.get(f"td_{equipe_id}_{mes_ano}", td))
+        data_final = st.session_state.get(f"data_{equipe_id}_{mes_ano}", data_sel)
+        fech_final = st.session_state.get(f"fech_{equipe_id}_{mes_ano}", eh_fechamento)
         
         tc_final  = sum(vi_final.values())
         sem_final = max(0, vg_final - tc_final)
@@ -1025,9 +1025,11 @@ def pagina_lancamento(mes_ano):
                         "Evolução": ev_op
                     })
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-                if st.button("Excluir este lançamento", key=f"del_mini_{lanc['_id']}"):
-                    excluir_lancamento(lanc["_id"])
-                    st.rerun()
+                col_d1, col_d2 = st.columns([2,4])
+                with col_d1:
+                    if st.button("Excluir", key=f"del_mini_{lanc['_id']}"):
+                        excluir_lancamento(lanc["_id"])
+                        st.rerun()
 
 # ── QUADRO DE RESULTADOS ───────────────────────
 def pagina_quadro(mes_ano):
