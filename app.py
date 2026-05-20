@@ -413,12 +413,38 @@ def pagina_operadores():
 
     st.markdown("---")
 
-    # Lista de operadores
+    OPERADORES_PADRAO = {
+        "luciano": [
+            ("Jennifer Silveira", True),("Paulo Roberto", False),("Samires Barros", False),
+            ("Maycow Gabriel", False),("Otaides Junior", False),("Heverton Tavares", False),
+            ("Camila Nara", False),("Caua Alves", False),("Eduarda Sanqueta", False),
+            ("Jheniffer Santos", False),("Ketie Silva", False),("Emanuel Cardoso", False),
+            ("Victória Silva", False),("Grasielli Santos", False),("Laura Silva", False),
+            ("Michelle Batista", False),("Lorenzzo Pereira", False),("Diogo Oliveira", False),
+            ("Maria Paulino", False),("Gabrielle Martins", False),("Marcos Martins", False),
+        ],
+        "deborah": [
+            ("Mikael Dias", False),("Amanda Eduarda", False),("Larissa Barcelos", False),
+            ("Nicole Amaral", False),("Sara Rocha", False),("Isabelly Araujo", False),("Silye Paula", False),
+        ],
+        "tamires": [
+            ("Danilo Rodrigues", True),("Raiane Pereira", False),("Wynara Dos Reis", False),
+            ("Esteffany Souza", False),("André Gomes", False),("Wanessa Cardoso", False),
+            ("Larisse Garcia", False),("Arthur Alves", False),
+        ],
+        "metcool": [],
+    }
     ops = buscar_operadores(equipe_id)
     if not ops:
-        st.info("Nenhum operador cadastrado ainda. Cadastre acima!")
+        st.info("Nenhum operador cadastrado ainda.")
+        padrao = OPERADORES_PADRAO.get(equipe_id, [])
+        if padrao:
+            if st.button("📥 Importar Operadores Padrão", use_container_width=True):
+                for nome, pleno in padrao:
+                    salvar_operador(equipe_id, nome, pleno)
+                st.success(f"✅ {len(padrao)} operadores importados!")
+                st.rerun()
         return
-
     st.markdown(f"**{len(ops)} operadores cadastrados**")
 
     for op in ops:
