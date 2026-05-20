@@ -15,27 +15,27 @@ st.markdown("""
 * { font-family: 'Inter', sans-serif !important; }
 
 /* ── BASE ── */
-.stApp { background-color: #0b1f11; }
+.stApp { background-color: #004d20; }
 [data-testid="stSidebar"] {
-    background: #071408;
-    border-right: 1px solid #17391e;
+    background: #003318;
+    border-right: 1px solid #005a25;
 }
 
 /* ── METRICS ── */
 [data-testid="stMetric"] {
-    background: #0d1f12;
-    border: 1px solid #1c3d24;
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
     border-radius: 10px;
     padding: 18px 20px !important;
-    border-top: 2px solid #2daf5c;
+    border-top: 3px solid #00c853;
 }
 [data-testid="stMetricValue"] {
-    color: #ffffff !important;
-    font-size: 20px !important;
+    color: #1b5e20 !important;
+    font-size: 22px !important;
     font-weight: 700 !important;
 }
 [data-testid="stMetricLabel"] {
-    color: #4d8a60 !important;
+    color: #2e7d32 !important;
     font-size: 10px !important;
     text-transform: uppercase;
     letter-spacing: 1.2px;
@@ -45,159 +45,172 @@ st.markdown("""
 
 /* ── BUTTONS ── */
 .stButton > button {
-    background: #1e8a42 !important;
+    background: #00c853 !important;
     color: white !important;
     border: none !important;
     border-radius: 6px !important;
     font-weight: 600 !important;
     font-size: 13px !important;
-    padding: 9px 18px !important;
-    transition: background 0.2s !important;
+    padding: 10px 20px !important;
+    transition: all 0.2s !important;
     letter-spacing: 0.3px;
+    box-shadow: 0 2px 8px rgba(0,200,83,0.3) !important;
 }
 .stButton > button:hover {
-    background: #25a84f !important;
+    background: #00e676 !important;
+    box-shadow: 0 4px 12px rgba(0,200,83,0.4) !important;
+    transform: translateY(-1px) !important;
 }
 
 /* ── TYPOGRAPHY ── */
 h1 { color: #ffffff !important; font-size: 20px !important; font-weight: 700 !important; letter-spacing: -0.3px; }
-h2 { color: #d4ead9 !important; font-size: 16px !important; font-weight: 600 !important; }
-h3 { color: #4d8a60 !important; font-size: 10px !important; font-weight: 600 !important;
+h2 { color: #e8f5e9 !important; font-size: 16px !important; font-weight: 600 !important; }
+h3 { color: #81c784 !important; font-size: 10px !important; font-weight: 600 !important;
      text-transform: uppercase; letter-spacing: 2px; }
-p  { color: #a0c4a8 !important; font-size: 13px; }
-hr { border: none !important; border-top: 1px solid #17391e !important; margin: 14px 0 !important; }
+p  { color: #c8e6c9 !important; font-size: 13px; }
+hr { border: none !important; border-top: 1px solid #005a25 !important; margin: 14px 0 !important; }
 
 /* ── INPUTS ── */
 .stTextInput input,
 .stNumberInput input,
 .stTextArea textarea {
-    background: #0d1f12 !important;
-    border: 1px solid #1c3d24 !important;
-    color: #d4ead9 !important;
+    background: #e8f5e9 !important;
+    border: 1px solid #a5d6a7 !important;
+    color: #1b5e20 !important;
     border-radius: 6px !important;
     font-size: 13px !important;
 }
 .stTextInput input:focus,
 .stNumberInput input:focus,
 .stTextArea textarea:focus {
-    border-color: #2daf5c !important;
-    box-shadow: 0 0 0 2px rgba(45,175,92,0.15) !important;
+    border-color: #00c853 !important;
+    box-shadow: 0 0 0 2px rgba(0,200,83,0.2) !important;
 }
-.stTextInput input::placeholder { color: #3d6647 !important; }
+.stTextInput input::placeholder { color: #81c784 !important; }
 
 /* ── SELECTS ── */
 .stSelectbox > div > div {
-    background: #0d1f12 !important;
-    border: 1px solid #1c3d24 !important;
-    color: #d4ead9 !important;
+    background: #e8f5e9 !important;
+    border: 1px solid #a5d6a7 !important;
+    color: #1b5e20 !important;
     border-radius: 6px !important;
     font-size: 13px !important;
 }
 
 /* ── SIDEBAR ── */
 [data-testid="stSidebar"] .stRadio label {
-    color: #a0c4a8 !important;
+    color: #a5d6a7 !important;
     font-size: 12px !important;
     font-weight: 500 !important;
     padding: 4px 0 !important;
 }
 [data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p {
-    color: #a0c4a8 !important;
+    color: #a5d6a7 !important;
 }
-/* Active radio item */
 [data-testid="stSidebar"] .stRadio label:hover { color: #ffffff !important; }
 
 /* ── TABS ── */
 .stTabs [data-baseweb="tab-list"] {
-    background: #0d1f12 !important;
+    background: #003318 !important;
     border-radius: 6px !important;
     padding: 3px !important;
     gap: 2px !important;
 }
 .stTabs [data-baseweb="tab"] {
-    color: #4d8a60 !important;
+    color: #81c784 !important;
     border-radius: 5px !important;
     font-size: 12px !important;
     font-weight: 500 !important;
     padding: 7px 14px !important;
 }
 .stTabs [aria-selected="true"] {
-    background: #1e8a42 !important;
+    background: #00c853 !important;
     color: #ffffff !important;
 }
 
 /* ── CHECKBOXES ── */
 .stCheckbox label {
-    color: #d4ead9 !important;
+    color: #e8f5e9 !important;
     font-size: 13px !important;
 }
-.stCheckbox label span { color: #d4ead9 !important; }
+.stCheckbox label span { color: #e8f5e9 !important; }
 
 /* ── FILE UPLOADER ── */
 [data-testid="stFileUploader"] > div {
-    background: #0d1f12 !important;
-    border: 1.5px dashed #1c3d24 !important;
+    background: #e8f5e9 !important;
+    border: 1.5px dashed #a5d6a7 !important;
     border-radius: 8px !important;
 }
-[data-testid="stFileUploader"] * { color: #4d8a60 !important; }
+[data-testid="stFileUploader"] * { color: #2e7d32 !important; }
 
 /* ── ALERTS ── */
 .stSuccess > div {
-    background: rgba(30,138,66,0.12) !important;
-    border: 1px solid rgba(45,175,92,0.25) !important;
-    color: #2daf5c !important;
+    background: #e8f5e9 !important;
+    border: 1px solid #a5d6a7 !important;
+    color: #2e7d32 !important;
     border-radius: 6px !important;
     font-size: 13px !important;
 }
 .stWarning > div {
-    background: rgba(200,130,0,0.12) !important;
-    border: 1px solid rgba(240,165,0,0.25) !important;
-    color: #c88200 !important;
+    background: #fff8e1 !important;
+    border: 1px solid #ffe082 !important;
+    color: #f57f17 !important;
     border-radius: 6px !important;
     font-size: 13px !important;
 }
 .stError > div {
-    background: rgba(180,40,40,0.12) !important;
-    border: 1px solid rgba(224,60,60,0.25) !important;
-    color: #d94040 !important;
+    background: #ffebee !important;
+    border: 1px solid #ef9a9a !important;
+    color: #c62828 !important;
     border-radius: 6px !important;
     font-size: 13px !important;
 }
 .stInfo > div {
-    background: rgba(45,100,180,0.12) !important;
-    border: 1px solid rgba(70,130,220,0.25) !important;
-    color: #5b9fd4 !important;
+    background: #e3f2fd !important;
+    border: 1px solid #90caf9 !important;
+    color: #1565c0 !important;
     border-radius: 6px !important;
     font-size: 13px !important;
 }
 
 /* ── DATA TABLE ── */
 [data-testid="stDataFrame"] {
-    border: 1px solid #1c3d24 !important;
+    border: 1px solid #a5d6a7 !important;
     border-radius: 8px !important;
+    background: #e8f5e9 !important;
 }
 
 /* ── EXPANDER ── */
 .streamlit-expanderHeader {
-    background: #0d1f12 !important;
-    border: 1px solid #1c3d24 !important;
+    background: #e8f5e9 !important;
+    border: 1px solid #a5d6a7 !important;
     border-radius: 6px !important;
-    color: #d4ead9 !important;
+    color: #1b5e20 !important;
     font-size: 13px !important;
 }
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #0b1f11; }
-::-webkit-scrollbar-thumb { background: #1c3d24; border-radius: 2px; }
+::-webkit-scrollbar-track { background: #004d20; }
+::-webkit-scrollbar-thumb { background: #00c853; border-radius: 2px; }
 
 /* ── CUSTOM ── */
-.val-preview { color: #2daf5c; font-weight: 700; font-size: 16px; padding-top: 30px; }
+.val-preview { color: #00c853; font-weight: 700; font-size: 16px; padding-top: 30px; }
 .sec-label {
     font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
-    color: #4d8a60; font-weight: 600; margin-bottom: 6px;
+    color: #81c784; font-weight: 600; margin-bottom: 6px;
 }
-div[data-testid="stVerticalBlock"] label { color: #a0c4a8 !important; font-size: 12px !important; }
+div[data-testid="stVerticalBlock"] label { color: #c8e6c9 !important; font-size: 12px !important; }
+/* Card sections */
+.card-section {
+    background: #e8f5e9;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    border: 1px solid #c8e6c9;
+}
+/* Page body padding */
+.block-container { padding: 2rem 2rem 2rem !important; max-width: 1200px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -443,10 +456,11 @@ def aging_faixa(dias):
 
 def header_page(titulo,sub=""):
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;
-                border-radius:14px;padding:20px 24px;margin-bottom:20px;border-left:4px solid #2daf5c">
-        <h1 style="margin:0;color:#ffffff">{titulo}</h1>
-        {"<p style='color:#5a9a70;margin:4px 0 0;font-size:13px'>"+sub+"</p>" if sub else ""}
+    <div style="background:linear-gradient(135deg,#003318,#004d20);border:1px solid #005a25;
+                border-radius:12px;padding:22px 28px;margin-bottom:24px;
+                border-left:4px solid #00c853;box-shadow:0 4px 20px rgba(0,0,0,0.2)">
+        <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700">{titulo}</h1>
+        {"<p style='color:#81c784;margin:4px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:1px'>"+sub+"</p>" if sub else ""}
     </div>
     """,unsafe_allow_html=True)
 
@@ -616,7 +630,8 @@ def tela_login():
     c1,c2,c3 = st.columns([1,1.2,1])
     with c2:
         st.markdown("""
-        <div style="text-align:center;padding:40px 0 28px">
+        <div style="background:#003318;border-radius:16px;padding:40px 32px;box-shadow:0 8px 32px rgba(0,0,0,0.3);border:1px solid #005a25">
+        <div style="text-align:center;padding:0 0 28px">
             <div style="font-size:28px;font-weight:800;color:#ffffff;letter-spacing:-1px;margin-bottom:6px">
                 i<span style="color:#2daf5c">Green</span> Performance
             </div>
@@ -653,9 +668,9 @@ def render_sidebar():
                 <div style="color:#5a9a70;font-size:10px;text-transform:uppercase;letter-spacing:1px">Performance</div>
             </div>
             </div>
-            <div style="background:rgba(45,175,92,0.1);border:1px solid rgba(45,175,92,0.2);
+            <div style="background:rgba(0,200,83,0.1);border:1px solid rgba(0,200,83,0.2);
                         border-radius:8px;padding:10px 12px;margin-bottom:16px">
-                <div style="color:#2daf5c;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px">
+                <div style="color:#00c853;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px">
                     {'Diretoria' if u['role']=='diretor' else 'Admin' if u['role']=='admin' else 'Gestor'}
                 </div>
                 <div style="color:#ffffff;font-size:14px;font-weight:600;margin-top:2px">{u['nome']}</div>
@@ -890,7 +905,7 @@ def pagina_quadro(mes_ano):
 
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;
-                    border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid {eq['cor']}">
+                    border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid #00c853;box-shadow:0 2px 12px rgba(0,0,0,0.15)">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                 <div style="font-size:16px;font-weight:700;color:#ffffff">{eq['emoji']} Equipe {eq['nome']} · {ultimo.get('label','')}</div>
                 <div style="display:flex;gap:20px">
@@ -991,10 +1006,10 @@ def pagina_monitorias(mes_ano):
             for crit in CRITERIOS:
                 cor_borda = "#f0a500" if crit["obrigatorio"] else "#1a4d2e"
                 st.markdown(f"""
-                <div style="background:#0a2414;border:1px solid {cor_borda};border-radius:10px;
+                <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;
                             padding:14px 18px;margin-bottom:8px">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                        <span style="color:#ffffff;font-weight:600">{crit['num']} {crit['nome']}</span>
+                        <span style="color:#1b5e20;font-weight:600">{crit['num']} {crit['nome']}</span>
                         <span style="background:{'rgba(240,165,0,0.2)' if crit['obrigatorio'] else 'rgba(45,175,92,0.1)'};
                                color:{'#f0a500' if crit['obrigatorio'] else '#2daf5c'};
                                padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">
@@ -1015,7 +1030,7 @@ def pagina_monitorias(mes_ano):
 
         st.markdown("---")
         st.markdown(f"""
-        <div style="background:linear-gradient(135deg,#0a2414,#1a6b35);border-radius:12px;
+        <div style="background:linear-gradient(135deg,#003318,#004d20);border-radius:12px;
                     padding:20px 24px;text-align:center;margin-bottom:16px">
             <div style="color:#5a9a70;font-size:12px;text-transform:uppercase;letter-spacing:1px">Nota desta Monitoria</div>
             <div style="color:{'#2daf5c' if nota>=80 else '#f0a500' if nota>=60 else '#e03c3c'};
@@ -1076,7 +1091,7 @@ def pagina_monitorias_diretor(mes_ano):
 
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;
-                    border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid {eq['cor']}">
+                    border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid #00c853;box-shadow:0 2px 12px rgba(0,0,0,0.15)">
             <div style="display:flex;justify-content:space-between;align-items:center">
                 <div style="font-size:15px;font-weight:700;color:#ffffff">{eq['emoji']} Equipe {eq['nome']}</div>
                 <div style="text-align:right">
@@ -1128,7 +1143,7 @@ def pagina_analise_projecao(mes_ano):
 
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;
-                    border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid {eq['cor']}">
+                    border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid #00c853;box-shadow:0 2px 12px rgba(0,0,0,0.15)">
             <div style="font-size:15px;font-weight:700;color:#ffffff;margin-bottom:10px">{eq['emoji']} Equipe {eq['nome']}</div>
             <div style="display:flex;gap:24px;flex-wrap:wrap">
                 <div><span style="color:#5a9a70;font-size:11px">PROJEÇÃO ATUAL</span><br>
