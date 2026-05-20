@@ -1711,7 +1711,21 @@ def processar_base_unica(arquivo, equipe_id, mes_ano):
     abas_orig  = xls.sheet_names
 
     # ── 1. LÊ ABA PAGOS
-    aba_pagos = next((abas_orig[i] for i,a in enumerate(abas_upper) if "PAGO" in a), abas_orig[0])
+    # Busca aba PAGOS — tenta várias variações
+    aba_pagos = None
+    for i,a in enumerate(abas_upper):
+        a_clean = a.strip()
+        if a_clean in ["PAGOS","PAGO","PAGAMENTOS","BASE PAGOS","BASE_PAGOS"]:
+            aba_pagos = abas_orig[i]
+            break
+    if not aba_pagos:
+        # Segunda tentativa: contém "PAG"
+        for i,a in enumerate(abas_upper):
+            if "PAG" in a:
+                aba_pagos = abas_orig[i]
+                break
+    if not aba_pagos:
+        aba_pagos = abas_orig[0]  # fallback: primeira aba
     df_pagos = pd.read_excel(xls, sheet_name=aba_pagos, header=0)
 
     # Renomeia colunas por contexto
@@ -1887,12 +1901,14 @@ def pagina_upload(mes_ano):
             st.success(f"✅ {len(df_res):,} registros processados!")
 
             c1,c2,c3,c4,c5 = st.columns(5)
-            valor_total = df_res["valor"].sum() if "valor" in df_res.columns else 0
-            valor_elig  = elig["valor"].sum() if "valor" in df_res.columns else 0
+            elig = df_res[df_res["elegibilidade"] == "Elegível"]
+            valor_elig   = elig["valor"].sum() if "valor" in df_res.columns else 0
+            clientes_elig = elig["uc_cpf"].nunique() if "uc_cpf" in elig.columns else 0
+
             c1,c2,c3 = st.columns(3)
-            c1.metric("Valor Total Recebido", fmt_brl(valor_total))
-            c2.metric("Boletos",              f"{len(df_res):,}")
-            c3.metric("Clientes Únicos",      f"{df_res['uc_cpf'].nunique():,}" if "uc_cpf" in df_res.columns else "—")
+            c1.metric("Valor Recebido",  fmt_brl(valor_elig))
+            c2.metric("Boletos Pagos",   f"{len(elig):,}")
+            c3.metric("Clientes Pagos",  f"{clientes_elig:,}")
 
             cols_show = [c for c in ["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging"] if c in df_res.columns]
             if cols_show:
