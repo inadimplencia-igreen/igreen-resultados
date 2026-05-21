@@ -1413,7 +1413,7 @@ def pagina_monitorias(mes_ano):
 
         if zerada:
             st.error("MONITORIA ZERADA — Erro crítico marcado!")
-            for c in CRITERIOS:
+            for c in get_criterios():
                 criterios_resultado.append({**c,"passou":False})
         else:
             for crit in get_criterios():
