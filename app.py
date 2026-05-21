@@ -243,7 +243,38 @@ EQUIPES = {
 MESES_NOMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
                "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
 
-CRITERIOS = [
+def get_criterios():
+    """Busca critérios do banco ou usa os padrão"""
+    try:
+        doc = get_db().configuracoes.find_one({"_id": "criterios_monitoria"})
+        if doc and doc.get("criterios"):
+            return doc["criterios"]
+    except: pass
+    return CRITERIOS_PADRAO
+
+def salvar_criterios(criterios):
+    get_db().configuracoes.update_one(
+        {"_id": "criterios_monitoria"},
+        {"$set": {"_id": "criterios_monitoria", "criterios": criterios, "atualizadoEm": datetime.now()}},
+        upsert=True
+    )
+
+def get_erros_criticos():
+    try:
+        doc = get_db().configuracoes.find_one({"_id": "erros_criticos_monitoria"})
+        if doc and doc.get("erros"):
+            return doc["erros"]
+    except: pass
+    return ERROS_CRITICOS_PADRAO
+
+def salvar_erros_criticos(erros):
+    get_db().configuracoes.update_one(
+        {"_id": "erros_criticos_monitoria"},
+        {"$set": {"_id": "erros_criticos_monitoria", "erros": erros, "atualizadoEm": datetime.now()}},
+        upsert=True
+    )
+
+CRITERIOS_PADRAO = [
     {"id":"c1","num":"1º","nome":"Abertura e Identificação","peso":5,
      "itens":["Saudação adequada","Identificação do operador e da empresa","Sem conversas paralelas fora do mudo"],"obrigatorio":False},
     {"id":"c2","num":"2º","nome":"Comunicação e Postura","peso":5,
@@ -260,7 +291,7 @@ CRITERIOS = [
      "itens":["Esclarecimento do acordo fechado","Agradecimento e cordialidade"],"obrigatorio":False},
 ]
 
-ERROS_CRITICOS = [
+ERROS_CRITICOS_PADRAO = [
     {"id":"e1","nome":"Informação incorreta","desc":"Passou informação incorreta, incompleta ou errada ao cliente"},
     {"id":"e2","nome":"Postura ríspida","desc":"Agiu de forma ríspida ou ameaçadora"},
     {"id":"e3","nome":"Linguagem agressiva","desc":"Usar linguajar agressivo com o cliente"},
@@ -478,10 +509,23 @@ def salvar_processamento(mes_ano, equipe_id, df):
     get_db().processamentos.update_one({"_id":doc_id},{"$set":{"_id":doc_id,"mesAno":mes_ano,"equipeId":equipe_id,"registros":df.to_dict("records"),"atualizadoEm":datetime.now()}},upsert=True)
 
 def buscar_ultimo_processamento(mes_ano, equipe_id):
-    return get_db().processamentos.find_one(
+    doc = get_db().processamentos.find_one(
         {"mesAno": mes_ano, "equipeId": equipe_id},
         sort=[("criadoEm", -1)]
-    ) or {}
+    )
+    if not doc:
+        return {}
+    # Se não tem valorElegivel calculado, calcula agora
+    if not doc.get("valorElegivel") and doc.get("registros"):
+        try:
+            df = pd.DataFrame(doc["registros"])
+            if "elegibilidade" in df.columns and "valor" in df.columns:
+                elig = df[df["elegibilidade"] == "Elegível"]
+                doc["valorElegivel"]     = float(elig["valor"].sum())
+                doc["boletosElegiveis"]  = len(elig)
+                doc["clientesElegiveis"] = int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns else 0
+        except: pass
+    return doc
 
 def buscar_historico_processamentos(mes_ano, equipe_id):
     return list(get_db().processamentos.find(
@@ -843,7 +887,7 @@ def render_sidebar():
         if u["role"]=="diretor":
             pags=["Quadro de Resultados","Dashboard Executivo","Análise de Projeção","Monitorias"]
         elif u["role"]=="admin":
-            pags=["Quadro de Resultados","Lançamento","Dashboard Executivo","Análise de Projeção","Monitorias","Upload de Bases","Operadores","Metas"]
+            pags=["Quadro de Resultados","Lançamento","Dashboard Executivo","Análise de Projeção","Monitorias","Upload de Bases","Operadores","Metas","Critérios"]
         else:
             pags=["Quadro de Resultados","Lançamento","Análise de Projeção","Monitorias","Upload de Bases","Operadores","Metas"]
 
@@ -1355,7 +1399,7 @@ def pagina_monitorias(mes_ano):
         st.markdown("### Erros Críticos — Zera a Monitoria")
         erros_marcados = []
         c1,c2 = st.columns(2)
-        for i,ec in enumerate(ERROS_CRITICOS):
+        for i,ec in enumerate(get_erros_criticos()):
             with (c1 if i%2==0 else c2):
                 if st.checkbox(f"{ec['nome']} — {ec['desc']}", key=f"ec_{ec['id']}"):
                     erros_marcados.append(ec)
@@ -1372,7 +1416,7 @@ def pagina_monitorias(mes_ano):
             for c in CRITERIOS:
                 criterios_resultado.append({**c,"passou":False})
         else:
-            for crit in CRITERIOS:
+            for crit in get_criterios():
                 cor_titulo = "#c62828" if crit["obrigatorio"] else "#1b5e20"
                 cor_borda  = "#ef9a9a" if crit["obrigatorio"] else "#a5d6a7"
                 bg_card    = "#fff5f5" if crit["obrigatorio"] else "#e8f5e9"
@@ -1998,6 +2042,8 @@ def pagina_upload(mes_ano):
     # Histórico de processamentos
     st.markdown("---")
     historico = buscar_historico_processamentos(mes_ano, equipe_id)
+    # Filtra só registros no novo formato (com valorElegivel)
+    historico = [p for p in historico if p.get("valorElegivel") is not None or p.get("label") is not None]
     if historico:
         st.markdown("<p style='color:#81c784;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Histórico de processamentos</p>", unsafe_allow_html=True)
         for i, proc in enumerate(historico):
@@ -2007,7 +2053,8 @@ def pagina_upload(mes_ano):
             diff    = val - val_ant if ant else 0
             cor     = "#2daf5c" if diff >= 0 else "#e53935"
             sinal   = "+" if diff >= 0 else ""
-            with st.expander(f"{proc.get('label','—')} — {fmt_brl(val)}"):
+            label   = proc.get("label") or str(proc.get("criadoEm",""))[:16]
+            with st.expander(f"{label} — {fmt_brl(val)}"):
                 c1,c2,c3,c4 = st.columns(4)
                 c1.metric("Valor Recebido", fmt_brl(val))
                 c2.metric("Boletos Pagos",  f"{proc.get('boletosElegiveis',0):,}")
@@ -2026,6 +2073,78 @@ def pagina_upload(mes_ano):
                     excluir_processamento(proc["_id"])
                     st.rerun()
 
+
+# ── CRITÉRIOS ─────────────────────────────────
+def pagina_criterios():
+    header_page("Critérios de Monitoria", "Configure os critérios de avaliação · Dados históricos nunca são apagados")
+
+    criterios = get_criterios()
+    erros     = get_erros_criticos()
+
+    t1, t2 = st.tabs(["Critérios de Avaliação", "Erros Críticos"])
+
+    with t1:
+        st.markdown("**Os critérios abaixo são usados nas monitorias. Alterações valem apenas para novas monitorias.**")
+        st.markdown("---")
+
+        criterios_edit = []
+        for i, c in enumerate(criterios):
+            with st.expander(f"{c['num']} {c['nome']} — Peso {c['peso']}", expanded=False):
+                col1, col2, col3 = st.columns([3,1,1])
+                with col1:
+                    nome = st.text_input("Nome", value=c["nome"], key=f"cn_{i}")
+                with col2:
+                    peso = st.number_input("Peso", min_value=1, max_value=100,
+                                           value=int(c["peso"]), key=f"cp_{i}")
+                with col3:
+                    obrig = st.checkbox("Obrigatório", value=c.get("obrigatorio", False), key=f"co_{i}")
+
+                itens_txt = st.text_area("Itens avaliados (um por linha)",
+                    value="\n".join(c.get("itens", [])),
+                    height=100, key=f"ci_{i}")
+                itens = [x.strip() for x in itens_txt.split("\n") if x.strip()]
+
+                criterios_edit.append({
+                    "id": c["id"],
+                    "num": c["num"],
+                    "nome": nome,
+                    "peso": peso,
+                    "obrigatorio": obrig,
+                    "itens": itens
+                })
+
+        st.markdown("---")
+        if st.button("Salvar Critérios", use_container_width=True):
+            salvar_criterios(criterios_edit)
+            st.success("Critérios salvos! Monitorias anteriores não foram alteradas.")
+            st.rerun()
+
+    with t2:
+        st.markdown("**Erros que zeram a monitoria automaticamente.**")
+        st.markdown("---")
+
+        erros_edit = []
+        for i, e in enumerate(erros):
+            col1, col2 = st.columns([2,3])
+            with col1:
+                nome_e = st.text_input("Nome", value=e["nome"], key=f"en_{i}")
+            with col2:
+                desc_e = st.text_input("Descrição", value=e["desc"], key=f"ed_{i}")
+            erros_edit.append({"id": e["id"], "nome": nome_e, "desc": desc_e})
+
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Salvar Erros Críticos", use_container_width=True):
+                salvar_erros_criticos(erros_edit)
+                st.success("Erros críticos salvos!")
+                st.rerun()
+        with col2:
+            if st.button("Adicionar Erro", use_container_width=True):
+                novo = {"id": f"e{len(erros)+1}", "nome": "Novo erro", "desc": "Descrição"}
+                erros_edit.append(novo)
+                salvar_erros_criticos(erros_edit)
+                st.rerun()
 
 # ── MAIN ───────────────────────────────────────
 def main():
@@ -2058,6 +2177,7 @@ def main():
         elif "Upload"     in pagina: pagina_upload(mes_ano)
         elif "Operadores" in pagina: pagina_operadores()
         elif "Metas"      in pagina: pagina_metas(mes_ano)
+        elif "Critérios"  in pagina: pagina_criterios()
 
     else:
         if "Quadro"      in pagina: pagina_quadro(mes_ano)
