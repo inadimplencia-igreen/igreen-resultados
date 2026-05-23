@@ -721,21 +721,26 @@ def render_sidebar():
             'color:#3a5a3a;margin-bottom:8px;font-weight:600">CONTA</p>',
             unsafe_allow_html=True)
         with st.expander('⚙  Minha Conta'):
-            tc1,tc2,tc3=st.tabs(['Senha','Operadores','Critérios'])
-            with tc1:
+            aba_conta=st.radio('',['Senha','Operadores','Critérios'],key='aba_conta',label_visibility='collapsed',horizontal=True)
+            if aba_conta=='Senha':
                 sa=st.text_input('Senha atual',type='password',key='ca',placeholder='senha atual')
                 sn=st.text_input('Nova senha',type='password',key='cn',placeholder='mín. 8 caracteres')
                 sc2=st.text_input('Confirmar',type='password',key='cc',placeholder='repita')
                 if st.button('Salvar Senha',use_container_width=True,key='btn_senha'):
-                    uid=u['id']; sc=buscar_senha_usuario(uid)
+                    uid=u['id']
+                    sc=u.get('senha')
+                    try:
+                        doc=get_db().usuarios_senhas.find_one({'_id':uid})
+                        if doc and doc.get('senha'): sc=doc['senha']
+                    except: pass
                     if not sa: st.error('Digite a senha atual.')
                     elif sa!=sc: st.error('Senha atual incorreta.')
                     elif len(sn)<8: st.error('Mínimo 8 caracteres.')
                     elif sn!=sc2: st.error('Confirmação não confere.')
                     else: salvar_senha_usuario(uid,sn); st.success('Senha alterada!')
-            with tc2:
+            elif aba_conta=='Operadores':
                 _mini_operadores(u)
-            with tc3:
+            elif aba_conta=='Critérios':
                 _mini_criterios()
         st.markdown('<div style="height:8px"></div>',unsafe_allow_html=True)
         if st.button('Sair',use_container_width=True,key='btn_sair'):
@@ -1529,11 +1534,15 @@ def pagina_criterios():
 
 # ── MAIN ───────────────────────────────────────
 def main():
+    # Mostra login ANTES de qualquer conexão com o banco
+    if "usuario" not in st.session_state:
+        tela_login()
+        return
+    # Só corrige IDs após login, com proteção
     if "ids_corrigidos" not in st.session_state:
         try: corrigir_ids_operadores()
         except: pass
         st.session_state.ids_corrigidos=True
-    if "usuario" not in st.session_state: tela_login(); return
     ma,pag=render_sidebar()
     u=st.session_state.usuario
     if u["role"]=="diretor":
