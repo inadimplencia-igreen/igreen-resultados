@@ -68,17 +68,51 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
 
 /* ── SELECTS — fix dropdown sobreposto ── */
 .stSelectbox > div > div {
-    background: #0d1a0d !important; border: 1px solid #1e3a1e !important;
-    color: #e8f5e9 !important; border-radius: 8px !important;
-    font-size: 13px !important; white-space: nowrap !important;
-    overflow: hidden !important; text-overflow: ellipsis !important;
+    background: #0d1a0d !important;
+    border: 1px solid #1e3a1e !important;
+    color: #e8f5e9 !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
 }
-.stSelectbox > div > div > div { color: #e8f5e9 !important; white-space: nowrap !important; }
-[data-baseweb="select"] { background: #0d1a0d !important; }
-[data-baseweb="select"] * { color: #e8f5e9 !important; }
-[data-baseweb="popover"] { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; border-radius: 8px !important; }
+.stSelectbox > div > div > div {
+    color: #e8f5e9 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+/* Fix sobreposição arrow */
+.stSelectbox [data-baseweb="select"] {
+    background: #0d1a0d !important;
+}
+.stSelectbox [data-baseweb="select"] > div:first-child {
+    background: #0d1a0d !important;
+    color: #e8f5e9 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    padding-right: 40px !important;
+}
+.stSelectbox [data-baseweb="select"] input {
+    color: transparent !important;
+    caret-color: transparent !important;
+    position: absolute !important;
+    width: 1px !important;
+    opacity: 0 !important;
+}
+[data-baseweb="popover"] {
+    background: #0d1a0d !important;
+    border: 1px solid #1e3a1e !important;
+    border-radius: 8px !important;
+    z-index: 9999 !important;
+}
 [data-baseweb="menu"] { background: #0d1a0d !important; }
-[data-baseweb="option"] { background: #0d1a0d !important; color: #e8f5e9 !important; white-space: nowrap !important; }
+[data-baseweb="option"] {
+    background: #0d1a0d !important;
+    color: #e8f5e9 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
 [data-baseweb="option"]:hover { background: #1a3a1a !important; }
 [aria-selected="true"][data-baseweb="option"] { background: #1a3a1a !important; }
 
@@ -87,7 +121,7 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
     gap: 0px !important;
 }
 [data-testid="stSidebar"] .stRadio label {
-    color: #8a9a8a !important;
+    color: #b0c4b0 !important;
     font-size: 13px !important;
     font-weight: 500 !important;
     padding: 10px 16px !important;
@@ -430,6 +464,36 @@ def buscar_senha_usuario(uid):
     u = USUARIOS.get(uid)
     if u: return u.get("senha")
     return None
+
+def salvar_historico_processamento(mes_ano, equipe_id, usuario_nome, df):
+    """Salva histórico permanente de cada processamento — nunca apaga."""
+    import time
+    ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    doc_id = f"hist_proc__{mes_ano}__{equipe_id}__{ts}"
+    # Calcula métricas
+    df_num = df.copy()
+    df_num["valor"] = pd.to_numeric(df_num.get("valor", pd.Series(dtype=float)), errors="coerce").fillna(0)
+    elig = df_num[df_num["elegibilidade"]=="Elegível"] if "elegibilidade" in df_num.columns else df_num
+    fornecedoras = sorted(df_num["fornecedora"].dropna().unique().tolist()) if "fornecedora" in df_num.columns else []
+    get_db().historico_processamentos.insert_one({
+        "_id": doc_id,
+        "mesAno": mes_ano,
+        "equipeId": equipe_id,
+        "usuarioNome": usuario_nome,
+        "fornecedoras": fornecedoras,
+        "totalBoletos": len(df_num),
+        "boletosElegiveis": len(elig),
+        "valorElegivel": float(elig["valor"].sum()),
+        "valorTotal": float(df_num["valor"].sum()),
+        "criadoEm": datetime.now()
+    })
+
+def buscar_historico_geral(mes_ano=None, equipe_id=None):
+    """Busca histórico completo de todos processamentos — nunca apaga."""
+    filtro = {}
+    if mes_ano: filtro["mesAno"] = mes_ano
+    if equipe_id: filtro["equipeId"] = equipe_id
+    return list(get_db().historico_processamentos.find(filtro).sort("criadoEm", -1))
 
 def salvar_inadimplencia(ma, eq, dados):
     did = f"inadimp__{ma}__{eq}"
@@ -1224,6 +1288,7 @@ def pagina_monitorias(ma):
 
 def pagina_monitorias_diretor(ma):
     st.markdown("### Visão Geral — Monitorias por Equipe")
+    todas_medias=[]
     for eq in EQUIPES:
         ops=buscar_operadores(eq)
         if not ops: continue
@@ -1233,17 +1298,32 @@ def pagina_monitorias_diretor(ma):
         medias={k:v for k,v in medias.items() if v[1]>0}
         if not medias: continue
         me=sum(m[0] for m in medias.values())/len(medias)
-        st.markdown(f"""<div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid #00c853">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-                <div style="font-size:15px;font-weight:700;color:#ffffff">Equipe {EQUIPES[eq]['nome']}</div>
-                <div style="text-align:right"><div style="color:#5a9a70;font-size:10px;text-transform:uppercase">Média da Equipe</div>
-                    <div style="color:{cor_pct(me)};font-size:24px;font-weight:800">{me:.1f}%</div></div>
-            </div></div>""",unsafe_allow_html=True)
+        todas_medias.append(me)
+        st.markdown(
+            f"<div style='background:linear-gradient(135deg,#0a1a0a,#0d2010);border:1px solid #1e3a1e;"
+            f"border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid #00c853'>"
+            f"<div style='display:flex;justify-content:space-between;align-items:center'>"
+            f"<div style='font-size:15px;font-weight:700;color:#ffffff'>Equipe {EQUIPES[eq]['nome']}</div>"
+            f"<div style='text-align:right'>"
+            f"<div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>MÉDIA DA EQUIPE</div>"
+            f"<div style='color:{cor_pct(me)};font-size:24px;font-weight:800'>{me:.1f}%</div>"
+            f"</div></div></div>",
+            unsafe_allow_html=True)
         rows=[{"Operador":n,"Média":f"{m[0]:.1f}%","Monitorias":m[1],"Pontos":calc_pontos(m[0])} for n,m in sorted(medias.items(),key=lambda x:-x[1][0])]
         df=pd.DataFrame(rows); df.index=range(1,len(df)+1)
-        st.dataframe(df,use_container_width=True); st.markdown("---")
+        st.dataframe(df,use_container_width=True)
+        st.markdown("---")
+    if todas_medias:
+        mg=sum(todas_medias)/len(todas_medias)
+        st.markdown(
+            f"<div style='background:linear-gradient(135deg,#001a0a,#002a10);border:2px solid #00c853;"
+            f"border-radius:12px;padding:20px 24px;text-align:center;margin-top:8px'>"
+            f"<div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px'>MÉDIA GERAL — TODAS AS EQUIPES</div>"
+            f"<div style='color:{cor_pct(mg)};font-size:32px;font-weight:800'>{mg:.1f}%</div>"
+            f"</div>",
+            unsafe_allow_html=True)
 
-# ── ANÁLISE DOS OPERADORES ────────────────────
+
 def pagina_analise_operadores(ma):
     u=st.session_state.usuario
     eqs=list(EQUIPES.keys()) if u["role"] in ["diretor","admin"] else [u["equipe"]]
@@ -1303,51 +1383,64 @@ def pagina_analise_operadores(ma):
 
 # ── VISUALIZAÇÃO RCA ───────────────────────────
 def pagina_dashboard_executivo():
+    u = st.session_state.usuario
     header_page("Visualização RCA","Gestão de Inadimplência Comercial")
     mp=listar_meses_processados()
     if not mp: st.info("Nenhuma base processada ainda."); return
+
     c1,c2,c3=st.columns(3)
     with c1: mf=st.selectbox("Mês",["Todos"]+mp)
     with c2: ef=st.selectbox("Equipe",["Todas","luciano","deborah","tamires"])
     df=buscar_processamentos(None if mf=="Todos" else mf, None if ef=="Todas" else ef)
     if df.empty: st.warning("Nenhum dado."); return
+
     df["valor"]=pd.to_numeric(df["valor"],errors="coerce").fillna(0)
+    # Só elegíveis para cálculo de valor recuperado
+    elig=df[df["elegibilidade"]=="Elegível"] if "elegibilidade" in df.columns else df
+
     with c3:
         forns=["Todas"]+sorted(df["fornecedora"].dropna().unique().tolist())
         ff=st.selectbox("Fornecedora",forns)
-    if ff!="Todas": df=df[df["fornecedora"]==ff]
+    if ff!="Todas": df=df[df["fornecedora"]==ff]; elig=elig[elig["fornecedora"]==ff] if "fornecedora" in elig.columns else elig
+
     st.markdown("---")
-    elig=df[df["elegibilidade"]=="Elegível"]; nelig=df[df["elegibilidade"]=="Não Elegível"]; nd=df[df["elegibilidade"]=="ND"]
-    c1,c2,c3,c4,c5,c6=st.columns(6)
-    c1.metric("Valor Recuperado",fmt_brl(elig["valor"].sum()))
-    c2.metric("Clientes Únicos",f'{df["uc_cpf"].nunique():,}')
-    c3.metric("Boletos",f'{len(df):,}')
-    c4.metric("Elegíveis",f'{len(elig):,}')
-    c5.metric("Não Elegíveis",f'{len(nelig):,}')
-    c6.metric("ND",f'{len(nd):,}')
+    # Métricas simplificadas — sem Elegíveis/ND
+    c1,c2,c3=st.columns(3)
+    c1.metric("Valor Recuperado", fmt_brl(elig["valor"].sum()))
+    c2.metric("Clientes Únicos",  f'{df["uc_cpf"].nunique():,}' if "uc_cpf" in df.columns else "—")
+    c3.metric("Total Boletos",    f'{len(df):,}')
     st.markdown("---")
+
     t1,t2,t3,t4=st.tabs(["Aging","Fornecedoras","Evolução","Por Equipe"])
     with t1:
-        ag=df.groupby("aging").agg(Boletos=("uc_cpf","count"),Clientes=("uc_cpf","nunique"),Valor=("valor","sum")).reset_index()
-        ag["Valor"]=ag["Valor"].apply(fmt_brl)
-        st.dataframe(ag.rename(columns={"aging":"Faixa"}),use_container_width=True,hide_index=True)
-        st.bar_chart(df.groupby("aging")["uc_cpf"].count(),color="#2daf5c")
+        if "aging" in df.columns:
+            ag=df.groupby("aging").agg(Boletos=("uc_cpf","count"),Valor=("valor","sum")).reset_index()
+            ag["Valor"]=ag["Valor"].apply(fmt_brl)
+            st.dataframe(ag.rename(columns={"aging":"Faixa"}),use_container_width=True,hide_index=True)
+            st.bar_chart(df.groupby("aging")["uc_cpf"].count(),color="#2daf5c")
     with t2:
-        fdf=df.groupby("fornecedora").agg(Boletos=("uc_cpf","count"),Clientes=("uc_cpf","nunique"),Valor=("valor","sum")).reset_index()
-        fdf["Valor"]=fdf["Valor"].apply(fmt_brl)
-        st.dataframe(fdf.rename(columns={"fornecedora":"Fornecedora"}),use_container_width=True,hide_index=True)
+        if "fornecedora" in df.columns:
+            fdf=df.groupby("fornecedora").agg(Boletos=("uc_cpf","count"),Valor=("valor","sum")).reset_index()
+            fdf=fdf.sort_values("Valor",ascending=False)
+            fdf["Valor"]=fdf["Valor"].apply(fmt_brl)
+            fdf["Fornecedora"]=fdf["fornecedora"].astype(str)
+            st.dataframe(fdf[["Fornecedora","Boletos","Valor"]],use_container_width=True,hide_index=True)
     with t3:
         da=buscar_processamentos()
         if not da.empty:
             da["valor"]=pd.to_numeric(da["valor"],errors="coerce").fillna(0)
-            ev=da[da["elegibilidade"]=="Elegível"].groupby("_mes_ano")["valor"].sum().reset_index()
-            ev.columns=["Mês","Valor"]
-            st.bar_chart(ev.sort_values("Mês").set_index("Mês"),color="#2daf5c")
+            da_elig=da[da["elegibilidade"]=="Elegível"] if "elegibilidade" in da.columns else da
+            if "_mes_ano" in da_elig.columns:
+                ev=da_elig.groupby("_mes_ano")["valor"].sum().reset_index()
+                ev.columns=["Mês","Valor"]
+                st.bar_chart(ev.sort_values("Mês").set_index("Mês"),color="#2daf5c")
     with t4:
-        ed=df.groupby("_equipe").agg(Boletos=("uc_cpf","count"),Clientes=("uc_cpf","nunique"),Valor=("valor","sum")).reset_index()
-        ed["Equipe"]=ed["_equipe"].map(lambda x:EQUIPES.get(x,{}).get("nome",x))
-        ed["Valor"]=ed["Valor"].apply(fmt_brl)
-        st.dataframe(ed[["Equipe","Boletos","Clientes","Valor"]],use_container_width=True,hide_index=True)
+        if "_equipe" in df.columns:
+            ed=df.groupby("_equipe").agg(Boletos=("uc_cpf","count"),Valor=("valor","sum")).reset_index()
+            ed["Equipe"]=ed["_equipe"].map(lambda x:EQUIPES.get(x,{}).get("nome",x))
+            ed["Valor"]=ed["Valor"].apply(fmt_brl)
+            st.dataframe(ed[["Equipe","Boletos","Valor"]],use_container_width=True,hide_index=True)
+
     st.markdown("---")
     if st.button("Exportar Excel"):
         out=io.BytesIO()
@@ -1400,7 +1493,7 @@ def pagina_upload(ma):
         col1,col2=st.columns(2)
         with col1:
             if st.button("Salvar Resultado",use_container_width=True,key="btn_salvar_proc"):
-                salvar_processamento(ma,eq,df_res); st.session_state["df_proc_temp"]=None; st.success("Resultado salvo!"); st.rerun()
+                salvar_processamento(ma,eq,df_res,u.get("nome","")); st.session_state["df_proc_temp"]=None; st.success("Resultado salvo!"); st.rerun()
         with col2:
             if st.button("Descartar",use_container_width=True,key="btn_desc"): st.session_state["df_proc_temp"]=None; st.rerun()
         st.markdown("---")
@@ -1414,7 +1507,7 @@ def pagina_upload(ma):
     hist=buscar_historico_processamentos(ma,eq)
     hist=[p for p in hist if p.get("valorElegivel") is not None or p.get("label") is not None]
     if hist:
-        st.markdown("<p style='color:#81c784;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Histórico</p>",unsafe_allow_html=True)
+        st.markdown("<p style='color:#3a6a4a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Histórico deste mês</p>",unsafe_allow_html=True)
         for i,proc in enumerate(hist):
             ant=hist[i+1] if i+1<len(hist) else None
             v=float(proc.get("valorElegivel",0)); va=float(ant.get("valorElegivel",0)) if ant else 0
@@ -1429,6 +1522,33 @@ def pagina_upload(ma):
                     with pd.ExcelWriter(out2,engine="xlsxwriter") as w: dfh.to_excel(w,index=False)
                     st.download_button("Baixar Excel",data=out2.getvalue(),file_name=f"Base_{label.replace('/','-').replace(':','-')}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",key=f"dl_{proc['_id']}")
                 if st.button("Excluir",key=f"del_proc_{proc['_id']}"): excluir_processamento(proc["_id"]); st.rerun()
+
+    # Histórico consolidado permanente (ADM/Diretor)
+    u_local = st.session_state.usuario
+    if u_local["role"] in ["admin","diretor"]:
+        st.markdown("---")
+        st.markdown("<p style='color:#3a6a4a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Histórico consolidado — Todas as bases processadas</p>",unsafe_allow_html=True)
+        hist_geral = buscar_historico_geral()
+        if not hist_geral:
+            st.info("Nenhum histórico registrado ainda.")
+        else:
+            rows_hg=[]
+            for h in hist_geral:
+                rows_hg.append({
+                    "Gestor": h.get("usuarioNome","—"),
+                    "Equipe": EQUIPES.get(h.get("equipeId",""),{}).get("nome","—"),
+                    "Mês":    h.get("mesAno","—"),
+                    "Fornecedoras": ", ".join(h.get("fornecedoras",[])) or "—",
+                    "Valor Recebido": fmt_brl(h.get("valorElegivel",0)),
+                    "Boletos": f"{h.get('boletosElegiveis',0):,}",
+                    "Data":   str(h.get("criadoEm",""))[:16],
+                })
+            df_hg=pd.DataFrame(rows_hg)
+            st.dataframe(df_hg,use_container_width=True,hide_index=True)
+            out_hg=io.BytesIO()
+            with pd.ExcelWriter(out_hg,engine="xlsxwriter") as w:
+                df_hg.to_excel(w,index=False)
+            st.download_button("Exportar Histórico Excel",data=out_hg.getvalue(),file_name="historico_bases.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ── ANÁLISE DE INADIMPLÊNCIA ───────────────────
 def pagina_inadimplencia(ma):
@@ -1661,32 +1781,35 @@ def main():
         st.session_state.ids_corrigidos=True
     ma,pag=render_sidebar()
     u=st.session_state.usuario
-    if u["role"]=="diretor":
-        if   "Quadro"        in pag: pagina_quadro(ma)
-        elif "Visualização"  in pag: pagina_dashboard_executivo()
-        elif "Operadores"    in pag: pagina_analise_operadores(ma)
-        elif "Monitorias"    in pag: pagina_monitorias(ma)
-        elif "Inadimplência" in pag: pagina_inadimplencia(ma)
-        elif "Minha Conta"   in pag: pagina_minha_conta()
-    elif u["role"]=="admin":
-        if   "Quadro"        in pag: pagina_quadro(ma)
-        elif "Lançamento"    in pag: pagina_lancamento(ma)
-        elif "Visualização"  in pag: pagina_dashboard_executivo()
-        elif "Operadores"    in pag: pagina_analise_operadores(ma)
-        elif "Monitorias"    in pag: pagina_monitorias(ma)
-        elif "Upload"        in pag: pagina_upload(ma)
-        elif "Inadimplência" in pag: pagina_inadimplencia(ma)
-        elif "Metas"         in pag: pagina_metas(ma)
-        elif "Minha Conta"   in pag: pagina_minha_conta()
-    else:
-        if   "Quadro"        in pag: pagina_quadro(ma)
-        elif "Lançamento"    in pag: pagina_lancamento(ma)
-        elif "Operadores"    in pag: pagina_analise_operadores(ma)
-        elif "Monitorias"    in pag: pagina_monitorias(ma)
-        elif "Upload"        in pag: pagina_upload(ma)
-        elif "Inadimplência" in pag: pagina_inadimplencia(ma)
-        elif "Metas"         in pag: pagina_metas(ma)
-        elif "Minha Conta"   in pag: pagina_minha_conta()
+    # Limpa área principal antes de renderizar nova tela
+    area = st.empty()
+    with area.container():
+        if u["role"]=="diretor":
+            if   "Quadro"        in pag: pagina_quadro(ma)
+            elif "Visualização"  in pag: pagina_dashboard_executivo()
+            elif "Operadores"    in pag: pagina_analise_operadores(ma)
+            elif "Monitorias"    in pag: pagina_monitorias(ma)
+            elif "Inadimplência" in pag: pagina_inadimplencia(ma)
+            elif "Minha Conta"   in pag: pagina_minha_conta()
+        elif u["role"]=="admin":
+            if   "Quadro"        in pag: pagina_quadro(ma)
+            elif "Lançamento"    in pag: pagina_lancamento(ma)
+            elif "Visualização"  in pag: pagina_dashboard_executivo()
+            elif "Operadores"    in pag: pagina_analise_operadores(ma)
+            elif "Monitorias"    in pag: pagina_monitorias(ma)
+            elif "Upload"        in pag: pagina_upload(ma)
+            elif "Inadimplência" in pag: pagina_inadimplencia(ma)
+            elif "Metas"         in pag: pagina_metas(ma)
+            elif "Minha Conta"   in pag: pagina_minha_conta()
+        else:
+            if   "Quadro"        in pag: pagina_quadro(ma)
+            elif "Lançamento"    in pag: pagina_lancamento(ma)
+            elif "Operadores"    in pag: pagina_analise_operadores(ma)
+            elif "Monitorias"    in pag: pagina_monitorias(ma)
+            elif "Upload"        in pag: pagina_upload(ma)
+            elif "Inadimplência" in pag: pagina_inadimplencia(ma)
+            elif "Metas"         in pag: pagina_metas(ma)
+            elif "Minha Conta"   in pag: pagina_minha_conta()
 
 if __name__=="__main__":
     main()
