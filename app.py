@@ -214,7 +214,15 @@ CORES_FORN = {"COTESA/MOVE":"#1b5e20","ULTRA":"#0d47a1","VANTAGE":"#e65100","FAR
 # ── MONGODB ────────────────────────────────────
 @st.cache_resource
 def get_db():
-    client = MongoClient(st.secrets["mongo"]["uri"], serverSelectionTimeoutMS=5000)
+    client = MongoClient(
+        st.secrets["mongo"]["uri"],
+        serverSelectionTimeoutMS=10000,
+        connectTimeoutMS=10000,
+        socketTimeoutMS=10000,
+        maxPoolSize=5,
+        retryWrites=True,
+        w="majority"
+    )
     return client[st.secrets["mongo"]["db"]]
 
 def get_criterios():
@@ -938,7 +946,11 @@ def pagina_quadro(ma):
     header_page("Quadro de Resultados",ma.replace("-"," "))
 
     for eq in eqs:
-        ops=buscar_operadores(eq); lancs=buscar_lancamentos(ma,eq)
+        try:
+            ops=buscar_operadores(eq); lancs=buscar_lancamentos(ma,eq)
+        except Exception as e:
+            st.error(f"Erro ao conectar ao banco de dados. Tente recarregar a página.")
+            continue
         if not lancs: continue
         ul=lancs[0]; mg_doc=buscar_meta_gestora(ma,eq); mops=buscar_metas_equipe(ma,eq)
         mg=float(mg_doc.get("metaGestora",0))
