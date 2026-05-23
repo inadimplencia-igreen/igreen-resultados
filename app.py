@@ -685,7 +685,17 @@ def processar_base_unica(arquivo, eq, ma):
     try: xls=pd.ExcelFile(arquivo)
     except Exception as e: return None,[f"Erro: {e}"],[]
     abas_norm=[norm(a) for a in xls.sheet_names]; abas_orig=xls.sheet_names
-    aba_pagos=next((abas_orig[i] for i,a in enumerate(abas_norm) if any(p in a for p in ["PAGO","PAGAM","RECEB","BASE"])),abas_orig[0])
+    # Busca aba de pagos — tenta várias variações
+    aba_pagos=None
+    for i,a in enumerate(abas_norm):
+        if any(p in a for p in ["PAGOS","PAGO","PAGAM","RECEB","BASE","RESULT","RES_","BAIXA","PAGT"]):
+            aba_pagos=abas_orig[i]; break
+    # Fallback: primeira aba que não seja chat/ligacao/disparo
+    if not aba_pagos:
+        for i,a in enumerate(abas_norm):
+            if not any(x in a for x in ["CHAT","LIG","DISPAR","CONTATO"]):
+                aba_pagos=abas_orig[i]; break
+    if not aba_pagos: aba_pagos=abas_orig[0]
     df=pd.read_excel(xls,sheet_name=aba_pagos,header=0).reset_index(drop=True)
     df["_row_id"]=df.index
     col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
