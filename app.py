@@ -8,7 +8,7 @@ import re
 import warnings
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="iGreen Performance", page_icon=None, layout="wide")
+st.set_page_config(page_title="iGreen Performance", page_icon="logo.png", layout="wide")
 
 st.markdown("""
 <style>
@@ -55,13 +55,22 @@ div[data-testid="stVerticalBlock"] label { color: #c8e6c9 !important; font-size:
 </style>
 """, unsafe_allow_html=True)
 
-USUARIOS = {
-    "tamires": {"senha":"tamires123","equipe":"tamires","role":"admin",  "nome":"Tamires"},
-    "luciano": {"senha":"luciano123","equipe":"luciano","role":"gestor", "nome":"Luciano"},
-    "deborah": {"senha":"deborah123","equipe":"deborah","role":"gestor", "nome":"Déborah"},
-    "veloso":  {"senha":"veloso123", "equipe":None,     "role":"diretor","nome":"Veloso"},
-    "moyara":  {"senha":"moyara123", "equipe":None,     "role":"diretor","nome":"Moyara"},
-}
+def _get_usuarios():
+    """Lê senhas dos Secrets do Streamlit — nunca ficam expostas no código."""
+    try:
+        s = st.secrets["usuarios"]
+        return {
+            "tamires": {"senha": s["tamires"], "equipe":"tamires","role":"admin",  "nome":"Tamires"},
+            "luciano": {"senha": s["luciano"], "equipe":"luciano","role":"gestor", "nome":"Luciano"},
+            "deborah": {"senha": s["deborah"], "equipe":"deborah","role":"gestor", "nome":"Déborah"},
+            "veloso":  {"senha": s["veloso"],  "equipe":None,     "role":"diretor","nome":"Veloso"},
+            "moyara":  {"senha": s["moyara"],  "equipe":None,     "role":"diretor","nome":"Moyara"},
+        }
+    except:
+        st.error("Configuração de usuários ausente nos Secrets do Streamlit.")
+        st.stop()
+
+USUARIOS = _get_usuarios()
 EQUIPES = {
     "luciano":{"nome":"Luciano","cor":"#2daf5c"},
     "deborah":{"nome":"Déborah","cor":"#a855f7"},
@@ -231,6 +240,23 @@ def buscar_processamentos(ma=None, eq=None):
     return pd.concat(frames,ignore_index=True) if frames else pd.DataFrame()
 
 def listar_meses_processados(): return sorted(get_db().processamentos.distinct("mesAno"),reverse=True)
+
+def salvar_senha_usuario(uid, nova_senha):
+    """Salva senha do usuário no MongoDB — nunca no código."""
+    get_db().usuarios_senhas.update_one(
+        {"_id": uid},
+        {"$set": {"_id": uid, "senha": nova_senha, "atualizadoEm": datetime.now()}},
+        upsert=True)
+
+def buscar_senha_usuario(uid):
+    """Busca senha customizada do usuário. Se não tiver, usa a dos Secrets."""
+    doc = get_db().usuarios_senhas.find_one({"_id": uid})
+    if doc and doc.get("senha"):
+        return doc["senha"]
+    try:
+        return st.secrets["usuarios"][uid]
+    except:
+        return None
 
 def salvar_inadimplencia(ma, eq, dados):
     did = f"inadimp__{ma}__{eq}"
@@ -481,9 +507,13 @@ def tela_login():
         senha=st.text_input("s",type="password",placeholder="••••••••",label_visibility="collapsed")
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
         if st.button("Entrar",use_container_width=True):
-            u=USUARIOS.get(usuario.lower().strip())
-            if u and u["senha"]==senha.strip():
-                st.session_state.usuario={"id":usuario.lower(),**u}; st.rerun()
+            uid = usuario.lower().strip()
+            u = USUARIOS.get(uid)
+            if u:
+                senha_correta = buscar_senha_usuario(uid)
+                if senha_correta and senha.strip() == senha_correta:
+                    st.session_state.usuario={"id":uid,**u}; st.rerun()
+                else: st.error("Usuário ou senha incorretos.")
             else: st.error("Usuário ou senha incorretos.")
         st.markdown('<p style="text-align:center;color:#1a4d2e;font-size:11px;margin-top:24px">iGreen Energy © 2026</p>',unsafe_allow_html=True)
 
@@ -523,6 +553,24 @@ def render_sidebar():
             pags=["Quadro de Resultados","Lançamento","Análise de Projeção","Monitorias","Upload de Bases","Análise de Inadimplência","Operadores","Metas"]
         pag=st.radio("",pags,label_visibility="collapsed")
         st.markdown("<hr>",unsafe_allow_html=True)
+
+        # ── MINHA CONTA
+        with st.expander("⚙️ Minha Conta"):
+            st.markdown("<p style='font-size:11px;color:#a5d6a7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Trocar Senha</p>",unsafe_allow_html=True)
+            senha_at  = st.text_input("Senha atual",  type="password", key="conta_senha_at",  placeholder="••••••••")
+            senha_nova = st.text_input("Nova senha",   type="password", key="conta_senha_nova", placeholder="mín. 8 caracteres")
+            senha_conf = st.text_input("Confirmar nova senha", type="password", key="conta_senha_conf", placeholder="repita a nova senha")
+            if st.button("Salvar Nova Senha", use_container_width=True, key="btn_trocar_senha"):
+                uid = u["id"]
+                senha_correta = buscar_senha_usuario(uid)
+                if not senha_at: st.error("Digite a senha atual.")
+                elif senha_at != senha_correta: st.error("Senha atual incorreta.")
+                elif len(senha_nova) < 8: st.error("Nova senha deve ter pelo menos 8 caracteres.")
+                elif senha_nova != senha_conf: st.error("Confirmação não confere.")
+                else:
+                    salvar_senha_usuario(uid, senha_nova)
+                    st.success("Senha alterada com sucesso!")
+
         if st.button("Sair",use_container_width=True):
             del st.session_state.usuario; st.rerun()
     return mes_ano,pag
