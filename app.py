@@ -685,15 +685,21 @@ def processar_base_unica(arquivo, eq, ma):
     try: xls=pd.ExcelFile(arquivo)
     except Exception as e: return None,[f"Erro: {e}"],[]
     abas_norm=[norm(a) for a in xls.sheet_names]; abas_orig=xls.sheet_names
-    # Busca aba de pagos — tenta várias variações
+    # Busca aba de pagos — prioridade: nome exato PAGOS primeiro
     aba_pagos=None
+    # 1a tentativa: nome exato PAGOS
     for i,a in enumerate(abas_norm):
-        if any(p in a for p in ["PAGOS","PAGO","PAGAM","RECEB","BASE","RESULT","RES_","BAIXA","PAGT"]):
+        if a.strip() == 'PAGOS':
             aba_pagos=abas_orig[i]; break
-    # Fallback: primeira aba que não seja chat/ligacao/disparo
+    # 2a tentativa: contém PAGO ou variações
     if not aba_pagos:
         for i,a in enumerate(abas_norm):
-            if not any(x in a for x in ["CHAT","LIG","DISPAR","CONTATO"]):
+            if any(p in a for p in ["PAGAM","RECEB","BASE","BAIXA","PAGT"]):
+                aba_pagos=abas_orig[i]; break
+    # 3a tentativa: primeira aba que não seja chat/ligacao/disparo
+    if not aba_pagos:
+        for i,a in enumerate(abas_norm):
+            if not any(x in a for x in ["CHAT","LIG","DISPAR","CONTATO","DISPARO"]):
                 aba_pagos=abas_orig[i]; break
     if not aba_pagos: aba_pagos=abas_orig[0]
     df=pd.read_excel(xls,sheet_name=aba_pagos,header=0).reset_index(drop=True)
@@ -701,24 +707,40 @@ def processar_base_unica(arquivo, eq, ma):
     col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
     for c in df.columns:
         cn=norm(str(c))
-        # CPF / identificador do cliente
-        if not col_cpf  and any(x in cn for x in ["CPF","UC","INSTAL","MATRICUL","COD_C","CODIGO_C","ID_C","NUM_C"]): col_cpf=c
-        # Valor — inclui 'Valor total (R$)'
-        if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","TOTAL","VAL_TOT","RECEB"]): col_val=c
-        # Data de pagamento
-        if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG"]): col_dpag=c
-        # Data de vencimento
-        if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC"]): col_dvenc=c
-        # Fornecedora
-        if not col_forn and any(x in cn for x in ["FORNEC","DISTRIB","EMPRESA","CONCESS","FORNECEDOR"]): col_forn=c
-
-    # Fallback por posição se não encontrou por nome (planilha sem cabeçalho padrão)
-    cols_df = list(df.columns)
-    if not col_cpf   and len(cols_df)>=1: col_cpf=cols_df[0]
-    if not col_dvenc and len(cols_df)>=2: col_dvenc=cols_df[1]
-    if not col_val   and len(cols_df)>=3: col_val=cols_df[2]
-    if not col_dpag  and len(cols_df)>=4: col_dpag=cols_df[3]
-    if not col_forn  and len(cols_df)>=5: col_forn=cols_df[4]
+        # CPF — todas variações possíveis
+        if not col_cpf and any(x in cn for x in [
+            'CPF','UC','INSTAL','MATRICUL','COD_C','CODIGO_C','ID_C','NUM_C',
+            'CLIENTE','CLIENT','CONTRATO','CONTRAT'
+        ]): col_cpf=c
+        # Valor — todas variações possíveis
+        if not col_val and any(x in cn for x in [
+            'VALOR','VLR','VL_','TOTAL','VAL_TOT','RECEB',
+            'VALOR A PAGAR','VALOR PAGAR','VPAGAR','V_PAG',
+            'VALOR TOTAL','VALTOTAL','VAL_TOTAL'
+        ]): col_val=c
+        # Data pagamento — todas variações possíveis
+        if not col_dpag and any(x in cn for x in [
+            'PAGAM','PAGTO','DT_PAG','DATA_PAG','BAIXA','DT_BAI',
+            'DATA DE PAG','DATAPAG','DATA PAG','DT PAG',
+            'DATA PAGAMENTO','DATAPAGAMENTO'
+        ]): col_dpag=c
+        # Data vencimento — todas variações possíveis
+        if not col_dvenc and any(x in cn for x in [
+            'VENC','DATA DE VENC','DT_VENC','DATAVENC',
+            'DATA VENC','DATA VENCIMENTO','DATAVENCIMENTO',
+            'DT VENC','VENCIMENTO'
+        ]): col_dvenc=c
+        # Fornecedora — todas variações possíveis
+        if not col_forn and any(x in cn for x in [
+            'FORNEC','DISTRIB','EMPRESA','CONCESS',
+            'FORNECEDOR','FORNECEDORA','FORN'
+        ]): col_forn=c
+    # Se ainda não achou CPF, tenta coluna com mais números (provavelmente é CPF)
+    if not col_cpf:
+        for c in df.columns:
+            sample = df[c].dropna().astype(str).head(5)
+            if any(s.replace('.','').replace('-','').isdigit() and len(s.replace('.','').replace('-',''))>=8 for s in sample):
+                col_cpf=c; break
     mapa={}
     if col_cpf:   mapa[col_cpf]="uc_cpf"
     if col_val:   mapa[col_val]="valor"
