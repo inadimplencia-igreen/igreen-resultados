@@ -82,15 +82,52 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
 [data-baseweb="option"]:hover { background: #1a3a1a !important; }
 [aria-selected="true"][data-baseweb="option"] { background: #1a3a1a !important; }
 
-/* ── SIDEBAR NAV ── */
-[data-testid="stSidebar"] .stRadio label {
-    color: #5a9a70 !important; font-size: 12px !important;
-    font-weight: 500 !important; padding: 6px 12px !important;
-    border-radius: 6px !important; transition: all 0.15s !important;
-    display: block !important; margin-bottom: 2px !important;
+/* ── SIDEBAR NAV — estilo menu executivo ── */
+[data-testid="stSidebar"] .stRadio > div {
+    gap: 2px !important;
 }
-[data-testid="stSidebar"] .stRadio label:hover { color: #ffffff !important; background: rgba(0,200,83,0.08) !important; }
-[data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p { color: inherit !important; white-space: nowrap !important; }
+[data-testid="stSidebar"] .stRadio label {
+    color: #6a9a7a !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    padding: 10px 14px !important;
+    border-radius: 0 8px 8px 0 !important;
+    border-left: 3px solid transparent !important;
+    transition: all 0.15s !important;
+    display: flex !important;
+    align-items: center !important;
+    margin-bottom: 1px !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+}
+[data-testid="stSidebar"] .stRadio label:hover {
+    color: #ffffff !important;
+    background: rgba(0,200,83,0.06) !important;
+    border-left: 3px solid rgba(0,200,83,0.4) !important;
+}
+[data-testid="stSidebar"] .stRadio label[data-checked="true"],
+[data-testid="stSidebar"] .stRadio [aria-checked="true"] ~ div label {
+    color: #ffffff !important;
+    background: rgba(0,200,83,0.12) !important;
+    border-left: 3px solid #00c853 !important;
+    font-weight: 600 !important;
+}
+[data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p {
+    color: inherit !important;
+    white-space: nowrap !important;
+    font-size: 13px !important;
+}
+/* Esconde o bullet do radio */
+[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] > div:first-child {
+    display: none !important;
+}
+/* Item selecionado */
+[data-testid="stSidebar"] .stRadio input:checked + div label,
+[data-testid="stSidebar"] .stRadio input[type="radio"]:checked ~ label {
+    color: #ffffff !important;
+    background: rgba(0,200,83,0.12) !important;
+    border-left: 3px solid #00c853 !important;
+}
 
 /* ── TABS ── */
 .stTabs [data-baseweb="tab-list"] {
@@ -327,14 +364,18 @@ def salvar_processamento(ma, eq, df):
 def buscar_ultimo_processamento(ma, eq):
     doc = get_db().processamentos.find_one({"mesAno":ma,"equipeId":eq},sort=[("criadoEm",-1)])
     if not doc: return {}
-    if not doc.get("valorElegivel") and doc.get("registros"):
+    # Sempre recalcula valorElegivel dos registros para garantir precisão
+    if doc.get("registros"):
         try:
             df = pd.DataFrame(doc["registros"])
-            if "elegibilidade" in df.columns and "valor" in df.columns:
+            df["valor"] = pd.to_numeric(df.get("valor", pd.Series(dtype=float)), errors="coerce").fillna(0)
+            if "elegibilidade" in df.columns:
                 elig = df[df["elegibilidade"]=="Elegível"]
-                doc["valorElegivel"] = float(elig["valor"].sum())
-                doc["boletosElegiveis"] = len(elig)
-                doc["clientesElegiveis"] = int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns else 0
+            else:
+                elig = df
+            doc["valorElegivel"]     = float(elig["valor"].sum())
+            doc["boletosElegiveis"]  = len(elig)
+            doc["clientesElegiveis"] = int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns else 0
         except: pass
     return doc
 
@@ -676,50 +717,52 @@ def _mini_criterios():
 def render_sidebar():
     u=st.session_state.usuario
     with st.sidebar:
-        role_label='Diretoria' if u['role']=='diretor' else 'Administrador' if u['role']=='admin' else 'Gestor'
+        # LOGO
         st.markdown(
-            '<div style="padding:20px 16px 0">'
-            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">'
-            '<div style="width:32px;height:32px;background:linear-gradient(135deg,#00a844,#00c853);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff">G</div>'
+            '<div style="padding:16px 8px 8px">'
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">'
+            '<div style="width:32px;height:32px;background:linear-gradient(135deg,#00a844,#00c853);'
+            'border-radius:8px;display:flex;align-items:center;justify-content:center;'
+            'font-weight:900;font-size:16px;color:#fff">G</div>'
             '<div><span style="color:#00c853;font-weight:700;font-size:15px">iGreen</span>'
-            '<span style="color:#ffffff;font-weight:700;font-size:15px"> Performance</span></div>'
-            '</div></div>',unsafe_allow_html=True)
-        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a5a3a;margin:0 4px 6px;font-weight:600">PERÍODO</p>',unsafe_allow_html=True)
+            '<span style="color:#fff;font-weight:700;font-size:15px"> Performance</span></div>'
+            '</div></div>',
+            unsafe_allow_html=True)
+
+        # PERÍODO
+        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;'
+            'color:#3a5a3a;margin-bottom:4px;font-weight:600">PERÍODO</p>',
+            unsafe_allow_html=True)
         anos=get_anos_disponiveis()
         ano=st.selectbox('Ano',anos,label_visibility='collapsed')
         meses=get_todos_meses_ano(int(ano))
         mes_labels=[m.split('-')[0] for m in meses]
         mes_sel=st.selectbox('Mês',mes_labels,index=datetime.now().month-1,label_visibility='collapsed')
         mes_ano=f'{mes_sel}-{ano}'
-        st.markdown('<div style="height:8px"></div>',unsafe_allow_html=True)
-        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a5a3a;margin:0 4px 8px;font-weight:600">MENUS</p>',unsafe_allow_html=True)
-        MENU_ICONS={'Quadro de Resultados':'▣','Lançamento':'＋','Visualização RCA':'◈','Análise dos Operadores':'◉','Monitorias':'◎','Upload de Bases':'↑','Análise de Inadimplência':'◆','Metas':'◇'}
+        st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
+
+        # NAVEGAÇÃO
+        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;'
+            'color:#3a5a3a;margin-bottom:8px;font-weight:600">MENUS</p>',
+            unsafe_allow_html=True)
+        ICONS={'Quadro de Resultados':'▣  ','Lancamento':'＋  ','Visualizacao RCA':'◈  ',
+               'Analise dos Operadores':'◉  ','Monitorias':'◎  ','Upload de Bases':'↑  ',
+               'Analise de Inadimplencia':'◆  ','Metas':'◇  '}
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência']
         elif u['role']=='admin':
             pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas']
         else:
             pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas']
-        if 'nav_pag' not in st.session_state: st.session_state.nav_pag=pags[0]
-        if st.session_state.nav_pag not in pags: st.session_state.nav_pag=pags[0]
-        pag=st.session_state.nav_pag
-        for p in pags:
-            ativo=pag==p
-            ic=MENU_ICONS.get(p,'·')
-            if ativo:
-                bg='background:rgba(0,200,83,0.12);border-left:3px solid #00c853'
-                cor='#ffffff'; fw='700'
-            else:
-                bg='background:transparent;border-left:3px solid transparent'
-                cor='#6a9a7a'; fw='500'
-            st.markdown(
-                f'<div style="{bg};border-radius:0 8px 8px 0;padding:10px 16px;margin:1px 0">'
-                f'<span style="color:{cor};font-size:13px;font-weight:{fw};white-space:nowrap;display:flex;align-items:center;gap:10px">'
-                f'<span>{ic}</span>{p}</span></div>',unsafe_allow_html=True)
-            if st.button(p,key=f'nav_{p}',use_container_width=True):
-                st.session_state.nav_pag=p; st.rerun()
-        st.markdown('<div style="height:16px"></div>',unsafe_allow_html=True)
-        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a5a3a;margin:0 4px 8px;font-weight:600">CONTA</p>',unsafe_allow_html=True)
+
+        pag=st.radio('',pags,label_visibility='collapsed')
+
+        st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
+
+        # CONTA
+        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;'
+            'color:#3a5a3a;margin-bottom:8px;font-weight:600">CONTA</p>',
+            unsafe_allow_html=True)
         with st.expander('⚙  Minha Conta'):
             tc1,tc2,tc3=st.tabs(['Senha','Operadores','Critérios'])
             with tc1:
