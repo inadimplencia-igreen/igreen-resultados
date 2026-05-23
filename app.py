@@ -707,16 +707,17 @@ def processar_base_unica(arquivo, eq, ma):
     col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
     for c in df.columns:
         cn=norm(str(c))
-        # CPF — todas variações possíveis
+        # CPF — apenas identificadores numéricos, nunca nomes
         if not col_cpf and any(x in cn for x in [
             'CPF','UC','INSTAL','MATRICUL','COD_C','CODIGO_C','ID_C','NUM_C',
-            'CLIENTE','CLIENT','CONTRATO','CONTRAT'
+            'CONTRATO','CONTRAT','MATRICULA','CODIGO'
         ]): col_cpf=c
         # Valor — todas variações possíveis
         if not col_val and any(x in cn for x in [
-            'VALOR','VLR','VL_','TOTAL','VAL_TOT','RECEB',
+            'VALOR','VLR','VL_','VAL_TOT','RECEB',
             'VALOR A PAGAR','VALOR PAGAR','VPAGAR','V_PAG',
-            'VALOR TOTAL','VALTOTAL','VAL_TOTAL'
+            'VALOR TOTAL','VALTOTAL','VAL_TOTAL',
+            'PAGAR','A PAGAR','APAGAR'
         ]): col_val=c
         # Data pagamento — todas variações possíveis
         if not col_dpag and any(x in cn for x in [
@@ -735,12 +736,16 @@ def processar_base_unica(arquivo, eq, ma):
             'FORNEC','DISTRIB','EMPRESA','CONCESS',
             'FORNECEDOR','FORNECEDORA','FORN'
         ]): col_forn=c
-    # Se ainda não achou CPF, tenta coluna com mais números (provavelmente é CPF)
+    # Se não achou CPF pelo nome, detecta pela coluna com valores numéricos de 8-14 dígitos
     if not col_cpf:
+        best_col=None; best_score=0
         for c in df.columns:
-            sample = df[c].dropna().astype(str).head(5)
-            if any(s.replace('.','').replace('-','').isdigit() and len(s.replace('.','').replace('-',''))>=8 for s in sample):
-                col_cpf=c; break
+            try:
+                sample=df[c].dropna().astype(str).head(20)
+                score=sum(1 for s in sample if s.replace('.','').replace('-','').replace('/','').isdigit() and 8<=len(s.replace('.','').replace('-','').replace('/',''))<=14)
+                if score>best_score: best_score=score; best_col=c
+            except: pass
+        if best_col and best_score>=3: col_cpf=best_col
     mapa={}
     if col_cpf:   mapa[col_cpf]="uc_cpf"
     if col_val:   mapa[col_val]="valor"
