@@ -8,7 +8,7 @@ import re
 import warnings
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="Inadimplência Performance", page_icon="logo.png", layout="wide")
+st.set_page_config(page_title="Inadimplência Performance", page_icon="logo.png", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
