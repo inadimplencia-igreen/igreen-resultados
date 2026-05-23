@@ -14,44 +14,140 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 * { font-family: 'Inter', sans-serif !important; }
-.stApp { background-color: #004d20; }
-[data-testid="stSidebar"] { background: #003318; border-right: 1px solid #005a25; }
-[data-testid="stMetric"] { background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 10px; padding: 18px 20px !important; border-top: 3px solid #00c853; }
-[data-testid="stMetricValue"] { color: #1b5e20 !important; font-size: 22px !important; font-weight: 700 !important; }
-[data-testid="stMetricLabel"] { color: #2e7d32 !important; font-size: 10px !important; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; }
-.stButton > button { background: #00c853 !important; color: white !important; border: none !important; border-radius: 6px !important; font-weight: 600 !important; font-size: 13px !important; padding: 10px 20px !important; box-shadow: 0 2px 8px rgba(0,200,83,0.3) !important; }
-.stButton > button:hover { background: #00e676 !important; transform: translateY(-1px) !important; }
-h1 { color: #ffffff !important; font-size: 20px !important; font-weight: 700 !important; }
+
+/* ── BASE ── */
+.stApp { background-color: #0a0f0a; }
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #060d06 0%, #0a140a 100%);
+    border-right: 1px solid #1a2e1a;
+}
+
+/* ── METRICS ── */
+[data-testid="stMetric"] {
+    background: linear-gradient(135deg, #0d1f0d, #111f11);
+    border: 1px solid #1e3a1e;
+    border-radius: 12px;
+    padding: 18px 20px !important;
+    border-top: 2px solid #00c853;
+}
+[data-testid="stMetricValue"] { color: #ffffff !important; font-size: 22px !important; font-weight: 700 !important; }
+[data-testid="stMetricLabel"] { color: #5a9a70 !important; font-size: 10px !important; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+[data-testid="stMetricDelta"] { font-size: 11px !important; }
+
+/* ── BUTTONS ── */
+.stButton > button {
+    background: linear-gradient(135deg, #00a844, #00c853) !important;
+    color: white !important; border: none !important;
+    border-radius: 8px !important; font-weight: 600 !important;
+    font-size: 13px !important; padding: 10px 20px !important;
+    transition: all 0.2s !important; letter-spacing: 0.3px;
+    box-shadow: 0 2px 12px rgba(0,200,83,0.25) !important;
+}
+.stButton > button:hover {
+    background: linear-gradient(135deg, #00c853, #00e676) !important;
+    box-shadow: 0 4px 20px rgba(0,200,83,0.4) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* ── TYPOGRAPHY ── */
+h1 { color: #ffffff !important; font-size: 20px !important; font-weight: 700 !important; letter-spacing: -0.3px; }
 h2 { color: #e8f5e9 !important; font-size: 16px !important; font-weight: 600 !important; }
-h3 { color: #81c784 !important; font-size: 10px !important; font-weight: 600 !important; text-transform: uppercase; letter-spacing: 2px; }
-p  { color: #c8e6c9 !important; font-size: 13px; }
-hr { border: none !important; border-top: 1px solid #005a25 !important; margin: 14px 0 !important; }
-.stTextInput input, .stNumberInput input, .stTextArea textarea { background: #e8f5e9 !important; border: 1px solid #a5d6a7 !important; color: #1b5e20 !important; border-radius: 6px !important; font-size: 13px !important; }
-.stSelectbox > div > div { background: #e8f5e9 !important; border: 1px solid #a5d6a7 !important; color: #1b5e20 !important; border-radius: 6px !important; font-size: 13px !important; }
-[data-testid="stSidebar"] .stRadio label { color: #a5d6a7 !important; font-size: 12px !important; font-weight: 500 !important; }
-[data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p { color: #a5d6a7 !important; }
-.stTabs [data-baseweb="tab-list"] { background: #003318 !important; border-radius: 6px !important; padding: 3px !important; }
-.stTabs [data-baseweb="tab"] { color: #81c784 !important; border-radius: 5px !important; font-size: 12px !important; font-weight: 500 !important; padding: 7px 14px !important; }
-.stTabs [aria-selected="true"] { background: #00c853 !important; color: #ffffff !important; }
-.stCheckbox label { color: #e8f5e9 !important; font-size: 13px !important; }
-[data-testid="stFileUploader"] > div { background: #e8f5e9 !important; border: 1.5px dashed #a5d6a7 !important; border-radius: 8px !important; }
-[data-testid="stFileUploader"] * { color: #2e7d32 !important; }
-.stSuccess > div { background: #e8f5e9 !important; border: 1px solid #a5d6a7 !important; color: #2e7d32 !important; border-radius: 6px !important; }
-.stWarning > div { background: #fff8e1 !important; border: 1px solid #ffe082 !important; color: #f57f17 !important; border-radius: 6px !important; }
-.stError > div { background: #ffebee !important; border: 1px solid #ef9a9a !important; color: #c62828 !important; border-radius: 6px !important; }
-.stInfo > div { background: #e3f2fd !important; border: 1px solid #90caf9 !important; color: #1565c0 !important; border-radius: 6px !important; }
-[data-testid="stDataFrame"] { border: 1px solid #a5d6a7 !important; border-radius: 8px !important; }
-.streamlit-expanderHeader { background: #e8f5e9 !important; border: 1px solid #a5d6a7 !important; border-radius: 6px !important; color: #1b5e20 !important; font-size: 13px !important; }
+h3 { color: #5a9a70 !important; font-size: 10px !important; font-weight: 600 !important; text-transform: uppercase; letter-spacing: 2px; }
+p  { color: #8ab89a !important; font-size: 13px; }
+hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 14px 0 !important; }
+
+/* ── INPUTS ── */
+.stTextInput input, .stNumberInput input, .stTextArea textarea {
+    background: #0d1a0d !important; border: 1px solid #1e3a1e !important;
+    color: #e8f5e9 !important; border-radius: 8px !important; font-size: 13px !important;
+}
+.stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
+    border-color: #00c853 !important; box-shadow: 0 0 0 2px rgba(0,200,83,0.15) !important;
+}
+.stTextInput input::placeholder { color: #3a5a3a !important; }
+
+/* ── SELECTS — fix dropdown sobreposto ── */
+.stSelectbox > div > div {
+    background: #0d1a0d !important; border: 1px solid #1e3a1e !important;
+    color: #e8f5e9 !important; border-radius: 8px !important;
+    font-size: 13px !important; white-space: nowrap !important;
+    overflow: hidden !important; text-overflow: ellipsis !important;
+}
+.stSelectbox > div > div > div { color: #e8f5e9 !important; white-space: nowrap !important; }
+[data-baseweb="select"] { background: #0d1a0d !important; }
+[data-baseweb="select"] * { color: #e8f5e9 !important; }
+[data-baseweb="popover"] { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; border-radius: 8px !important; }
+[data-baseweb="menu"] { background: #0d1a0d !important; }
+[data-baseweb="option"] { background: #0d1a0d !important; color: #e8f5e9 !important; white-space: nowrap !important; }
+[data-baseweb="option"]:hover { background: #1a3a1a !important; }
+[aria-selected="true"][data-baseweb="option"] { background: #1a3a1a !important; }
+
+/* ── SIDEBAR NAV ── */
+[data-testid="stSidebar"] .stRadio label {
+    color: #5a9a70 !important; font-size: 12px !important;
+    font-weight: 500 !important; padding: 6px 12px !important;
+    border-radius: 6px !important; transition: all 0.15s !important;
+    display: block !important; margin-bottom: 2px !important;
+}
+[data-testid="stSidebar"] .stRadio label:hover { color: #ffffff !important; background: rgba(0,200,83,0.08) !important; }
+[data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p { color: inherit !important; white-space: nowrap !important; }
+
+/* ── TABS ── */
+.stTabs [data-baseweb="tab-list"] {
+    background: #0d1a0d !important; border-radius: 10px !important;
+    padding: 4px !important; gap: 3px !important;
+    border: 1px solid #1e3a1e !important;
+}
+.stTabs [data-baseweb="tab"] {
+    color: #5a9a70 !important; border-radius: 7px !important;
+    font-size: 12px !important; font-weight: 500 !important; padding: 8px 16px !important;
+}
+.stTabs [aria-selected="true"] { background: linear-gradient(135deg,#00a844,#00c853) !important; color: #ffffff !important; }
+
+/* ── CHECKBOXES ── */
+.stCheckbox label { color: #8ab89a !important; font-size: 13px !important; }
+
+/* ── FILE UPLOADER ── */
+[data-testid="stFileUploader"] > div {
+    background: #0d1a0d !important; border: 1.5px dashed #1e3a1e !important; border-radius: 10px !important;
+}
+[data-testid="stFileUploader"] * { color: #5a9a70 !important; }
+
+/* ── ALERTS ── */
+.stSuccess > div { background: #0a1f0a !important; border: 1px solid #1e3a1e !important; color: #4caf50 !important; border-radius: 8px !important; font-size: 13px !important; border-left: 3px solid #00c853 !important; }
+.stWarning > div { background: #1a1500 !important; border: 1px solid #3a3000 !important; color: #ffc107 !important; border-radius: 8px !important; font-size: 13px !important; border-left: 3px solid #ffc107 !important; }
+.stError > div { background: #1a0a0a !important; border: 1px solid #3a1a1a !important; color: #ef5350 !important; border-radius: 8px !important; font-size: 13px !important; border-left: 3px solid #ef5350 !important; }
+.stInfo > div { background: #0a0f1a !important; border: 1px solid #1a2a3a !important; color: #42a5f5 !important; border-radius: 8px !important; font-size: 13px !important; border-left: 3px solid #42a5f5 !important; }
+
+/* ── DATA TABLE ── */
+[data-testid="stDataFrame"] { border: 1px solid #1e3a1e !important; border-radius: 10px !important; background: #0d1a0d !important; }
+[data-testid="stDataFrame"] * { color: #e8f5e9 !important; }
+
+/* ── EXPANDER ── */
+.streamlit-expanderHeader { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; border-radius: 8px !important; color: #8ab89a !important; font-size: 13px !important; }
+.streamlit-expanderContent { background: #0a140a !important; border: 1px solid #1e3a1e !important; border-top: none !important; border-radius: 0 0 8px 8px !important; }
+
+/* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #004d20; }
-::-webkit-scrollbar-thumb { background: #00c853; border-radius: 2px; }
+::-webkit-scrollbar-track { background: #060d06; }
+::-webkit-scrollbar-thumb { background: #1e3a1e; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #00c853; }
+
+/* ── HIDE STREAMLIT CHROME ── */
 #MainMenu { visibility: hidden !important; }
 header[data-testid="stHeader"] { display: none !important; }
 footer { display: none !important; }
 [data-testid="stToolbar"] { display: none !important; }
 [data-testid="stDecoration"] { display: none !important; }
-div[data-testid="stVerticalBlock"] label { color: #c8e6c9 !important; font-size: 12px !important; }
+.viewerBadge_container__1QSob { display: none !important; }
+div[data-testid="stStatusWidget"] { display: none !important; }
+
+/* ── CUSTOM ── */
+div[data-testid="stVerticalBlock"] label { color: #8ab89a !important; font-size: 12px !important; }
 .block-container { padding: 2rem 2rem 2rem !important; max-width: 1200px !important; }
+
+/* ── FORNECEDORAS sem quebra ── */
+.forn-nome { white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 160px !important; display: inline-block !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -518,60 +614,132 @@ def tela_login():
         st.markdown('<p style="text-align:center;color:#1a4d2e;font-size:11px;margin-top:24px">iGreen Energy © 2026</p>',unsafe_allow_html=True)
 
 # ── SIDEBAR ────────────────────────────────────
+def _mini_operadores(u):
+    """Gestão de operadores dentro de Minha Conta"""
+    eq = u.get("equipe")
+    if not eq:
+        st.info("Disponível apenas para gestores.")
+        return
+    ops = buscar_operadores(eq)
+    st.markdown(f"<p style='font-size:11px;color:#5a9a70;margin-bottom:8px'>{len(ops)} operadores — Equipe {EQUIPES[eq]['nome']}</p>",unsafe_allow_html=True)
+    # Adicionar
+    nn = st.text_input("Nome do novo operador",placeholder="Nome completo",key="mc_op_nome")
+    np = st.checkbox("Pleno",key="mc_op_pleno")
+    if st.button("Adicionar",use_container_width=True,key="mc_op_add"):
+        if nn.strip(): salvar_operador(eq,nn.strip(),np); st.success(f"{nn} adicionado!"); st.rerun()
+        else: st.error("Digite o nome.")
+    if ops:
+        st.markdown("---")
+        for op in ops:
+            c1,c2,c3 = st.columns([3,1,1])
+            with c1: ne = st.text_input("",value=op["nome"],key=f"mc_n_{op['_id']}",label_visibility="collapsed")
+            with c2:
+                if st.button("✓",key=f"mc_s_{op['_id']}",help="Salvar"):
+                    atualizar_operador(op["_id"],ne,op.get("pleno",False)); st.rerun()
+            with c3:
+                if st.button("✕",key=f"mc_d_{op['_id']}",help="Excluir"):
+                    excluir_operador(op["_id"]); st.rerun()
+
+def _mini_criterios():
+    """Critérios de monitoria dentro de Minha Conta"""
+    crits = get_criterios()
+    st.markdown("<p style='font-size:11px;color:#5a9a70;margin-bottom:8px'>Critérios de avaliação</p>",unsafe_allow_html=True)
+    ce = []
+    for i,c in enumerate(crits):
+        with st.expander(f"{c['num']} {c['nome']} — {c['peso']}pts",expanded=False):
+            nm = st.text_input("Nome",value=c["nome"],key=f"mcc_n_{i}")
+            ps = st.number_input("Peso",min_value=1,max_value=100,value=int(c["peso"]),key=f"mcc_p_{i}")
+            ob = st.checkbox("Obrigatório",value=c.get("obrigatorio",False),key=f"mcc_o_{i}")
+            it = st.text_area("Itens",value="\n".join(c.get("itens",[])),height=80,key=f"mcc_i_{i}")
+            ce.append({"id":c["id"],"num":c["num"],"nome":nm,"peso":ps,"obrigatorio":ob,"itens":[x.strip() for x in it.split("\n") if x.strip()]})
+    if st.button("Salvar Critérios",use_container_width=True,key="mc_crit_save"):
+        salvar_criterios(ce); st.success("Salvo!"); st.rerun()
+
 def render_sidebar():
     u=st.session_state.usuario
     with st.sidebar:
+        # ── LOGO + PERFIL
+        role_label = 'Diretoria' if u['role']=='diretor' else 'Administrador' if u['role']=='admin' else 'Gestor'
         st.markdown(f"""
-        <div style="padding:16px 0 8px">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-                <div style="width:38px;height:38px;background:linear-gradient(135deg,#1a6b35,#2daf5c);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;color:white">G</div>
+        <div style="padding:20px 4px 0">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:0 4px">
+                <img src="logo.png" style="width:36px;height:36px;border-radius:8px" onerror="this.style.display='none'">
                 <div>
-                    <div style="color:#ffffff;font-weight:700;font-size:14px">i<span style='color:#2daf5c'>Green</span></div>
-                    <div style="color:#5a9a70;font-size:10px;text-transform:uppercase;letter-spacing:1px">Performance</div>
+                    <div style="color:#ffffff;font-weight:700;font-size:15px;letter-spacing:-0.3px">iGreen</div>
+                    <div style="color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:2px;margin-top:1px">Performance</div>
                 </div>
             </div>
-            <div style="background:rgba(0,200,83,0.1);border:1px solid rgba(0,200,83,0.2);border-radius:8px;padding:10px 12px;margin-bottom:16px">
-                <div style="color:#00c853;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px">{'Diretoria' if u['role']=='diretor' else 'Admin' if u['role']=='admin' else 'Gestor'}</div>
-                <div style="color:#ffffff;font-size:14px;font-weight:600;margin-top:2px">{u['nome']}</div>
+            <div style="background:linear-gradient(135deg,#0d2010,#112a15);border:1px solid #1e3a1e;border-radius:10px;padding:12px 14px;margin-bottom:4px">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:34px;height:34px;background:linear-gradient(135deg,#00a844,#00c853);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0">{u['nome'][0]}</div>
+                    <div>
+                        <div style="color:#ffffff;font-size:13px;font-weight:600">{u['nome']}</div>
+                        <div style="color:#00c853;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:1px">{role_label}</div>
+                    </div>
+                </div>
             </div>
-        </div><hr>
+        </div>
         """,unsafe_allow_html=True)
-        st.markdown("<p style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5a9a70;margin-bottom:4px'>PERÍODO</p>",unsafe_allow_html=True)
+
+        # ── PERÍODO
+        st.markdown("<div style='height:16px'></div>",unsafe_allow_html=True)
+        st.markdown("<p style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a6a4a;margin-bottom:6px;padding:0 4px'>PERÍODO</p>",unsafe_allow_html=True)
         anos=get_anos_disponiveis()
         ano=st.selectbox("Ano",anos,label_visibility="collapsed")
         meses=get_todos_meses_ano(int(ano))
         mes_labels=[m.split("-")[0] for m in meses]
         mes_sel=st.selectbox("Mês",mes_labels,index=datetime.now().month-1,label_visibility="collapsed")
         mes_ano=f"{mes_sel}-{ano}"
-        st.markdown("<hr>",unsafe_allow_html=True)
-        st.markdown("<p style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5a9a70;margin-bottom:4px'>NAVEGAÇÃO</p>",unsafe_allow_html=True)
+
+        # ── NAVEGAÇÃO
+        st.markdown("<div style='height:16px'></div>",unsafe_allow_html=True)
+        st.markdown("<p style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a6a4a;margin-bottom:6px;padding:0 4px'>NAVEGAÇÃO</p>",unsafe_allow_html=True)
+
+        MENU_ICONS = {
+            "Quadro de Resultados":    "▣",
+            "Lançamento":              "＋",
+            "Visualização RCA":        "◈",
+            "Análise dos Operadores":  "◉",
+            "Monitorias":              "◎",
+            "Upload de Bases":         "↑",
+            "Análise de Inadimplência":"◆",
+            "Metas":                   "◇",
+        }
+
         if u["role"]=="diretor":
-            pags=["Quadro de Resultados","Visualização RCA","Análise de Projeção","Monitorias","Análise de Inadimplência"]
+            pags=["Quadro de Resultados","Visualização RCA","Análise dos Operadores","Monitorias","Análise de Inadimplência"]
         elif u["role"]=="admin":
-            pags=["Quadro de Resultados","Lançamento","Visualização RCA","Análise de Projeção","Monitorias","Upload de Bases","Análise de Inadimplência","Operadores","Metas","Critérios"]
+            pags=["Quadro de Resultados","Lançamento","Visualização RCA","Análise dos Operadores","Monitorias","Upload de Bases","Análise de Inadimplência","Metas"]
         else:
-            pags=["Quadro de Resultados","Lançamento","Análise de Projeção","Monitorias","Upload de Bases","Análise de Inadimplência","Operadores","Metas"]
-        pag=st.radio("",pags,label_visibility="collapsed")
-        st.markdown("<hr>",unsafe_allow_html=True)
+            pags=["Quadro de Resultados","Lançamento","Análise dos Operadores","Monitorias","Upload de Bases","Análise de Inadimplência","Metas"]
+
+        pag=st.radio("",pags,label_visibility="collapsed",
+            format_func=lambda x: f"{MENU_ICONS.get(x,'·')}  {x}")
 
         # ── MINHA CONTA
-        with st.expander("⚙️ Minha Conta"):
-            st.markdown("<p style='font-size:11px;color:#a5d6a7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Trocar Senha</p>",unsafe_allow_html=True)
-            senha_at  = st.text_input("Senha atual",  type="password", key="conta_senha_at",  placeholder="••••••••")
-            senha_nova = st.text_input("Nova senha",   type="password", key="conta_senha_nova", placeholder="mín. 8 caracteres")
-            senha_conf = st.text_input("Confirmar nova senha", type="password", key="conta_senha_conf", placeholder="repita a nova senha")
-            if st.button("Salvar Nova Senha", use_container_width=True, key="btn_trocar_senha"):
-                uid = u["id"]
-                senha_correta = buscar_senha_usuario(uid)
-                if not senha_at: st.error("Digite a senha atual.")
-                elif senha_at != senha_correta: st.error("Senha atual incorreta.")
-                elif len(senha_nova) < 8: st.error("Nova senha deve ter pelo menos 8 caracteres.")
-                elif senha_nova != senha_conf: st.error("Confirmação não confere.")
-                else:
-                    salvar_senha_usuario(uid, senha_nova)
-                    st.success("Senha alterada com sucesso!")
+        st.markdown("<div style='height:16px'></div>",unsafe_allow_html=True)
+        st.markdown("<p style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a6a4a;margin-bottom:6px;padding:0 4px'>CONTA</p>",unsafe_allow_html=True)
+        with st.expander("⚙  Minha Conta"):
+            tc1,tc2,tc3=st.tabs(["Senha","Operadores","Critérios"])
+            with tc1:
+                st.markdown("<p style='font-size:11px;color:#5a9a70;margin-bottom:8px'>Trocar senha</p>",unsafe_allow_html=True)
+                senha_at   = st.text_input("Senha atual",type="password",key="conta_at",placeholder="senha atual")
+                senha_nova = st.text_input("Nova senha",type="password",key="conta_nova",placeholder="mín. 8 caracteres")
+                senha_conf = st.text_input("Confirmar",type="password",key="conta_conf",placeholder="repita")
+                if st.button("Salvar Senha",use_container_width=True,key="btn_senha"):
+                    uid=u["id"]; sc=buscar_senha_usuario(uid)
+                    if not senha_at: st.error("Digite a senha atual.")
+                    elif senha_at!=sc: st.error("Senha atual incorreta.")
+                    elif len(senha_nova)<8: st.error("Mínimo 8 caracteres.")
+                    elif senha_nova!=senha_conf: st.error("Confirmação não confere.")
+                    else: salvar_senha_usuario(uid,senha_nova); st.success("Senha alterada!")
+            with tc2:
+                _mini_operadores(u)
+            with tc3:
+                _mini_criterios()
 
-        if st.button("Sair",use_container_width=True):
+        st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
+        if st.button("→  Sair",use_container_width=True):
             del st.session_state.usuario; st.rerun()
     return mes_ano,pag
 
@@ -640,6 +808,62 @@ def pagina_metas(ma):
         for oid,v in mn.items(): salvar_meta_operador(ma,eq,oid,v)
         salvar_meta_gestora(ma,eq,mg_val,tpct)
         st.success("Metas salvas!"); st.rerun()
+
+    # ── HISTÓRICO DE METAS
+    st.markdown("---")
+    st.markdown("<p style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px'>HISTÓRICO DE METAS</p>",unsafe_allow_html=True)
+    idx_ma=MESES_NOMES.index(ma.split("-")[0]); ano_ma=int(ma.split("-")[1])
+    meses_hist=[]
+    for i in range(1,7):
+        m2=idx_ma-i; a2=ano_ma
+        if m2<0: m2+=12; a2-=1
+        meses_hist.append(f"{MESES_NOMES[m2]}-{a2}")
+
+    rows_hist=[]
+    mg_ant=None
+    for mh in reversed(meses_hist):
+        mg_h=buscar_meta_gestora(mh,eq)
+        meta_h=float(mg_h.get("metaGestora",0))
+        if meta_h==0: continue
+        var_h=calc_variacao(meta_h,mg_ant) if mg_ant else None
+        seta="↑" if (var_h or 0)>=0 else "↓"
+        rows_hist.append({
+            "Mês":mh.replace("-"," "),
+            "Meta Gestora":fmt_brl(meta_h),
+            "Variação":f"{seta} {abs(var_h):.1f}%" if var_h is not None else "—",
+        })
+        mg_ant=meta_h
+
+    # Mês atual
+    var_atual=calc_variacao(mg_val,mg_ant) if mg_ant else None
+    seta_atual="↑" if (var_atual or 0)>=0 else "↓"
+    rows_hist.append({
+        "Mês":f"{ma.replace('-',' ')} (atual)",
+        "Meta Gestora":fmt_brl(mg_val),
+        "Variação":f"{seta_atual} {abs(var_atual):.1f}%" if var_atual is not None else "—",
+    })
+
+    if rows_hist:
+        df_hist=pd.DataFrame(rows_hist)
+        df_hist.index=range(1,len(df_hist)+1)
+        st.dataframe(df_hist,use_container_width=True,hide_index=False)
+
+    # Histórico por operador
+    with st.expander("Ver histórico por operador"):
+        for op in ops:
+            vals=[]
+            meta_ant_op=None
+            for mh in reversed(meses_hist):
+                ms_h=buscar_metas_equipe(mh,eq)
+                mv=float(ms_h.get(op["_id"],0))
+                if mv==0: continue
+                var_op=calc_variacao(mv,meta_ant_op) if meta_ant_op else None
+                sv="↑" if (var_op or 0)>=0 else "↓"
+                vals.append({"Mês":mh.replace("-"," "),"Meta":fmt_brl(mv),"Var.":f"{sv} {abs(var_op):.1f}%" if var_op is not None else "—"})
+                meta_ant_op=mv
+            if vals:
+                st.markdown(f"<p style='color:#8ab89a;font-size:12px;font-weight:600;margin-bottom:4px'>{op['nome']}</p>",unsafe_allow_html=True)
+                st.dataframe(pd.DataFrame(vals),use_container_width=True,hide_index=True)
 
 # ── LANÇAMENTO ─────────────────────────────────
 def pagina_lancamento(ma):
@@ -746,11 +970,28 @@ def pagina_quadro(ma):
             rows=[]
             for op in ops:
                 v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
-                meta=float(mops.get(op["_id"],0)); po=calc_projecao(v,dt,td); pc=(v/meta*100) if meta>0 else 0
-                rows.append({"Status":status_pct(pc) if meta>0 else "—","Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","Projeção":fmt_brl(po) if po>0 else "—","_v":v})
+                meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
+                rows.append({"Status":status_pct(pc) if meta>0 else "—","Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","_v":v})
             df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
             df.index=range(1,len(df)+1)
             st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
+
+        # ── POR FORNECEDORA (do processamento)
+        up2=buscar_ultimo_processamento(ma,eq)
+        if up2 and up2.get("registros"):
+            try:
+                df_proc=pd.DataFrame(up2["registros"])
+                if "fornecedora" in df_proc.columns and "valor" in df_proc.columns:
+                    df_proc["valor"]=pd.to_numeric(df_proc["valor"],errors="coerce").fillna(0)
+                    forn_grp=df_proc.groupby("fornecedora")["valor"].sum().reset_index()
+                    forn_grp=forn_grp[forn_grp["valor"]>0].sort_values("valor",ascending=False)
+                    if not forn_grp.empty:
+                        st.markdown("<p style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px'>POR FORNECEDORA</p>",unsafe_allow_html=True)
+                        forn_rows=[{"Fornecedora":r["fornecedora"],"Total":fmt_brl(r["valor"])} for _,r in forn_grp.iterrows()]
+                        df_forn=pd.DataFrame(forn_rows)
+                        df_forn.index=range(1,len(df_forn)+1)
+                        st.dataframe(df_forn,use_container_width=True,hide_index=False)
+            except: pass
         st.markdown("---")
     if st.button("Exportar Excel"):
         out=io.BytesIO()
@@ -920,45 +1161,63 @@ def pagina_monitorias_diretor(ma):
         df=pd.DataFrame(rows); df.index=range(1,len(df)+1)
         st.dataframe(df,use_container_width=True); st.markdown("---")
 
-# ── ANÁLISE DE PROJEÇÃO ────────────────────────
-def pagina_analise_projecao(ma):
+# ── ANÁLISE DOS OPERADORES ────────────────────
+def pagina_analise_operadores(ma):
     u=st.session_state.usuario
     eqs=list(EQUIPES.keys()) if u["role"] in ["diretor","admin"] else [u["equipe"]]
-    header_page("Análise de Projeção",f"Comparativo proporcional · {ma.replace('-',' ')}")
+    header_page("Análise dos Operadores",f"Resultado real comparativo · {ma.replace('-',' ')}")
     idx=MESES_NOMES.index(ma.split("-")[0]); ano=int(ma.split("-")[1])
     ma_ant=f"{MESES_NOMES[11]}-{ano-1}" if idx==0 else f"{MESES_NOMES[idx-1]}-{ano}"
-    st.markdown(f"<p style='color:#5a9a70'>Comparando <strong style='color:#2daf5c'>{ma.replace('-',' ')}</strong> vs <strong style='color:#e0f0e8'>{ma_ant.replace('-',' ')}</strong> — mesmo período proporcional</p>",unsafe_allow_html=True)
+    st.markdown(f"<p style='color:#3a6a4a;font-size:12px'>Comparando <strong style='color:#00c853'>{ma.replace('-',' ')}</strong> vs <strong style='color:#5a9a70'>{ma_ant.replace('-',' ')}</strong></p>",unsafe_allow_html=True)
     st.markdown("---")
     for eq in eqs:
         ops=buscar_operadores(eq)
         if not ops: continue
         lat=buscar_lancamentos(ma,eq); lan=buscar_lancamentos(ma_ant,eq)
         if not lat: continue
-        ul=lat[0]; dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22)); tc=float(ul.get("totalEquipe",0))
-        proj_at=calc_projecao(tc,dt,td)
-        ul_an=None; proj_an=0; dt_an=0; td_an=22
-        if lan:
-            ul_an=min(lan,key=lambda x:abs(int(x.get("diasTrabalhados",0))-dt))
-            dt_an=int(ul_an.get("diasTrabalhados",0)); td_an=int(ul_an.get("totalDias",22))
-            proj_an=calc_projecao(float(ul_an.get("totalEquipe",0)),dt_an,td_an)
-        var=calc_variacao(proj_at,proj_an)
-        st.markdown(f"""<div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid #00c853">
-            <div style="font-size:15px;font-weight:700;color:#ffffff;margin-bottom:10px">Equipe {EQUIPES[eq]['nome']}</div>
-            <div style="display:flex;gap:24px;flex-wrap:wrap">
-                <div><span style="color:#5a9a70;font-size:11px">PROJEÇÃO ATUAL ({dt} dias)</span><br><span style="color:#2daf5c;font-weight:700;font-size:15px">{fmt_brl(proj_at)}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">MÊS ANT. ({dt_an} dias equiv.)</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(proj_an) if proj_an else '—'}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">VARIAÇÃO</span><br><span style="color:{'#2daf5c' if (var or 0)>=0 else '#e03c3c'};font-weight:700">{'↑' if (var or 0)>=0 else '↓'} {f'{abs(var):.1f}%' if var is not None else '—'}</span></div>
-            </div></div>""",unsafe_allow_html=True)
+        ul=lat[0]; ul_an=lan[0] if lan else None
+        dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
+        tc=float(ul.get("totalEquipe",0)); tc_an=float(ul_an.get("totalEquipe",0)) if ul_an else 0
+        var_eq=calc_variacao(tc,tc_an)
+        cor_var='#00c853' if (var_eq or 0)>=0 else '#ef5350'
+        seta='↑' if (var_eq or 0)>=0 else '↓'
+        var_str=f"{seta} {abs(var_eq):.1f}%" if var_eq is not None else "—"
+        st.markdown(
+            f"<div style='background:linear-gradient(135deg,#0a1a0a,#0d2010);border:1px solid #1e3a1e;"
+            f"border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:3px solid #00c853'>"
+            f"<div style='font-size:14px;font-weight:700;color:#ffffff;margin-bottom:10px'>Equipe {EQUIPES[eq]['nome']}</div>"
+            f"<div style='display:flex;gap:24px;flex-wrap:wrap'>"
+            f"<div><span style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>RECEBIDO {ma.split('-')[0].upper()}</span><br>"
+            f"<span style='color:#00c853;font-weight:700;font-size:16px'>{fmt_brl(tc)}</span></div>"
+            f"<div><span style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>MÊS ANTERIOR</span><br>"
+            f"<span style='color:#8ab89a;font-weight:600'>{fmt_brl(tc_an) if tc_an else chr(8212)}</span></div>"
+            f"<div><span style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>VARIAÇÃO</span><br>"
+            f"<span style='color:{cor_var};font-weight:700'>{var_str}</span></div>"
+            f"<div><span style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>DIAS</span><br>"
+            f"<span style='color:#8ab89a;font-weight:600'>{dt}/{td}</span></div>"
+            f"</div></div>",
+            unsafe_allow_html=True)
+        mops=buscar_metas_equipe(ma,eq)
         rows=[]
         for op in ops:
             vat=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
             van=get_val_op(ul_an.get("agentes",{}),op["_id"],op["nome"]) if ul_an else 0
-            pat=calc_projecao(vat,dt,td); pan=calc_projecao(van,dt_an,td_an) if van>0 else 0
-            vo=calc_variacao(pat,pan)
-            rows.append({"Operador":("★ " if op.get("pleno") else "")+op["nome"],"Proj. Atual":fmt_brl(pat) if pat>0 else "—","Proj. Mês Ant.":fmt_brl(pan) if pan>0 else "—","Variação":f"{'↑' if (vo or 0)>=0 else '↓'} {abs(vo):.1f}%" if vo is not None else "—","_p":pat})
-        df=pd.DataFrame(rows).sort_values("_p",ascending=False).drop(columns=["_p"]).reset_index(drop=True)
+            meta=float(mops.get(op["_id"],0))
+            pct=(vat/meta*100) if meta>0 else 0
+            var_op=calc_variacao(vat,van)
+            sv='↑' if (var_op or 0)>=0 else '↓'
+            rows.append({
+                "Operador":("★ " if op.get("pleno") else "")+op["nome"],
+                "Recebido":fmt_brl(vat) if vat>0 else "—",
+                "Meta":fmt_brl(meta) if meta>0 else "—",
+                "% Meta":f"{pct:.1f}%" if meta>0 else "—",
+                "Mês Ant.":fmt_brl(van) if van>0 else "—",
+                "Variação":f"{sv} {abs(var_op):.1f}%" if var_op is not None else "—",
+                "_v":vat})
+        df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
         df.index=range(1,len(df)+1)
-        st.dataframe(df,use_container_width=True); st.markdown("---")
+        st.dataframe(df,use_container_width=True)
+        st.markdown("---")
 
 # ── VISUALIZAÇÃO RCA ───────────────────────────
 def pagina_dashboard_executivo():
@@ -1248,28 +1507,25 @@ def main():
     if u["role"]=="diretor":
         if   "Quadro"        in pag: pagina_quadro(ma)
         elif "Visualização"  in pag: pagina_dashboard_executivo()
-        elif "Projeção"      in pag: pagina_analise_projecao(ma)
+        elif "Operadores"    in pag: pagina_analise_operadores(ma)
         elif "Monitorias"    in pag: pagina_monitorias(ma)
         elif "Inadimplência" in pag: pagina_inadimplencia(ma)
     elif u["role"]=="admin":
         if   "Quadro"        in pag: pagina_quadro(ma)
         elif "Lançamento"    in pag: pagina_lancamento(ma)
         elif "Visualização"  in pag: pagina_dashboard_executivo()
-        elif "Projeção"      in pag: pagina_analise_projecao(ma)
+        elif "Operadores"    in pag: pagina_analise_operadores(ma)
         elif "Monitorias"    in pag: pagina_monitorias(ma)
         elif "Upload"        in pag: pagina_upload(ma)
         elif "Inadimplência" in pag: pagina_inadimplencia(ma)
-        elif "Operadores"    in pag: pagina_operadores()
         elif "Metas"         in pag: pagina_metas(ma)
-        elif "Critérios"     in pag: pagina_criterios()
     else:
         if   "Quadro"        in pag: pagina_quadro(ma)
         elif "Lançamento"    in pag: pagina_lancamento(ma)
-        elif "Projeção"      in pag: pagina_analise_projecao(ma)
+        elif "Operadores"    in pag: pagina_analise_operadores(ma)
         elif "Monitorias"    in pag: pagina_monitorias(ma)
         elif "Upload"        in pag: pagina_upload(ma)
         elif "Inadimplência" in pag: pagina_inadimplencia(ma)
-        elif "Operadores"    in pag: pagina_operadores()
         elif "Metas"         in pag: pagina_metas(ma)
 
 if __name__=="__main__":
