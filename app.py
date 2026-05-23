@@ -701,11 +701,24 @@ def processar_base_unica(arquivo, eq, ma):
     col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
     for c in df.columns:
         cn=norm(str(c))
+        # CPF / identificador do cliente
         if not col_cpf  and any(x in cn for x in ["CPF","UC","INSTAL","MATRICUL","COD_C","CODIGO_C","ID_C","NUM_C"]): col_cpf=c
+        # Valor — inclui 'Valor total (R$)'
         if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","TOTAL","VAL_TOT","RECEB"]): col_val=c
-        if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI"]): col_dpag=c
-        if not col_dvenc and "VENC" in cn: col_dvenc=c
-        if not col_forn and any(x in cn for x in ["FORNEC","DISTRIB","EMPRESA","CONCESS"]): col_forn=c
+        # Data de pagamento
+        if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG"]): col_dpag=c
+        # Data de vencimento
+        if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC"]): col_dvenc=c
+        # Fornecedora
+        if not col_forn and any(x in cn for x in ["FORNEC","DISTRIB","EMPRESA","CONCESS","FORNECEDOR"]): col_forn=c
+
+    # Fallback por posição se não encontrou por nome (planilha sem cabeçalho padrão)
+    cols_df = list(df.columns)
+    if not col_cpf   and len(cols_df)>=1: col_cpf=cols_df[0]
+    if not col_dvenc and len(cols_df)>=2: col_dvenc=cols_df[1]
+    if not col_val   and len(cols_df)>=3: col_val=cols_df[2]
+    if not col_dpag  and len(cols_df)>=4: col_dpag=cols_df[3]
+    if not col_forn  and len(cols_df)>=5: col_forn=cols_df[4]
     mapa={}
     if col_cpf:   mapa[col_cpf]="uc_cpf"
     if col_val:   mapa[col_val]="valor"
