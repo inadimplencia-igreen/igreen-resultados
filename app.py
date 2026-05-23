@@ -36,17 +36,27 @@ st.markdown("""
 
 /* ── BUTTONS ── */
 .stButton > button {
-    background: linear-gradient(135deg, #00a844, #00c853) !important;
-    color: white !important; border: none !important;
-    border-radius: 8px !important; font-weight: 600 !important;
-    font-size: 13px !important; padding: 10px 20px !important;
-    transition: all 0.2s !important; letter-spacing: 0.3px;
-    box-shadow: 0 2px 12px rgba(0,200,83,0.25) !important;
+    background: #1a3a1a !important;
+    color: #a0c4a0 !important;
+    border: 1px solid #2a4a2a !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    font-size: 12px !important;
+    padding: 6px 14px !important;
+    transition: all 0.15s !important;
+    letter-spacing: 0.2px;
+    box-shadow: none !important;
 }
 .stButton > button:hover {
-    background: linear-gradient(135deg, #00c853, #00e676) !important;
-    box-shadow: 0 4px 20px rgba(0,200,83,0.4) !important;
-    transform: translateY(-1px) !important;
+    background: #1e4a1e !important;
+    color: #ffffff !important;
+    border-color: #3a6a3a !important;
+    transform: none !important;
+}
+/* Botão primário (salvar/processar) */
+.stButton > button[kind="primary"],
+.stButton > button:first-child {
+    background: #1a3a1a !important;
 }
 
 /* ── TYPOGRAPHY ── */
@@ -66,55 +76,68 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
 }
 .stTextInput input::placeholder { color: #3a5a3a !important; }
 
-/* ── SELECTS — fix dropdown sobreposto ── */
+/* ── SELECTS — fix dropdown sobreposto definitivo ── */
+.stSelectbox { position: relative !important; }
 .stSelectbox > div > div {
     background: #0d1a0d !important;
     border: 1px solid #1e3a1e !important;
     color: #e8f5e9 !important;
     border-radius: 8px !important;
     font-size: 13px !important;
+    overflow: hidden !important;
 }
 .stSelectbox > div > div > div {
     color: #e8f5e9 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    max-width: calc(100% - 32px) !important;
 }
-/* Fix sobreposição arrow */
-.stSelectbox [data-baseweb="select"] {
+[data-baseweb="select"] {
     background: #0d1a0d !important;
+    overflow: hidden !important;
 }
-.stSelectbox [data-baseweb="select"] > div:first-child {
+[data-baseweb="select"] > div {
     background: #0d1a0d !important;
     color: #e8f5e9 !important;
-    white-space: nowrap !important;
     overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    padding-right: 40px !important;
 }
-.stSelectbox [data-baseweb="select"] input {
-    color: transparent !important;
-    caret-color: transparent !important;
-    position: absolute !important;
-    width: 1px !important;
+[data-baseweb="select"] input {
     opacity: 0 !important;
+    position: absolute !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
+[data-baseweb="select"] [data-testid="stMarkdownContainer"] {
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
 }
 [data-baseweb="popover"] {
     background: #0d1a0d !important;
     border: 1px solid #1e3a1e !important;
     border-radius: 8px !important;
-    z-index: 9999 !important;
+    z-index: 99999 !important;
+    position: fixed !important;
 }
-[data-baseweb="menu"] { background: #0d1a0d !important; }
-[data-baseweb="option"] {
+[data-baseweb="menu"] {
+    background: #0d1a0d !important;
+    border: none !important;
+}
+[role="option"] {
     background: #0d1a0d !important;
     color: #e8f5e9 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    padding: 8px 14px !important;
 }
-[data-baseweb="option"]:hover { background: #1a3a1a !important; }
-[aria-selected="true"][data-baseweb="option"] { background: #1a3a1a !important; }
+[role="option"]:hover,
+[aria-selected="true"][role="option"] {
+    background: #1a3a1a !important;
+    color: #ffffff !important;
+}
 
 /* ── SIDEBAR NAV — igual print iGreen Tickets ── */
 [data-testid="stSidebar"] .stRadio > div {
@@ -177,7 +200,7 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
     color: #5a9a70 !important; border-radius: 7px !important;
     font-size: 12px !important; font-weight: 500 !important; padding: 8px 16px !important;
 }
-.stTabs [aria-selected="true"] { background: linear-gradient(135deg,#00a844,#00c853) !important; color: #ffffff !important; }
+.stTabs [aria-selected="true"] { background: #1e3a1e !important; color: #00c853 !important; border-bottom: 2px solid #00c853 !important; }
 
 /* ── CHECKBOXES ── */
 .stCheckbox label { color: #8ab89a !important; font-size: 13px !important; }
@@ -301,8 +324,14 @@ OPERADORES_PADRAO = {
     "tamires":[("Danilo Rodrigues",True),("Raiane Pereira",False),("Wynara Dos Reis",False),("Esteffany Souza",False),("André Gomes",False),("Wanessa Cardoso",False),("Larisse Garcia",False),("Arthur Alves",False)],
     "metcool":[],
 }
-FORNECEDORAS_TODAS = ["COTESA/MOVE","ULTRA","VANTAGE","FARO","BOM FUTURO","SUNCLICK","ATUA"]
-CORES_FORN = {"COTESA/MOVE":"#1b5e20","ULTRA":"#0d47a1","VANTAGE":"#e65100","FARO":"#b71c1c","BOM FUTURO":"#4a148c","SUNCLICK":"#004d40","ATUA":"#37474f"}
+FORNECEDORAS_TODAS = ["COTESA/MOVE","ULTRA","VANTAGE","FARO","BOM FUTURO","SUNCLICK","ATUA","GEDISA","SUNNE","SOLATIO","EDP","FIT","GV","COMERC"]
+
+FORNECEDORAS_POR_GESTOR = {
+    "luciano": ["COMERC"],
+    "tamires": ["VANTAGE","BOM FUTURO","COTESA/MOVE","SUNCLICK","FARO","ULTRA","GEDISA"],
+    "deborah": ["SUNNE","SOLATIO","EDP","FIT","GV"],
+}
+CORES_FORN = {"COTESA/MOVE":"#1b5e20","ULTRA":"#0d47a1","VANTAGE":"#e65100","FARO":"#b71c1c","BOM FUTURO":"#4a148c","SUNCLICK":"#004d40","ATUA":"#37474f","GEDISA":"#006064","SUNNE":"#f57f17","SOLATIO":"#4527a0","EDP":"#0277bd","FIT":"#2e7d32","GV":"#558b2f","COMERC":"#37474f"}
 
 # ── MONGODB ────────────────────────────────────
 @st.cache_resource
@@ -351,6 +380,7 @@ def corrigir_ids_operadores():
                 db.operadores.insert_one({"_id":idc,"equipeId":eq,"nome":nome,"pleno":op.get("pleno",False),"criadoEm":op.get("criadoEm",datetime.now())})
             db.operadores.delete_one({"_id":op["_id"]})
 
+@st.cache_data(ttl=300)
 def buscar_operadores(eq): return list(get_db().operadores.find({"equipeId":eq}).sort("nome",1))
 
 def salvar_operador(eq, nome, pleno=False):
@@ -368,6 +398,7 @@ def salvar_meta_operador(ma, eq, oid, v):
     did = f"meta_op__{ma}__{eq}__{oid}"
     get_db().metas.update_one({"_id":did},{"$set":{"_id":did,"mesAno":ma,"equipeId":eq,"opId":oid,"valor":v}},upsert=True)
 
+@st.cache_data(ttl=60)
 def buscar_metas_equipe(ma, eq):
     return {d["opId"]:d.get("valor",0) for d in get_db().metas.find({"mesAno":ma,"equipeId":eq}) if "opId" in d}
 
@@ -382,6 +413,7 @@ def criar_lancamento(ma, eq, data_ref, label, agentes, total, sem_int, dt, td):
     ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
     get_db().lancamentos.insert_one({"_id":f"lanc__{ma}__{eq}__{ts}","mesAno":ma,"equipeId":eq,"dataRef":data_ref,"label":label,"agentes":agentes,"totalEquipe":total,"semInteracao":sem_int,"diasTrabalhados":dt,"totalDias":td,"criadoEm":datetime.now()})
 
+@st.cache_data(ttl=30)
 def buscar_lancamentos(ma, eq):
     novos = list(get_db().lancamentos.find({"mesAno":ma,"equipeId":eq}).sort("criadoEm",-1))
     antigos = []
@@ -1158,18 +1190,25 @@ def pagina_quadro(ma):
             df.index=range(1,len(df)+1)
             st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
 
-        # Por Fornecedora
+        # Por Fornecedora — apenas elegíveis para fechar com o total geral
         if up and up.get("registros"):
             try:
                 df_proc=pd.DataFrame(up["registros"])
                 if "fornecedora" in df_proc.columns and "valor" in df_proc.columns:
                     df_proc["valor"]=pd.to_numeric(df_proc["valor"],errors="coerce").fillna(0)
-                    elig_proc=df_proc[df_proc["elegibilidade"]=="Elegível"] if "elegibilidade" in df_proc.columns else df_proc
+                    # Filtra APENAS elegíveis — mesma base do rec_geral
+                    if "elegibilidade" in df_proc.columns:
+                        elig_proc=df_proc[df_proc["elegibilidade"]=="Elegível"]
+                    else:
+                        elig_proc=df_proc
                     forn_grp=elig_proc.groupby("fornecedora")["valor"].sum().reset_index()
                     forn_grp=forn_grp[forn_grp["valor"]>0].sort_values("valor",ascending=False)
                     if not forn_grp.empty:
+                        total_forn=forn_grp["valor"].sum()
                         st.markdown("<p style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px'>POR FORNECEDORA</p>",unsafe_allow_html=True)
-                        forn_rows=[{"Fornecedora":str(r["fornecedora"]),"Total Recebido":fmt_brl(r["valor"])} for _,r in forn_grp.iterrows()]
+                        forn_rows=[{"Fornecedora":str(r["fornecedora"]),"Valor Recebido":fmt_brl(r["valor"])} for _,r in forn_grp.iterrows()]
+                        # Linha de total
+                        forn_rows.append({"Fornecedora":"TOTAL GERAL","Valor Recebido":fmt_brl(total_forn)})
                         df_forn=pd.DataFrame(forn_rows)
                         df_forn.index=range(1,len(df_forn)+1)
                         st.dataframe(df_forn,use_container_width=True,hide_index=False)
@@ -1198,6 +1237,28 @@ def pagina_monitorias(ma):
     if "mon_modo"   not in st.session_state: st.session_state.mon_modo=None
 
     if st.session_state.mon_op_sel is None:
+        # Mostra sucesso se acabou de salvar
+        ultimo = st.session_state.pop('mon_ultimo_salvo', None)
+        if ultimo:
+            st.success(f"Monitoria salva! {ultimo['nome']} — Nota: {ultimo['nota']:.0f}% | Média: {ultimo['media']:.1f}% | Pontos: {ultimo['pontos']}")
+            st.markdown(f'<a href="data:text/html;base64,{ultimo["b64"]}" download="Monitoria_{ultimo["nome"].replace(" ","_")}_{ultimo["prot"]}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;margin-bottom:12px">Baixar PDF desta monitoria</a>',unsafe_allow_html=True)
+
+        # Média da equipe
+        monts_eq=buscar_monitorias_equipe(eq,ma)
+        if monts_eq:
+            medias_eq=[calc_media_operador(op['_id'],ma)[0] for op in ops if calc_media_operador(op['_id'],ma)[1]>0]
+            if medias_eq:
+                me_eq=sum(medias_eq)/len(medias_eq)
+                st_txt,st_cor,_=get_status_media(me_eq)
+                st.markdown(
+                    f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:10px;"
+                    f"padding:12px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center'>"
+                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>MEDIA DA EQUIPE — {ma.replace('-',' ').upper()}</div>"
+                    f"<div style='color:{st_cor};font-size:22px;font-weight:800;margin-top:2px'>{me_eq:.1f}%</div></div>"
+                    f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>STATUS</div>"
+                    f"<div style='color:{st_cor};font-size:13px;font-weight:600'>{st_txt}</div></div>"
+                    f"</div>",unsafe_allow_html=True)
+
         st.markdown(f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:16px'><div style='color:#81c784;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600'>Selecione um operador</div><div style='color:#a5d6a7;font-size:12px'>{len(ops)} operadores · {ma.replace('-',' ')}</div></div>",unsafe_allow_html=True)
         for i in range(0,len(ops),4):
             cols=st.columns(4)
@@ -1291,12 +1352,14 @@ def pagina_monitorias(ma):
                 if not prot.strip(): st.error("Preencha o protocolo da ligação!")
                 else:
                     salvar_monitoria(eq,op["_id"],op["nome"],prot,obs,crits_r,erros_m,nota,ma,semana=semana)
-                    st.session_state[sk]=True
                     mm,nm=calc_media_operador(op["_id"],ma)
-                    st.success(f"Salva! Nota: {nota:.0f}% | Média: {mm:.1f}% | Pontos: {calc_pontos(mm)}")
                     html=gerar_pdf_monitoria(op["nome"],prot,obs,crits_r,erros_m,nota,mm,nm,ma)
                     b64=base64.b64encode(html.encode()).decode()
-                    st.markdown(f'<a href="data:text/html;base64,{b64}" download="Monitoria_{op["nome"].replace(" ","_")}_{prot}.html" style="display:inline-block;background:#00c853;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px">Baixar PDF</a>',unsafe_allow_html=True)
+                    # Volta para grade de operadores
+                    st.session_state.mon_op_sel=None
+                    st.session_state.mon_modo=None
+                    st.session_state["mon_ultimo_salvo"]={"nome":op["nome"],"nota":nota,"media":mm,"pontos":calc_pontos(mm),"b64":b64,"prot":prot}
+                    st.rerun()
 
     with t2:
         monts2=[m for m in buscar_monitorias_equipe(eq,ma) if m["opId"]==op["_id"]]
@@ -1324,6 +1387,60 @@ def pagina_monitorias(ma):
                     if st.button("Excluir",key=f"del_op_{m['_id']}"): excluir_monitoria(m["_id"]); st.rerun()
 
 def pagina_monitorias_diretor(ma):
+    # Estado para operador selecionado pelo diretor
+    if "dir_op_sel" not in st.session_state: st.session_state.dir_op_sel=None
+    if "dir_eq_sel" not in st.session_state: st.session_state.dir_eq_sel=None
+
+    # Se operador selecionado, mostra detalhes
+    if st.session_state.dir_op_sel:
+        op = st.session_state.dir_op_sel
+        eq = st.session_state.dir_eq_sel
+        media_op,n_op=calc_media_operador(op["_id"],ma)
+        st_txt,st_cor,st_bg=get_status_media(media_op)
+        if st.button("← Voltar para todas as equipes"):
+            st.session_state.dir_op_sel=None; st.session_state.dir_eq_sel=None; st.rerun()
+        st.markdown(
+            f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:12px;padding:16px 20px;margin-bottom:16px'>"
+            f"<div style='color:#fff;font-weight:700;font-size:16px'>{op['nome']}</div>"
+            f"<div style='color:#3a6a4a;font-size:12px'>Equipe {EQUIPES.get(eq,{}).get('nome','—')} · {ma.replace('-',' ')} · Média: <strong style='color:{st_cor}'>{media_op:.1f}%</strong> · {n_op} monitorias</div>"
+            f"</div>", unsafe_allow_html=True)
+        monts_op=[m for m in buscar_monitorias_equipe(eq,ma) if m["opId"]==op["_id"]]
+        if not monts_op:
+            st.info("Nenhuma monitoria registrada neste mês.")
+        else:
+            for m in monts_op:
+                nm=float(m.get("nota",0)); cm="#2e7d32" if nm>=80 else "#f57f17" if nm>=60 else "#c62828"
+                st.markdown(
+                    f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:10px;padding:14px 18px;margin-bottom:8px;border-left:3px solid {cm}'>"
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px'>"
+                    f"<div><div style='color:#fff;font-weight:600;font-size:13px'>{m.get('semana_mon','—')}</div>"
+                    f"<div style='color:#3a6a4a;font-size:11px;margin-top:2px'>Protocolo: <strong>{m.get('protocolo','—')}</strong> · {str(m.get('criadoEm',''))[:10]}</div></div>"
+                    f"<div style='text-align:center'><div style='font-size:9px;color:#3a6a4a;text-transform:uppercase'>Nota</div>"
+                    f"<div style='font-size:18px;font-weight:800;color:{cm}'>{nm:.0f}%</div></div>"
+                    f"</div></div>", unsafe_allow_html=True)
+                with st.expander("Ver detalhes"):
+                    crits=m.get("criterios",[])
+                    if crits:
+                        for c in crits:
+                            passou=c.get("passou",True)
+                            cc="#2e7d32" if passou else "#c62828"
+                            bg="#0a1a0a" if passou else "#1a0a0a"
+                            st.markdown(
+                                f"<div style='display:flex;justify-content:space-between;padding:6px 12px;"
+                                f"background:{bg};border-radius:6px;margin-bottom:4px;border-left:3px solid {cc}'>"
+                                f"<span style='color:#e8f5e9;font-size:12px'>{c.get('num','')} {c.get('nome','')}</span>"
+                                f"<span style='color:{cc};font-weight:600;font-size:12px'>{'Passou' if passou else 'Nao passou'}</span></div>",
+                                unsafe_allow_html=True)
+                    if m.get("errosCriticos"):
+                        st.error(f"Erro critico: {', '.join(e['nome'] for e in m['errosCriticos'])}")
+                    if m.get("observacao"):
+                        st.markdown(f"<div style='margin-top:8px;padding:8px 12px;background:#0a1a0a;border-radius:6px;border-left:3px solid #3a6a4a;color:#8ab89a;font-size:12px'><strong>Obs:</strong> {m['observacao']}</div>",unsafe_allow_html=True)
+                    hp=gerar_pdf_monitoria(m["opNome"],m.get("protocolo",""),m.get("observacao",""),m.get("criterios",[]),m.get("errosCriticos",[]),nm,media_op,n_op,ma)
+                    b64=base64.b64encode(hp.encode()).decode()
+                    st.markdown(f'<a href="data:text/html;base64,{b64}" download="Mon_{m["opNome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px;margin-top:6px">Baixar PDF</a>',unsafe_allow_html=True)
+        return
+
+    # Grade principal por equipe
     st.markdown("### Visão Geral — Monitorias por Equipe")
     todas_medias=[]
     for eq in EQUIPES:
@@ -1331,34 +1448,43 @@ def pagina_monitorias_diretor(ma):
         if not ops: continue
         monts=buscar_monitorias_equipe(eq,ma)
         if not monts: continue
-        medias={op["nome"]:calc_media_operador(op["_id"],ma) for op in ops}
-        medias={k:v for k,v in medias.items() if v[1]>0}
+        medias={op["nome"]:(op,calc_media_operador(op["_id"],ma)) for op in ops}
+        medias={k:v for k,v in medias.items() if v[1][1]>0}
         if not medias: continue
-        me=sum(m[0] for m in medias.values())/len(medias)
+        me=sum(v[1][0] for v in medias.values())/len(medias)
         todas_medias.append(me)
         st.markdown(
             f"<div style='background:linear-gradient(135deg,#0a1a0a,#0d2010);border:1px solid #1e3a1e;"
-            f"border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid #00c853'>"
+            f"border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:3px solid #00c853'>"
             f"<div style='display:flex;justify-content:space-between;align-items:center'>"
-            f"<div style='font-size:15px;font-weight:700;color:#ffffff'>Equipe {EQUIPES[eq]['nome']}</div>"
-            f"<div style='text-align:right'>"
-            f"<div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>MÉDIA DA EQUIPE</div>"
-            f"<div style='color:{cor_pct(me)};font-size:24px;font-weight:800'>{me:.1f}%</div>"
-            f"</div></div></div>",
-            unsafe_allow_html=True)
-        rows=[{"Operador":n,"Média":f"{m[0]:.1f}%","Monitorias":m[1],"Pontos":calc_pontos(m[0])} for n,m in sorted(medias.items(),key=lambda x:-x[1][0])]
-        df=pd.DataFrame(rows); df.index=range(1,len(df)+1)
-        st.dataframe(df,use_container_width=True)
+            f"<div style='font-size:15px;font-weight:700;color:#fff'>Equipe {EQUIPES[eq]['nome']}</div>"
+            f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>MEDIA DA EQUIPE</div>"
+            f"<div style='color:{cor_pct(me)};font-size:24px;font-weight:800'>{me:.1f}%</div></div>"
+            f"</div></div>", unsafe_allow_html=True)
+        cols_op=st.columns(4)
+        for idx_op,(nome,(op_obj,(media,n))) in enumerate(sorted(medias.items(),key=lambda x:-x[1][1][0])):
+            st_txt,st_cor,st_bg=get_status_media(media)
+            with cols_op[idx_op%4]:
+                st.markdown(
+                    f"<div style='background:#0d1a0d;border:1px solid #1e3a1e;border-radius:10px;padding:12px;text-align:center;margin-bottom:8px'>"
+                    f"<div style='color:#fff;font-weight:600;font-size:12px;margin-bottom:4px'>{nome}</div>"
+                    f"<div style='color:{st_cor};font-size:18px;font-weight:800'>{media:.1f}%</div>"
+                    f"<div style='color:#3a6a4a;font-size:10px'>{n} monitoria{'s' if n!=1 else ''}</div>"
+                    f"</div>", unsafe_allow_html=True)
+                if st.button("Ver detalhes",key=f"dir_op_{op_obj['_id']}",use_container_width=True):
+                    st.session_state.dir_op_sel=op_obj
+                    st.session_state.dir_eq_sel=eq
+                    st.rerun()
         st.markdown("---")
+
     if todas_medias:
         mg=sum(todas_medias)/len(todas_medias)
         st.markdown(
-            f"<div style='background:linear-gradient(135deg,#001a0a,#002a10);border:2px solid #00c853;"
+            f"<div style='background:#001a0a;border:2px solid #1e3a1e;"
             f"border-radius:12px;padding:20px 24px;text-align:center;margin-top:8px'>"
-            f"<div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px'>MÉDIA GERAL — TODAS AS EQUIPES</div>"
+            f"<div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px'>MEDIA GERAL — TODAS AS EQUIPES</div>"
             f"<div style='color:{cor_pct(mg)};font-size:32px;font-weight:800'>{mg:.1f}%</div>"
-            f"</div>",
-            unsafe_allow_html=True)
+            f"</div>", unsafe_allow_html=True)
 
 
 def pagina_analise_operadores(ma):
@@ -1441,11 +1567,14 @@ def pagina_dashboard_executivo():
     if ff!="Todas": df=df[df["fornecedora"]==ff]; elig=elig[elig["fornecedora"]==ff] if "fornecedora" in elig.columns else elig
 
     st.markdown("---")
-    # Métricas simplificadas — sem Elegíveis/ND
+    # Métricas — clientes únicos e boletos só dos elegíveis (1° contato)
+    val_rec   = float(elig["valor"].sum()) if not elig.empty else 0
+    cli_unic  = int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns and not elig.empty else 0
+    tot_bol   = len(elig)
     c1,c2,c3=st.columns(3)
-    c1.metric("Valor Recuperado", fmt_brl(elig["valor"].sum()))
-    c2.metric("Clientes Únicos",  f'{df["uc_cpf"].nunique():,}' if "uc_cpf" in df.columns else "—")
-    c3.metric("Total Boletos",    f'{len(df):,}')
+    c1.metric("Valor Recuperado", fmt_brl(val_rec))
+    c2.metric("Clientes Únicos",  f'{cli_unic:,}')
+    c3.metric("Total Boletos",    f'{tot_bol:,}')
     st.markdown("---")
 
     t1,t2,t3,t4=st.tabs(["Aging","Fornecedoras","Evolução","Por Equipe"])
@@ -1593,10 +1722,15 @@ def pagina_inadimplencia(ma):
         md=listar_meses_inadimplencia() or [ma]
         if ma not in md: md=[ma]+md
         ms=st.selectbox("Mês",md,key="inad_mes")
-    with c2:
-        fs=st.selectbox("Fornecedora",["Todas"]+FORNECEDORAS_TODAS,key="inad_forn")
     with c3:
         eq=seletor_equipe(u.get("equipe") or "tamires",key_suffix="_inad") if (is_adm or is_dir) else u["equipe"]
+    # Fornecedoras do gestor logado (ou todas para admin/diretor)
+    if is_dir or is_adm:
+        forns_disp = ["Todas"] + FORNECEDORAS_TODAS
+    else:
+        forns_disp = ["Todas"] + FORNECEDORAS_POR_GESTOR.get(eq or u.get("equipe",""), FORNECEDORAS_TODAS)
+    with c2:
+        fs=st.selectbox("Fornecedora", forns_disp, key="inad_forn")
 
     st.markdown("---")
     doc=buscar_inadimplencia(ms,eq or "tamires")
@@ -1610,7 +1744,12 @@ def pagina_inadimplencia(ma):
 
     st.markdown("---")
     edit=st.checkbox("Editar manualmente",key="edit_inad")
-    lista=FORNECEDORAS_TODAS if fs=="Todas" else [fs]
+    # Fornecedoras visíveis para este usuário
+    if is_dir or is_adm:
+        forns_usuario = FORNECEDORAS_TODAS
+    else:
+        forns_usuario = FORNECEDORAS_POR_GESTOR.get(u.get('equipe',''), FORNECEDORAS_TODAS)
+    lista = forns_usuario if fs=='Todas' else [fs]
 
     st.markdown("""<style>
     .it{width:100%;border-collapse:collapse;font-size:11px}
