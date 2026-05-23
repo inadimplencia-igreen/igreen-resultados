@@ -489,11 +489,48 @@ def salvar_historico_processamento(mes_ano, equipe_id, usuario_nome, df):
     })
 
 def buscar_historico_geral(mes_ano=None, equipe_id=None):
-    """Busca histórico completo de todos processamentos — nunca apaga."""
+    """Busca histórico completo — combina historico_processamentos + processamentos antigos."""
     filtro = {}
     if mes_ano: filtro["mesAno"] = mes_ano
     if equipe_id: filtro["equipeId"] = equipe_id
-    return list(get_db().historico_processamentos.find(filtro).sort("criadoEm", -1))
+
+    # Histórico novo (permanente)
+    novos = list(get_db().historico_processamentos.find(filtro).sort("criadoEm", -1))
+    ids_ja_vistos = set(f"{h['mesAno']}__{h['equipeId']}" for h in novos)
+
+    # Processamentos antigos que ainda não estão no histórico
+    procs = list(get_db().processamentos.find(filtro).sort("atualizadoEm", -1))
+    antigos = []
+    for p in procs:
+        chave = f"{p['mesAno']}__{p['equipeId']}"
+        if chave in ids_ja_vistos:
+            continue
+        # Calcula valor elegível dos registros
+        val = 0.0; boletos = 0; forns = []
+        try:
+            df = pd.DataFrame(p.get("registros", []))
+            if not df.empty:
+                df["valor"] = pd.to_numeric(df.get("valor", pd.Series(dtype=float)), errors="coerce").fillna(0)
+                elig = df[df["elegibilidade"]=="Elegível"] if "elegibilidade" in df.columns else df
+                val = float(elig["valor"].sum())
+                boletos = len(elig)
+                forns = sorted(df["fornecedora"].dropna().unique().tolist()) if "fornecedora" in df.columns else []
+        except: pass
+        antigos.append({
+            "_id": p["_id"],
+            "mesAno": p["mesAno"],
+            "equipeId": p["equipeId"],
+            "usuarioNome": p.get("usuarioNome", EQUIPES.get(p["equipeId"],{}).get("nome","—")),
+            "fornecedoras": forns,
+            "totalBoletos": boletos,
+            "boletosElegiveis": boletos,
+            "valorElegivel": val,
+            "criadoEm": p.get("atualizadoEm", datetime.now()),
+        })
+
+    todos = novos + antigos
+    todos.sort(key=lambda x: x.get("criadoEm", datetime.now()), reverse=True)
+    return todos
 
 def salvar_inadimplencia(ma, eq, dados):
     did = f"inadimp__{ma}__{eq}"
@@ -1449,106 +1486,100 @@ def pagina_dashboard_executivo():
             elig.to_excel(w,sheet_name="Elegíveis",index=False)
         st.download_button("Baixar",data=out.getvalue(),file_name=f"iGreen_{mf}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# ── UPLOAD ─────────────────────────────────────
+# -- UPLOAD -------------------------------------------------
 def pagina_upload(ma):
     u=st.session_state.usuario
-    header_page("Upload de Bases Mensais","Planilha única com abas · Processamento automático")
-    eq=seletor_equipe(u["equipe"] or "tamires")
-    st.markdown("""<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:14px 18px;margin-bottom:16px">
-        <div style="color:#1b5e20;font-weight:700;margin-bottom:8px">Como preparar a planilha:</div>
-        <div style="color:#333;font-size:13px;line-height:1.8">Suba um único arquivo <strong>.xlsx</strong> com as abas:<br>
-        <strong>PAGOS</strong> — obrigatória &nbsp;·&nbsp; <strong>CHAT</strong> — opcional &nbsp;·&nbsp; <strong>LIGAÇÕES</strong> — opcional &nbsp;·&nbsp; <strong>DISPAROS</strong> — opcional</div>
-    </div>""",unsafe_allow_html=True)
-    arq=st.file_uploader("Selecione a planilha (.xlsx)",type=["xlsx"],label_visibility="collapsed",key="base_unica")
-    if arq:
-        try:
-            xls=pd.ExcelFile(arq)
-            ah=" · ".join([f"<strong>{a}</strong>" for a in xls.sheet_names])
-            arq.seek(0)
-            st.markdown(f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:10px 14px;margin:8px 0;color:#2e7d32;font-size:13px'><strong>{arq.name}</strong> · Abas: {ah}</div>",unsafe_allow_html=True)
-        except: pass
-    st.markdown("---")
-    if st.button("PROCESSAR MÊS",use_container_width=True):
-        if not arq: st.error("Selecione a planilha antes de processar!"); return
-        arq.seek(0)
-        with st.spinner("Processando bases..."):
-            df_res,erros,abas=processar_base_unica(arq,eq,ma)
-        for e in erros: st.error(e)
-        if df_res is not None and not df_res.empty:
-            st.session_state["df_proc_temp"]=df_res; st.session_state["proc_eq"]=eq
-            st.session_state["proc_ma"]=ma; st.session_state["proc_abas"]=abas
-            st.rerun()
-    if (st.session_state.get("df_proc_temp") is not None and
-        st.session_state.get("proc_eq")==eq and st.session_state.get("proc_ma")==ma):
-        df_res=st.session_state["df_proc_temp"]
-        abas=st.session_state.get("proc_abas",[])
-        elig=df_res[df_res["elegibilidade"]=="Elegível"]
-        ve=elig["valor"].sum() if "valor" in elig.columns else 0
-        ce=elig["uc_cpf"].nunique() if "uc_cpf" in elig.columns else 0
-        if abas: st.info(f"Abas processadas: {', '.join(abas)}")
-        st.success(f"{len(df_res):,} registros processados!")
-        c1,c2,c3=st.columns(3)
-        c1.metric("Valor Recebido",fmt_brl(ve)); c2.metric("Boletos Pagos",f"{len(elig):,}"); c3.metric("Clientes Pagos",f"{ce:,}")
-        st.markdown("---")
-        col1,col2=st.columns(2)
-        with col1:
-            if st.button("Salvar Resultado",use_container_width=True,key="btn_salvar_proc"):
-                salvar_processamento(ma,eq,df_res,u.get("nome","")); st.session_state["df_proc_temp"]=None; st.success("Resultado salvo!"); st.rerun()
-        with col2:
-            if st.button("Descartar",use_container_width=True,key="btn_desc"): st.session_state["df_proc_temp"]=None; st.rerun()
-        st.markdown("---")
-        cols=[ c for c in ["uc_cpf","data_pagamento","valor","fornecedora","elegibilidade","aging","diferenca_dias","primeiro_contato"] if c in df_res.columns]
-        st.dataframe(df_res[cols].head(50) if cols else df_res.head(50),use_container_width=True)
-        out=io.BytesIO()
-        with pd.ExcelWriter(out,engine="xlsxwriter") as w:
-            df_res.to_excel(w,sheet_name="Todos",index=False); elig.to_excel(w,sheet_name="Elegíveis",index=False)
-        st.download_button("Baixar Excel",data=out.getvalue(),file_name=f"Resultado_{eq}_{ma}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    st.markdown("---")
-    hist=buscar_historico_processamentos(ma,eq)
-    hist=[p for p in hist if p.get("valorElegivel") is not None or p.get("label") is not None]
-    if hist:
-        st.markdown("<p style='color:#3a6a4a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Histórico deste mês</p>",unsafe_allow_html=True)
-        for i,proc in enumerate(hist):
-            ant=hist[i+1] if i+1<len(hist) else None
-            v=float(proc.get("valorElegivel",0)); va=float(ant.get("valorElegivel",0)) if ant else 0
-            diff=v-va if ant else 0; sinal="+" if diff>=0 else ""
-            label=proc.get("label") or str(proc.get("criadoEm",""))[:16]
-            with st.expander(f"{label} — {fmt_brl(v)}"):
-                c1,c2,c3,c4=st.columns(4)
-                c1.metric("Valor",fmt_brl(v)); c2.metric("Boletos",f"{proc.get('boletosElegiveis',0):,}"); c3.metric("Clientes",f"{proc.get('clientesElegiveis',0):,}")
-                if ant: c4.metric("Evolução",f"{sinal}{fmt_brl(abs(diff))}")
-                if proc.get("registros"):
-                    dfh=pd.DataFrame(proc["registros"]); out2=io.BytesIO()
-                    with pd.ExcelWriter(out2,engine="xlsxwriter") as w: dfh.to_excel(w,index=False)
-                    st.download_button("Baixar Excel",data=out2.getvalue(),file_name=f"Base_{label.replace('/','-').replace(':','-')}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",key=f"dl_{proc['_id']}")
-                if st.button("Excluir",key=f"del_proc_{proc['_id']}"): excluir_processamento(proc["_id"]); st.rerun()
+    header_page('Upload de Bases Mensais','Processamento automatico')
+    eq=seletor_equipe(u['equipe'] or 'tamires')
+    col_up,col_hist=st.columns([1,1])
 
-    # Histórico consolidado permanente (ADM/Diretor)
-    u_local = st.session_state.usuario
-    if u_local["role"] in ["admin","diretor"]:
-        st.markdown("---")
-        st.markdown("<p style='color:#3a6a4a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Histórico consolidado — Todas as bases processadas</p>",unsafe_allow_html=True)
-        hist_geral = buscar_historico_geral()
+    with col_up:
+        st.markdown('<p style="color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">PROCESSAR BASE</p>',unsafe_allow_html=True)
+        st.markdown('<div style="background:#0d1a0d;border:1px solid #1e3a1e;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:12px;color:#5a9a70;line-height:1.8">'
+            'Suba um <strong style="color:#e8f5e9">.xlsx</strong> com as abas:<br>'
+            '<strong>PAGOS</strong> | <strong>CHAT</strong> | <strong>LIGACOES</strong> | <strong>DISPAROS</strong>'
+            '</div>',unsafe_allow_html=True)
+        arq=st.file_uploader('Planilha (.xlsx)',type=['xlsx'],label_visibility='collapsed',key='base_unica')
+        if arq:
+            try:
+                xls=pd.ExcelFile(arq)
+                ah=' | '.join(xls.sheet_names)
+                arq.seek(0)
+                st.markdown(f'<div style="background:#0a1a0a;border:1px solid #1e3a1e;border-radius:6px;padding:8px 12px;margin:8px 0;color:#5a9a70;font-size:12px"><strong style="color:#e8f5e9">{arq.name}</strong><br>Abas: {ah}</div>',unsafe_allow_html=True)
+            except: pass
+        if st.button('PROCESSAR',use_container_width=True):
+            if not arq: st.error('Selecione a planilha antes de processar!'); return
+            arq.seek(0)
+            with st.spinner('Processando...'):
+                df_res,erros,abas=processar_base_unica(arq,eq,ma)
+            for e in erros: st.error(e)
+            if df_res is not None and not df_res.empty:
+                st.session_state['df_proc_temp']=df_res
+                st.session_state['proc_eq']=eq
+                st.session_state['proc_ma']=ma
+                st.session_state['proc_abas']=abas
+                st.rerun()
+        if (st.session_state.get('df_proc_temp') is not None and
+            st.session_state.get('proc_eq')==eq and
+            st.session_state.get('proc_ma')==ma):
+            df_res=st.session_state['df_proc_temp']
+            abas=st.session_state.get('proc_abas',[])
+            elig=df_res[df_res['elegibilidade']=='Elegivel'] if 'elegibilidade' in df_res.columns else df_res
+            ve=elig['valor'].sum() if 'valor' in elig.columns else 0
+            ce=elig['uc_cpf'].nunique() if 'uc_cpf' in elig.columns else 0
+            if abas: st.info(f"Abas: {', '.join(abas)}")
+            st.success(f"{len(df_res):,} registros processados!")
+            c1,c2,c3=st.columns(3)
+            c1.metric('Valor Recebido',fmt_brl(ve))
+            c2.metric('Boletos',f'{len(elig):,}')
+            c3.metric('Clientes',f'{ce:,}')
+            st.markdown('---')
+            col1,col2=st.columns(2)
+            with col1:
+                if st.button('Salvar Resultado',use_container_width=True,key='btn_salvar_proc'):
+                    salvar_processamento(ma,eq,df_res,st.session_state.usuario.get('nome',''))
+                    st.session_state['df_proc_temp']=None
+                    st.success('Resultado salvo!')
+                    st.rerun()
+            with col2:
+                if st.button('Descartar',use_container_width=True,key='btn_desc'):
+                    st.session_state['df_proc_temp']=None; st.rerun()
+            cols_show=[c for c in ['uc_cpf','data_pagamento','valor','fornecedora','elegibilidade','aging'] if c in df_res.columns]
+            st.dataframe(df_res[cols_show].head(30) if cols_show else df_res.head(30),use_container_width=True)
+
+    with col_hist:
+        st.markdown('<p style="color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">HISTORICO DE BASES PROCESSADAS</p>',unsafe_allow_html=True)
+        hist_geral=buscar_historico_geral()
         if not hist_geral:
-            st.info("Nenhum histórico registrado ainda.")
+            st.info('Nenhuma base processada ainda.')
         else:
-            rows_hg=[]
             for h in hist_geral:
-                rows_hg.append({
-                    "Gestor": h.get("usuarioNome","—"),
-                    "Equipe": EQUIPES.get(h.get("equipeId",""),{}).get("nome","—"),
-                    "Mês":    h.get("mesAno","—"),
-                    "Fornecedoras": ", ".join(h.get("fornecedoras",[])) or "—",
-                    "Valor Recebido": fmt_brl(h.get("valorElegivel",0)),
-                    "Boletos": f"{h.get('boletosElegiveis',0):,}",
-                    "Data":   str(h.get("criadoEm",""))[:16],
-                })
-            df_hg=pd.DataFrame(rows_hg)
-            st.dataframe(df_hg,use_container_width=True,hide_index=True)
-            out_hg=io.BytesIO()
-            with pd.ExcelWriter(out_hg,engine="xlsxwriter") as w:
-                df_hg.to_excel(w,index=False)
-            st.download_button("Exportar Histórico Excel",data=out_hg.getvalue(),file_name="historico_bases.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                forns=h.get('fornecedoras',[])
+                forn_str=', '.join(forns[:3])+('...' if len(forns)>3 else '') if forns else '---'
+                equipe_nome=EQUIPES.get(h.get('equipeId',''),{}).get('nome','---')
+                usuario_nome=h.get('usuarioNome') or equipe_nome
+                data_str=str(h.get('criadoEm',''))[:16]
+                val=float(h.get('valorElegivel',0))
+                st.markdown(
+                    f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:10px;"
+                    f"padding:12px 16px;margin-bottom:6px;border-left:3px solid #00c853'>"
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px'>"
+                    f"<div>"
+                    f"<div style='color:#ffffff;font-weight:600;font-size:13px'>{equipe_nome} -- {h.get('mesAno','').replace('-',' ')}</div>"
+                    f"<div style='color:#3a6a4a;font-size:11px;margin-top:2px'>Por: {usuario_nome} | {data_str}</div>"
+                    f"<div style='color:#3a6a4a;font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px'>Fornecedoras: {forn_str}</div>"
+                    f"</div>"
+                    f"<div style='text-align:right'>"
+                    f"<div style='color:#00c853;font-weight:700;font-size:14px'>{fmt_brl(val)}</div>"
+                    f"<div style='color:#3a6a4a;font-size:11px'>{h.get('boletosElegiveis',0):,} boletos</div>"
+                    f"</div></div></div>",
+                    unsafe_allow_html=True)
+            st.markdown('<div style="height:8px"></div>',unsafe_allow_html=True)
+            if st.button('Exportar Historico Excel',use_container_width=True,key='btn_exp_hist'):
+                rows=[{'Gestor':h.get('usuarioNome','---'),'Equipe':EQUIPES.get(h.get('equipeId',''),{}).get('nome','---'),'Mes':h.get('mesAno','---'),'Fornecedoras':', '.join(h.get('fornecedoras',[])),'Valor Recebido':fmt_brl(h.get('valorElegivel',0)),'Boletos':h.get('boletosElegiveis',0),'Data':str(h.get('criadoEm',''))[:16]} for h in hist_geral]
+                out=io.BytesIO()
+                with pd.ExcelWriter(out,engine='xlsxwriter') as w: pd.DataFrame(rows).to_excel(w,index=False)
+                st.download_button('Baixar Excel',data=out.getvalue(),file_name='historico_bases.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key='dl_hist_exp')
 
 # ── ANÁLISE DE INADIMPLÊNCIA ───────────────────
 def pagina_inadimplencia(ma):
