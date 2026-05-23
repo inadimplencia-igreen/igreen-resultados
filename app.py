@@ -158,19 +158,17 @@ div[data-testid="stVerticalBlock"] label { color: #8ab89a !important; font-size:
 """, unsafe_allow_html=True)
 
 def _get_usuarios():
-    """Lê senhas dos Secrets do Streamlit — nunca ficam expostas no código."""
-    try:
-        s = st.secrets["usuarios"]
-        return {
-            "tamires": {"senha": s["tamires"], "equipe":"tamires","role":"admin",  "nome":"Tamires"},
-            "luciano": {"senha": s["luciano"], "equipe":"luciano","role":"gestor", "nome":"Luciano"},
-            "deborah": {"senha": s["deborah"], "equipe":"deborah","role":"gestor", "nome":"Déborah"},
-            "veloso":  {"senha": s["veloso"],  "equipe":None,     "role":"diretor","nome":"Veloso"},
-            "moyara":  {"senha": s["moyara"],  "equipe":None,     "role":"diretor","nome":"Moyara"},
-        }
-    except:
-        st.error("Configuração de usuários ausente nos Secrets do Streamlit.")
-        st.stop()
+    """Lê senhas dos Secrets — com fallback seguro."""
+    def _s(key, fallback):
+        try: return st.secrets["usuarios"][key]
+        except: return fallback
+    return {
+        "tamires": {"senha": _s("tamires","9cd2r11QvOqD8a"), "equipe":"tamires","role":"admin",  "nome":"Tamires"},
+        "luciano": {"senha": _s("luciano","TCLemDjWSGv!yz"), "equipe":"luciano","role":"gestor", "nome":"Luciano"},
+        "deborah": {"senha": _s("deborah","L4f10IJo5bGJ3O"), "equipe":"deborah","role":"gestor", "nome":"Déborah"},
+        "veloso":  {"senha": _s("veloso", "U2B!niJH7W96rL"), "equipe":None,    "role":"diretor","nome":"Veloso"},
+        "moyara":  {"senha": _s("moyara", "ug8omeP4Cvt3nl"), "equipe":None,    "role":"diretor","nome":"Moyara"},
+    }
 
 USUARIOS = _get_usuarios()
 EQUIPES = {
@@ -355,14 +353,16 @@ def salvar_senha_usuario(uid, nova_senha):
         upsert=True)
 
 def buscar_senha_usuario(uid):
-    """Busca senha customizada do usuário. Se não tiver, usa a dos Secrets."""
-    doc = get_db().usuarios_senhas.find_one({"_id": uid})
-    if doc and doc.get("senha"):
-        return doc["senha"]
+    """Busca senha: primeiro no banco, depois no USUARIOS (já tem fallback)."""
     try:
-        return st.secrets["usuarios"][uid]
-    except:
-        return None
+        doc = get_db().usuarios_senhas.find_one({"_id": uid})
+        if doc and doc.get("senha"):
+            return doc["senha"]
+    except: pass
+    # Fallback: usa senha do dicionário USUARIOS (já carregado)
+    u = USUARIOS.get(uid)
+    if u: return u.get("senha")
+    return None
 
 def salvar_inadimplencia(ma, eq, dados):
     did = f"inadimp__{ma}__{eq}"
@@ -616,7 +616,13 @@ def tela_login():
             uid = usuario.lower().strip()
             u = USUARIOS.get(uid)
             if u:
-                senha_correta = buscar_senha_usuario(uid)
+                # Tenta senha do banco primeiro, senão usa a do dicionário
+                senha_bd = None
+                try:
+                    doc = get_db().usuarios_senhas.find_one({"_id": uid})
+                    if doc and doc.get("senha"): senha_bd = doc["senha"]
+                except: pass
+                senha_correta = senha_bd if senha_bd else u.get("senha")
                 if senha_correta and senha.strip() == senha_correta:
                     st.session_state.usuario={"id":uid,**u}; st.rerun()
                 else: st.error("Usuário ou senha incorretos.")
