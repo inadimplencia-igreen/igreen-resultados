@@ -702,7 +702,7 @@ def processar_base_unica(arquivo, eq, ma):
     for c in df.columns:
         cn=norm(str(c))
         if not col_cpf  and any(x in cn for x in ["CPF","UC","INSTAL","MATRICUL","COD_C","CODIGO_C","ID_C","NUM_C"]): col_cpf=c
-        if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_"]): col_val=c
+        if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","TOTAL","VAL_TOT","RECEB"]): col_val=c
         if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI"]): col_dpag=c
         if not col_dvenc and "VENC" in cn: col_dvenc=c
         if not col_forn and any(x in cn for x in ["FORNEC","DISTRIB","EMPRESA","CONCESS"]): col_forn=c
