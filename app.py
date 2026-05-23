@@ -82,51 +82,18 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
 [data-baseweb="option"]:hover { background: #1a3a1a !important; }
 [aria-selected="true"][data-baseweb="option"] { background: #1a3a1a !important; }
 
-/* ── SIDEBAR NAV — estilo menu executivo ── */
-[data-testid="stSidebar"] .stRadio > div {
-    gap: 2px !important;
-}
+/* ── SIDEBAR NAV ── */
 [data-testid="stSidebar"] .stRadio label {
-    color: #6a9a7a !important;
+    color: #a5d6a7 !important;
     font-size: 13px !important;
     font-weight: 500 !important;
-    padding: 10px 14px !important;
-    border-radius: 0 8px 8px 0 !important;
-    border-left: 3px solid transparent !important;
-    transition: all 0.15s !important;
-    display: flex !important;
-    align-items: center !important;
-    margin-bottom: 1px !important;
-    white-space: nowrap !important;
-    cursor: pointer !important;
+    padding: 8px 12px !important;
 }
 [data-testid="stSidebar"] .stRadio label:hover {
     color: #ffffff !important;
-    background: rgba(0,200,83,0.06) !important;
-    border-left: 3px solid rgba(0,200,83,0.4) !important;
-}
-[data-testid="stSidebar"] .stRadio label[data-checked="true"],
-[data-testid="stSidebar"] .stRadio [aria-checked="true"] ~ div label {
-    color: #ffffff !important;
-    background: rgba(0,200,83,0.12) !important;
-    border-left: 3px solid #00c853 !important;
-    font-weight: 600 !important;
 }
 [data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p {
     color: inherit !important;
-    white-space: nowrap !important;
-    font-size: 13px !important;
-}
-/* Esconde o bullet do radio */
-[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] > div:first-child {
-    display: none !important;
-}
-/* Item selecionado */
-[data-testid="stSidebar"] .stRadio input:checked + div label,
-[data-testid="stSidebar"] .stRadio input[type="radio"]:checked ~ label {
-    color: #ffffff !important;
-    background: rgba(0,200,83,0.12) !important;
-    border-left: 3px solid #00c853 !important;
 }
 
 /* ── TABS ── */
