@@ -152,6 +152,14 @@ div[data-testid="stVerticalBlock"] label { color: #8ab89a !important; font-size:
 
 .block-container { padding: 2rem 2rem 2rem !important; max-width: 1200px !important; }
 
+/* ── FORÇA SIDEBAR VISÍVEL ── */
+[data-testid="stSidebar"] {
+    min-width: 260px !important;
+    max-width: 260px !important;
+}
+[data-testid="stSidebarCollapsedControl"] { display: none !important; }
+section[data-testid="stSidebar"][aria-expanded="false"] { margin-left: 0 !important; min-width: 260px !important; }
+
 /* ── FORNECEDORAS sem quebra ── */
 .forn-nome { white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 160px !important; display: inline-block !important; }
 </style>
@@ -943,7 +951,7 @@ def pagina_quadro(ma):
     u=st.session_state.usuario
     is_dir=u["role"]=="diretor"; is_adm=u["role"]=="admin"
     eqs=list(EQUIPES.keys()) if (is_dir or is_adm) else [u["equipe"]]
-    header_page("Quadro de Resultados",ma.replace("-"," "))
+    header_page("Quadro de Resultados", ma.replace("-"," ").upper())
 
     for eq in eqs:
         try:
