@@ -144,6 +144,24 @@ div[data-testid="stStatusWidget"] { display: none !important; }
 
 /* ── CUSTOM ── */
 div[data-testid="stVerticalBlock"] label { color: #8ab89a !important; font-size: 12px !important; }
+
+/* ── NAV BUTTONS ocultos (só o HTML visual aparece) ── */
+[data-testid="stSidebar"] .stButton > button {
+    opacity: 0 !important;
+    height: 0px !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: -2px 0 0 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    position: relative !important;
+    z-index: 10 !important;
+    cursor: pointer !important;
+}
+[data-testid="stSidebar"] .stButton {
+    margin: 0 !important;
+    padding: 0 !important;
+}
 .block-container { padding: 2rem 2rem 2rem !important; max-width: 1200px !important; }
 
 /* ── FORNECEDORAS sem quebra ── */
@@ -658,88 +676,69 @@ def _mini_criterios():
 def render_sidebar():
     u=st.session_state.usuario
     with st.sidebar:
-        # ── LOGO + PERFIL
-        role_label = 'Diretoria' if u['role']=='diretor' else 'Administrador' if u['role']=='admin' else 'Gestor'
-        st.markdown(f"""
-        <div style="padding:20px 4px 0">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:0 4px">
-                <img src="logo.png" style="width:36px;height:36px;border-radius:8px" onerror="this.style.display='none'">
-                <div>
-                    <div style="color:#ffffff;font-weight:700;font-size:15px;letter-spacing:-0.3px">iGreen</div>
-                    <div style="color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:2px;margin-top:1px">Performance</div>
-                </div>
-            </div>
-            <div style="background:linear-gradient(135deg,#0d2010,#112a15);border:1px solid #1e3a1e;border-radius:10px;padding:12px 14px;margin-bottom:4px">
-                <div style="display:flex;align-items:center;gap:10px">
-                    <div style="width:34px;height:34px;background:linear-gradient(135deg,#00a844,#00c853);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0">{u['nome'][0]}</div>
-                    <div>
-                        <div style="color:#ffffff;font-size:13px;font-weight:600">{u['nome']}</div>
-                        <div style="color:#00c853;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:1px">{role_label}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        """,unsafe_allow_html=True)
-
-        # ── PERÍODO
-        st.markdown("<div style='height:16px'></div>",unsafe_allow_html=True)
-        st.markdown("<p style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a6a4a;margin-bottom:6px;padding:0 4px'>PERÍODO</p>",unsafe_allow_html=True)
+        role_label='Diretoria' if u['role']=='diretor' else 'Administrador' if u['role']=='admin' else 'Gestor'
+        st.markdown(
+            '<div style="padding:20px 16px 0">'
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">'
+            '<div style="width:32px;height:32px;background:linear-gradient(135deg,#00a844,#00c853);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff">G</div>'
+            '<div><span style="color:#00c853;font-weight:700;font-size:15px">iGreen</span>'
+            '<span style="color:#ffffff;font-weight:700;font-size:15px"> Performance</span></div>'
+            '</div></div>',unsafe_allow_html=True)
+        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a5a3a;margin:0 4px 6px;font-weight:600">PERÍODO</p>',unsafe_allow_html=True)
         anos=get_anos_disponiveis()
-        ano=st.selectbox("Ano",anos,label_visibility="collapsed")
+        ano=st.selectbox('Ano',anos,label_visibility='collapsed')
         meses=get_todos_meses_ano(int(ano))
-        mes_labels=[m.split("-")[0] for m in meses]
-        mes_sel=st.selectbox("Mês",mes_labels,index=datetime.now().month-1,label_visibility="collapsed")
-        mes_ano=f"{mes_sel}-{ano}"
-
-        # ── NAVEGAÇÃO
-        st.markdown("<div style='height:16px'></div>",unsafe_allow_html=True)
-        st.markdown("<p style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a6a4a;margin-bottom:6px;padding:0 4px'>NAVEGAÇÃO</p>",unsafe_allow_html=True)
-
-        MENU_ICONS = {
-            "Quadro de Resultados":    "▣",
-            "Lançamento":              "＋",
-            "Visualização RCA":        "◈",
-            "Análise dos Operadores":  "◉",
-            "Monitorias":              "◎",
-            "Upload de Bases":         "↑",
-            "Análise de Inadimplência":"◆",
-            "Metas":                   "◇",
-        }
-
-        if u["role"]=="diretor":
-            pags=["Quadro de Resultados","Visualização RCA","Análise dos Operadores","Monitorias","Análise de Inadimplência"]
-        elif u["role"]=="admin":
-            pags=["Quadro de Resultados","Lançamento","Visualização RCA","Análise dos Operadores","Monitorias","Upload de Bases","Análise de Inadimplência","Metas"]
+        mes_labels=[m.split('-')[0] for m in meses]
+        mes_sel=st.selectbox('Mês',mes_labels,index=datetime.now().month-1,label_visibility='collapsed')
+        mes_ano=f'{mes_sel}-{ano}'
+        st.markdown('<div style="height:8px"></div>',unsafe_allow_html=True)
+        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a5a3a;margin:0 4px 8px;font-weight:600">MENUS</p>',unsafe_allow_html=True)
+        MENU_ICONS={'Quadro de Resultados':'▣','Lançamento':'＋','Visualização RCA':'◈','Análise dos Operadores':'◉','Monitorias':'◎','Upload de Bases':'↑','Análise de Inadimplência':'◆','Metas':'◇'}
+        if u['role']=='diretor':
+            pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência']
+        elif u['role']=='admin':
+            pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas']
         else:
-            pags=["Quadro de Resultados","Lançamento","Análise dos Operadores","Monitorias","Upload de Bases","Análise de Inadimplência","Metas"]
-
-        pag=st.radio("",pags,label_visibility="collapsed",
-            format_func=lambda x: f"{MENU_ICONS.get(x,'·')}  {x}")
-
-        # ── MINHA CONTA
-        st.markdown("<div style='height:16px'></div>",unsafe_allow_html=True)
-        st.markdown("<p style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a6a4a;margin-bottom:6px;padding:0 4px'>CONTA</p>",unsafe_allow_html=True)
-        with st.expander("⚙  Minha Conta"):
-            tc1,tc2,tc3=st.tabs(["Senha","Operadores","Critérios"])
+            pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas']
+        if 'nav_pag' not in st.session_state: st.session_state.nav_pag=pags[0]
+        if st.session_state.nav_pag not in pags: st.session_state.nav_pag=pags[0]
+        pag=st.session_state.nav_pag
+        for p in pags:
+            ativo=pag==p
+            ic=MENU_ICONS.get(p,'·')
+            if ativo:
+                bg='background:rgba(0,200,83,0.12);border-left:3px solid #00c853'
+                cor='#ffffff'; fw='700'
+            else:
+                bg='background:transparent;border-left:3px solid transparent'
+                cor='#6a9a7a'; fw='500'
+            st.markdown(
+                f'<div style="{bg};border-radius:0 8px 8px 0;padding:10px 16px;margin:1px 0">'
+                f'<span style="color:{cor};font-size:13px;font-weight:{fw};white-space:nowrap;display:flex;align-items:center;gap:10px">'
+                f'<span>{ic}</span>{p}</span></div>',unsafe_allow_html=True)
+            if st.button(p,key=f'nav_{p}',use_container_width=True):
+                st.session_state.nav_pag=p; st.rerun()
+        st.markdown('<div style="height:16px"></div>',unsafe_allow_html=True)
+        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a5a3a;margin:0 4px 8px;font-weight:600">CONTA</p>',unsafe_allow_html=True)
+        with st.expander('⚙  Minha Conta'):
+            tc1,tc2,tc3=st.tabs(['Senha','Operadores','Critérios'])
             with tc1:
-                st.markdown("<p style='font-size:11px;color:#5a9a70;margin-bottom:8px'>Trocar senha</p>",unsafe_allow_html=True)
-                senha_at   = st.text_input("Senha atual",type="password",key="conta_at",placeholder="senha atual")
-                senha_nova = st.text_input("Nova senha",type="password",key="conta_nova",placeholder="mín. 8 caracteres")
-                senha_conf = st.text_input("Confirmar",type="password",key="conta_conf",placeholder="repita")
-                if st.button("Salvar Senha",use_container_width=True,key="btn_senha"):
-                    uid=u["id"]; sc=buscar_senha_usuario(uid)
-                    if not senha_at: st.error("Digite a senha atual.")
-                    elif senha_at!=sc: st.error("Senha atual incorreta.")
-                    elif len(senha_nova)<8: st.error("Mínimo 8 caracteres.")
-                    elif senha_nova!=senha_conf: st.error("Confirmação não confere.")
-                    else: salvar_senha_usuario(uid,senha_nova); st.success("Senha alterada!")
+                sa=st.text_input('Senha atual',type='password',key='ca',placeholder='senha atual')
+                sn=st.text_input('Nova senha',type='password',key='cn',placeholder='mín. 8 caracteres')
+                sc2=st.text_input('Confirmar',type='password',key='cc',placeholder='repita')
+                if st.button('Salvar Senha',use_container_width=True,key='btn_senha'):
+                    uid=u['id']; sc=buscar_senha_usuario(uid)
+                    if not sa: st.error('Digite a senha atual.')
+                    elif sa!=sc: st.error('Senha atual incorreta.')
+                    elif len(sn)<8: st.error('Mínimo 8 caracteres.')
+                    elif sn!=sc2: st.error('Confirmação não confere.')
+                    else: salvar_senha_usuario(uid,sn); st.success('Senha alterada!')
             with tc2:
                 _mini_operadores(u)
             with tc3:
                 _mini_criterios()
-
-        st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
-        if st.button("→  Sair",use_container_width=True):
+        st.markdown('<div style="height:8px"></div>',unsafe_allow_html=True)
+        if st.button('Sair',use_container_width=True,key='btn_sair'):
             del st.session_state.usuario; st.rerun()
     return mes_ano,pag
 
@@ -932,32 +931,58 @@ def pagina_quadro(ma):
     is_dir=u["role"]=="diretor"; is_adm=u["role"]=="admin"
     eqs=list(EQUIPES.keys()) if (is_dir or is_adm) else [u["equipe"]]
     header_page("Quadro de Resultados",ma.replace("-"," "))
+
     for eq in eqs:
         ops=buscar_operadores(eq); lancs=buscar_lancamentos(ma,eq)
         if not lancs: continue
         ul=lancs[0]; mg_doc=buscar_meta_gestora(ma,eq); mops=buscar_metas_equipe(ma,eq)
         mg=float(mg_doc.get("metaGestora",0))
+
+        # Com interação = soma dos operadores lançados
         tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict))
         dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
-        proj=calc_projecao(tc,dt,td); pct=( tc/mg*100) if mg>0 else 0
+
+        # Recebido Geral = total elegível do processamento (1° contato)
         up=buscar_ultimo_processamento(ma,eq)
-        vg=float(up.get("valorElegivel",ul.get("valorGeral",0)))
-        sem=max(0,vg-tc)
-        st.markdown(f"""
-        <div style="background:linear-gradient(135deg,#0a2414,#0d2e1a);border:1px solid #1a4d2e;border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:4px solid #00c853;box-shadow:0 2px 12px rgba(0,0,0,0.15)">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-                <div style="font-size:16px;font-weight:700;color:#ffffff">Equipe {EQUIPES[eq]['nome']} · {ul.get('label','')}</div>
-                <div style="text-align:center"><div style="color:#5a9a70;font-size:10px;text-transform:uppercase">% Meta</div>
-                    <div style="color:{cor_pct(pct)};font-size:22px;font-weight:800">{pct:.1f}%</div></div>
-            </div>
-            <div style="display:flex;gap:24px;margin-top:12px;flex-wrap:wrap">
-                <div><span style="color:#5a9a70;font-size:11px">COM INTERAÇÃO</span><br><span style="color:#2daf5c;font-weight:700;font-size:15px">{fmt_brl(tc)}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">SEM INTERAÇÃO</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(sem)}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">META</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(mg)}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">PROJEÇÃO</span><br><span style="color:#e0f0e8;font-weight:600">{fmt_brl(proj)}</span></div>
-                <div><span style="color:#5a9a70;font-size:11px">DIAS</span><br><span style="color:#e0f0e8;font-weight:600">{dt}/{td}</span></div>
-            </div>
-        </div>""",unsafe_allow_html=True)
+        rec_geral=float(up.get("valorElegivel",0)) if up else 0
+
+        # Sem interação = Recebido Geral - Com Interação
+        sem=max(0, rec_geral - tc)
+
+        # Projeção = (Recebido Geral / Dias Trabalhados) * Total Dias
+        proj=calc_projecao(rec_geral, dt, td)
+
+        # % Meta = Recebido Geral / Meta
+        pct=(rec_geral/mg*100) if mg>0 else 0
+
+        cor_pct_v=cor_pct(pct)
+
+        st.markdown(
+            f"<div style='background:linear-gradient(135deg,#0a1f0a,#0d2a0d);border:1px solid #1e3a1e;"
+            f"border-radius:14px;padding:20px 24px;margin-bottom:6px;border-left:3px solid #00c853;"
+            f"box-shadow:0 4px 24px rgba(0,0,0,0.3)'>"
+            f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px'>"
+            f"<div style='font-size:15px;font-weight:700;color:#ffffff;letter-spacing:-0.2px'>Equipe {EQUIPES[eq]['nome']} · {ul.get('label','')}</div>"
+            f"<div style='text-align:right'>"
+            f"<div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>% META</div>"
+            f"<div style='color:{cor_pct_v};font-size:24px;font-weight:800;letter-spacing:-0.5px'>{pct:.1f}%</div>"
+            f"</div></div>"
+            f"<div style='display:flex;gap:28px;flex-wrap:wrap'>"
+            f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>RECEBIDO GERAL</div>"
+            f"<div style='color:#00c853;font-weight:700;font-size:16px'>{fmt_brl(rec_geral)}</div></div>"
+            f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>COM INTERAÇÃO</div>"
+            f"<div style='color:#ffffff;font-weight:600;font-size:14px'>{fmt_brl(tc)}</div></div>"
+            f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>SEM INTERAÇÃO</div>"
+            f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(sem)}</div></div>"
+            f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>META</div>"
+            f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(mg)}</div></div>"
+            f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>PROJEÇÃO</div>"
+            f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(proj)}</div></div>"
+            f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>DIAS</div>"
+            f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{dt}/{td}</div></div>"
+            f"</div></div>",
+            unsafe_allow_html=True)
+
         # Diretor: oculta operadores por padrão
         show=True
         if is_dir:
@@ -966,33 +991,40 @@ def pagina_quadro(ma):
             if st.button(f"{'Ocultar' if st.session_state[k] else 'Exibir'} Operadores — {EQUIPES[eq]['nome']}",key=f"btn_ops_{eq}"):
                 st.session_state[k]=not st.session_state[k]; st.rerun()
             show=st.session_state[k]
+
         if show and ops:
             rows=[]
             for op in ops:
                 v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
                 meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
-                rows.append({"Status":status_pct(pc) if meta>0 else "—","Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","_v":v})
+                rows.append({"Status":status_pct(pc) if meta>0 else "—",
+                    "Operador":op["nome"]+(" ★" if op.get("pleno") else ""),
+                    "Recebido":fmt_brl(v) if v>0 else "—",
+                    "Meta":fmt_brl(meta) if meta>0 else "—",
+                    "% Meta":f"{pc:.1f}%" if meta>0 else "—",
+                    "_v":v})
             df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
             df.index=range(1,len(df)+1)
             st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
 
-        # ── POR FORNECEDORA (do processamento)
-        up2=buscar_ultimo_processamento(ma,eq)
-        if up2 and up2.get("registros"):
+        # Por Fornecedora
+        if up and up.get("registros"):
             try:
-                df_proc=pd.DataFrame(up2["registros"])
+                df_proc=pd.DataFrame(up["registros"])
                 if "fornecedora" in df_proc.columns and "valor" in df_proc.columns:
                     df_proc["valor"]=pd.to_numeric(df_proc["valor"],errors="coerce").fillna(0)
-                    forn_grp=df_proc.groupby("fornecedora")["valor"].sum().reset_index()
+                    elig_proc=df_proc[df_proc["elegibilidade"]=="Elegível"] if "elegibilidade" in df_proc.columns else df_proc
+                    forn_grp=elig_proc.groupby("fornecedora")["valor"].sum().reset_index()
                     forn_grp=forn_grp[forn_grp["valor"]>0].sort_values("valor",ascending=False)
                     if not forn_grp.empty:
-                        st.markdown("<p style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px'>POR FORNECEDORA</p>",unsafe_allow_html=True)
-                        forn_rows=[{"Fornecedora":r["fornecedora"],"Total":fmt_brl(r["valor"])} for _,r in forn_grp.iterrows()]
+                        st.markdown("<p style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px'>POR FORNECEDORA</p>",unsafe_allow_html=True)
+                        forn_rows=[{"Fornecedora":str(r["fornecedora"]),"Total Recebido":fmt_brl(r["valor"])} for _,r in forn_grp.iterrows()]
                         df_forn=pd.DataFrame(forn_rows)
                         df_forn.index=range(1,len(df_forn)+1)
                         st.dataframe(df_forn,use_container_width=True,hide_index=False)
             except: pass
         st.markdown("---")
+
     if st.button("Exportar Excel"):
         out=io.BytesIO()
         with pd.ExcelWriter(out,engine="xlsxwriter") as w:
