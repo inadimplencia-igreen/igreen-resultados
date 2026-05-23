@@ -82,18 +82,55 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
 [data-baseweb="option"]:hover { background: #1a3a1a !important; }
 [aria-selected="true"][data-baseweb="option"] { background: #1a3a1a !important; }
 
-/* ── SIDEBAR NAV ── */
+/* ── SIDEBAR NAV — igual print iGreen Tickets ── */
+[data-testid="stSidebar"] .stRadio > div {
+    gap: 0px !important;
+}
 [data-testid="stSidebar"] .stRadio label {
-    color: #a5d6a7 !important;
+    color: #8a9a8a !important;
     font-size: 13px !important;
     font-weight: 500 !important;
-    padding: 8px 12px !important;
+    padding: 10px 16px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: flex !important;
+    align-items: center !important;
+    border-radius: 0 8px 8px 0 !important;
+    border-left: 3px solid transparent !important;
+    margin: 1px 0 !important;
+    transition: all 0.15s !important;
 }
 [data-testid="stSidebar"] .stRadio label:hover {
-    color: #ffffff !important;
+    color: #ccd4cc !important;
+    background: rgba(255,255,255,0.05) !important;
 }
+/* Esconde bolinha */
+[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] > div:first-child { display: none !important; }
+[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] span[data-testid="stMarkdownContainer"] { margin-left: 0 !important; }
 [data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p {
     color: inherit !important;
+    white-space: nowrap !important;
+    font-size: 13px !important;
+}
+/* Item ativo */
+[data-testid="stSidebar"] .stRadio label[data-checked="true"] {
+    color: #00c853 !important;
+    background: rgba(0,200,83,0.1) !important;
+    border-left: 3px solid #00c853 !important;
+    font-weight: 600 !important;
+}
+
+/* ── FIX DROPDOWN ARROW SOBREPOSIÇÃO ── */
+.stSelectbox [data-baseweb="select"] > div {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+.stSelectbox [data-baseweb="select"] input {
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 0 !important;
 }
 
 /* ── TABS ── */
@@ -734,45 +771,19 @@ def render_sidebar():
             unsafe_allow_html=True)
         ICONS={'Quadro de Resultados':'▣  ','Lancamento':'＋  ','Visualizacao RCA':'◈  ',
                'Analise dos Operadores':'◉  ','Monitorias':'◎  ','Upload de Bases':'↑  ',
-               'Analise de Inadimplencia':'◆  ','Metas':'◇  '}
+               'Analise de Inadimplencia':'◆  ','Metas':'◇  ','Minha Conta':'⚙  '}
         if u['role']=='diretor':
-            pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência']
+            pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
         elif u['role']=='admin':
-            pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas']
+            pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         else:
-            pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas']
+            pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
 
         pag=st.radio('',pags,label_visibility='collapsed')
 
         st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
 
-        # CONTA
-        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;'
-            'color:#3a5a3a;margin-bottom:8px;font-weight:600">CONTA</p>',
-            unsafe_allow_html=True)
-        with st.expander('⚙  Minha Conta'):
-            aba_conta=st.radio('',['Senha','Operadores','Critérios'],key='aba_conta',label_visibility='collapsed',horizontal=True)
-            if aba_conta=='Senha':
-                sa=st.text_input('Senha atual',type='password',key='ca',placeholder='senha atual')
-                sn=st.text_input('Nova senha',type='password',key='cn',placeholder='mín. 8 caracteres')
-                sc2=st.text_input('Confirmar',type='password',key='cc',placeholder='repita')
-                if st.button('Salvar Senha',use_container_width=True,key='btn_senha'):
-                    uid=u['id']
-                    sc=u.get('senha')
-                    try:
-                        doc=get_db().usuarios_senhas.find_one({'_id':uid})
-                        if doc and doc.get('senha'): sc=doc['senha']
-                    except: pass
-                    if not sa: st.error('Digite a senha atual.')
-                    elif sa!=sc: st.error('Senha atual incorreta.')
-                    elif len(sn)<8: st.error('Mínimo 8 caracteres.')
-                    elif sn!=sc2: st.error('Confirmação não confere.')
-                    else: salvar_senha_usuario(uid,sn); st.success('Senha alterada!')
-            elif aba_conta=='Operadores':
-                _mini_operadores(u)
-            elif aba_conta=='Critérios':
-                _mini_criterios()
-        st.markdown('<div style="height:8px"></div>',unsafe_allow_html=True)
+        st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
         if st.button('Sair',use_container_width=True,key='btn_sair'):
             del st.session_state.usuario; st.rerun()
     return mes_ano,pag
@@ -1566,6 +1577,77 @@ def pagina_criterios():
             if st.button("Adicionar Erro",use_container_width=True):
                 ee.append({"id":f"e{len(erros)+1}","nome":"Novo erro","desc":"Descrição"}); salvar_erros_criticos(ee); st.rerun()
 
+# ── MINHA CONTA ──────────────────────────────
+def pagina_minha_conta():
+    u=st.session_state.usuario
+    header_page('Minha Conta', u['nome'])
+    t1,t2,t3=st.tabs(['🔒  Senha','👥  Operadores','📋  Critérios'])
+
+    with t1:
+        st.markdown('<p style="color:#5a9a70;font-size:13px;margin-bottom:20px">Altere sua senha de acesso</p>',unsafe_allow_html=True)
+        sa =st.text_input('Senha atual',    type='password',placeholder='senha atual',   key='mc_sa')
+        sn =st.text_input('Nova senha',     type='password',placeholder='mín. 8 caracteres',key='mc_sn')
+        sc2=st.text_input('Confirmar senha',type='password',placeholder='repita a nova senha',key='mc_sc')
+        if st.button('Salvar Senha',key='mc_btn_senha',use_container_width=True):
+            uid=u['id']; sc=u.get('senha')
+            try:
+                doc=get_db().usuarios_senhas.find_one({'_id':uid})
+                if doc and doc.get('senha'): sc=doc['senha']
+            except: pass
+            if not sa: st.error('Digite a senha atual.')
+            elif sa!=sc: st.error('Senha atual incorreta.')
+            elif len(sn)<8: st.error('Mínimo 8 caracteres.')
+            elif sn!=sc2: st.error('Confirmação não confere.')
+            else: salvar_senha_usuario(uid,sn); st.success('Senha alterada com sucesso!')
+
+    with t2:
+        eq=u.get('equipe')
+        if not eq:
+            st.info('Gestão de operadores disponível apenas para gestores.')
+        else:
+            st.markdown(f'**Equipe {EQUIPES[eq]["nome"]}**')
+            st.markdown('---')
+            c1,c2,c3=st.columns([3,1,1])
+            with c1: nn=st.text_input('Nome completo',placeholder='Nome do operador',key='mc_op_novo')
+            with c2: np=st.checkbox('Pleno',key='mc_op_pleno')
+            with c3:
+                st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
+                if st.button('Adicionar',use_container_width=True,key='mc_op_add'):
+                    if nn.strip(): salvar_operador(eq,nn.strip(),np); st.success(f'{nn} adicionado!'); st.rerun()
+                    else: st.error('Digite o nome.')
+                st.markdown('</div>',unsafe_allow_html=True)
+            st.markdown('---')
+            ops=buscar_operadores(eq)
+            if not ops: st.info('Nenhum operador cadastrado.')
+            else:
+                for op in ops:
+                    c1,c2,c3,c4=st.columns([3,1,1,1])
+                    with c1: ne=st.text_input('',value=op['nome'],key=f'mc_n_{op["_id"]}',label_visibility='collapsed')
+                    with c2: npl=st.checkbox('Pleno',value=op.get('pleno',False),key=f'mc_pl_{op["_id"]}')
+                    with c3:
+                        if st.button('Salvar',key=f'mc_s_{op["_id"]}',use_container_width=True):
+                            atualizar_operador(op['_id'],ne,npl); st.success('Salvo!'); st.rerun()
+                    with c4:
+                        if st.button('Excluir',key=f'mc_d_{op["_id"]}',use_container_width=True):
+                            excluir_operador(op['_id']); st.rerun()
+
+    with t3:
+        crits=get_criterios()
+        st.markdown('**Critérios de avaliação das monitorias**')
+        st.markdown('---')
+        ce=[]
+        for i,c in enumerate(crits):
+            with st.expander(f"{c['num']} {c['nome']} — Peso {c['peso']}",expanded=False):
+                c1,c2,c3=st.columns([3,1,1])
+                with c1: nm=st.text_input('Nome',value=c['nome'],key=f'mc_cn_{i}')
+                with c2: ps=st.number_input('Peso',min_value=1,max_value=100,value=int(c['peso']),key=f'mc_cp_{i}')
+                with c3: ob=st.checkbox('Obrigatório',value=c.get('obrigatorio',False),key=f'mc_co_{i}')
+                it=st.text_area('Itens (um por linha)',value='\n'.join(c.get('itens',[])),height=80,key=f'mc_ci_{i}')
+                ce.append({'id':c['id'],'num':c['num'],'nome':nm,'peso':ps,'obrigatorio':ob,'itens':[x.strip() for x in it.split('\n') if x.strip()]})
+        st.markdown('---')
+        if st.button('Salvar Critérios',use_container_width=True,key='mc_crit_save'):
+            salvar_criterios(ce); st.success('Critérios salvos!'); st.rerun()
+
 # ── MAIN ───────────────────────────────────────
 def main():
     # Mostra login ANTES de qualquer conexão com o banco
@@ -1585,6 +1667,7 @@ def main():
         elif "Operadores"    in pag: pagina_analise_operadores(ma)
         elif "Monitorias"    in pag: pagina_monitorias(ma)
         elif "Inadimplência" in pag: pagina_inadimplencia(ma)
+        elif "Minha Conta"   in pag: pagina_minha_conta()
     elif u["role"]=="admin":
         if   "Quadro"        in pag: pagina_quadro(ma)
         elif "Lançamento"    in pag: pagina_lancamento(ma)
@@ -1594,6 +1677,7 @@ def main():
         elif "Upload"        in pag: pagina_upload(ma)
         elif "Inadimplência" in pag: pagina_inadimplencia(ma)
         elif "Metas"         in pag: pagina_metas(ma)
+        elif "Minha Conta"   in pag: pagina_minha_conta()
     else:
         if   "Quadro"        in pag: pagina_quadro(ma)
         elif "Lançamento"    in pag: pagina_lancamento(ma)
@@ -1602,6 +1686,7 @@ def main():
         elif "Upload"        in pag: pagina_upload(ma)
         elif "Inadimplência" in pag: pagina_inadimplencia(ma)
         elif "Metas"         in pag: pagina_metas(ma)
+        elif "Minha Conta"   in pag: pagina_minha_conta()
 
 if __name__=="__main__":
     main()
