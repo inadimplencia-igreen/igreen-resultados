@@ -182,23 +182,7 @@ div[data-testid="stStatusWidget"] { display: none !important; }
 /* ── CUSTOM ── */
 div[data-testid="stVerticalBlock"] label { color: #8ab89a !important; font-size: 12px !important; }
 
-/* ── NAV BUTTONS ocultos (só o HTML visual aparece) ── */
-[data-testid="stSidebar"] .stButton > button {
-    opacity: 0 !important;
-    height: 0px !important;
-    min-height: 0 !important;
-    padding: 0 !important;
-    margin: -2px 0 0 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    position: relative !important;
-    z-index: 10 !important;
-    cursor: pointer !important;
-}
-[data-testid="stSidebar"] .stButton {
-    margin: 0 !important;
-    padding: 0 !important;
-}
+
 .block-container { padding: 2rem 2rem 2rem !important; max-width: 1200px !important; }
 
 /* ── FORNECEDORAS sem quebra ── */
