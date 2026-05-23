@@ -679,128 +679,6 @@ def normalizar_cpf(s):
     if s.isdigit() and len(s)<11: s=s.zfill(11)
     return s
 
-def processar_base_unica(arquivo, eq, ma):
-    import unicodedata
-    def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
-    try: xls=pd.ExcelFile(arquivo)
-    except Exception as e: return None,[f"Erro: {e}"],[]
-    abas_norm=[norm(a) for a in xls.sheet_names]; abas_orig=xls.sheet_names
-    # Busca aba de pagos — prioridade: nome exato PAGOS primeiro
-    aba_pagos=None
-    # 1a tentativa: nome exato PAGOS
-    for i,a in enumerate(abas_norm):
-        if a.strip() == 'PAGOS':
-            aba_pagos=abas_orig[i]; break
-    # 2a tentativa: contém PAGO ou variações
-    if not aba_pagos:
-        for i,a in enumerate(abas_norm):
-            if any(p in a for p in ["PAGAM","RECEB","BASE","BAIXA","PAGT"]):
-                aba_pagos=abas_orig[i]; break
-    # 3a tentativa: primeira aba que não seja chat/ligacao/disparo
-    if not aba_pagos:
-        for i,a in enumerate(abas_norm):
-            if not any(x in a for x in ["CHAT","LIG","DISPAR","CONTATO","DISPARO"]):
-                aba_pagos=abas_orig[i]; break
-    if not aba_pagos: aba_pagos=abas_orig[0]
-    df=pd.read_excel(xls,sheet_name=aba_pagos,header=0).reset_index(drop=True)
-    df["_row_id"]=df.index
-    col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
-    for c in df.columns:
-        cn=norm(str(c))
-        # CPF — apenas identificadores numéricos, nunca nomes
-        if not col_cpf and any(x in cn for x in [
-            'CPF','UC','INSTAL','MATRICUL','COD_C','CODIGO_C','ID_C','NUM_C',
-            'CONTRATO','CONTRAT','MATRICULA','CODIGO'
-        ]): col_cpf=c
-        # Valor — todas variações possíveis
-        if not col_val and any(x in cn for x in [
-            'VALOR','VLR','VL_','VAL_TOT','RECEB',
-            'VALOR A PAGAR','VALOR PAGAR','VPAGAR','V_PAG',
-            'VALOR TOTAL','VALTOTAL','VAL_TOTAL',
-            'PAGAR','A PAGAR','APAGAR'
-        ]): col_val=c
-        # Data pagamento — todas variações possíveis
-        if not col_dpag and any(x in cn for x in [
-            'PAGAM','PAGTO','DT_PAG','DATA_PAG','BAIXA','DT_BAI',
-            'DATA DE PAG','DATAPAG','DATA PAG','DT PAG',
-            'DATA PAGAMENTO','DATAPAGAMENTO'
-        ]): col_dpag=c
-        # Data vencimento — todas variações possíveis
-        if not col_dvenc and any(x in cn for x in [
-            'VENC','DATA DE VENC','DT_VENC','DATAVENC',
-            'DATA VENC','DATA VENCIMENTO','DATAVENCIMENTO',
-            'DT VENC','VENCIMENTO'
-        ]): col_dvenc=c
-        # Fornecedora — todas variações possíveis
-        if not col_forn and any(x in cn for x in [
-            'FORNEC','DISTRIB','EMPRESA','CONCESS',
-            'FORNECEDOR','FORNECEDORA','FORN'
-        ]): col_forn=c
-    # Se não achou CPF pelo nome, detecta pela coluna com valores numéricos de 8-14 dígitos
-    if not col_cpf:
-        best_col=None; best_score=0
-        for c in df.columns:
-            try:
-                sample=df[c].dropna().astype(str).head(20)
-                score=sum(1 for s in sample if s.replace('.','').replace('-','').replace('/','').isdigit() and 8<=len(s.replace('.','').replace('-','').replace('/',''))<=14)
-                if score>best_score: best_score=score; best_col=c
-            except: pass
-        if best_col and best_score>=3: col_cpf=best_col
-    mapa={}
-    if col_cpf:   mapa[col_cpf]="uc_cpf"
-    if col_val:   mapa[col_val]="valor"
-    if col_dpag:  mapa[col_dpag]="data_pagamento"
-    if col_dvenc: mapa[col_dvenc]="data_vencimento"
-    if col_forn:  mapa[col_forn]="fornecedora"
-    df=df.rename(columns=mapa)
-    if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
-    if "data_pagamento" in df.columns: df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],dayfirst=True,errors="coerce").dt.normalize()
-    if "data_vencimento" in df.columns: df["data_vencimento"]=pd.to_datetime(df["data_vencimento"],dayfirst=True,errors="coerce").dt.normalize()
-    if "valor" in df.columns:
-        def cv(v):
-            s=str(v).strip().replace("R$","").replace(" ","")
-            try: return float(s)
-            except:
-                try: return float(s.replace(".","").replace(",","."))
-                except: return 0.0
-        df["valor"]=df["valor"].apply(cv)
-    contatos=[]; abas_lidas=[]
-    for busca,nome in [("CHAT","CHAT"),("LIG","LIGAÇÕES"),("DISPAR","DISPAROS")]:
-        aba=next((abas_orig[i] for i,a in enumerate(abas_norm) if busca in a),None)
-        if not aba: continue
-        try:
-            dc=pd.read_excel(xls,sheet_name=aba,header=0)
-            if dc.empty or len(dc.columns)<2: continue
-            cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","UC","INSTAL","MATRICUL","COD","CLIENT"])),dc.columns[0])
-            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
-            dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
-            dd=dd[dd["uc_cpf"].str.len()>=3]
-            if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
-        except: pass
-    if contatos:
-        pc=pd.concat(contatos,ignore_index=True).groupby("uc_cpf",as_index=False)["data_contato"].min()
-        df["primeiro_contato"]=df["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"])))
-    else: df["primeiro_contato"]=pd.NaT
-    df=df.drop(columns=["_row_id"],errors="ignore").reset_index(drop=True)
-    df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],errors="coerce").dt.normalize()
-    df["primeiro_contato"]=pd.to_datetime(df["primeiro_contato"],errors="coerce").dt.normalize()
-    df["diferenca_dias"]=(df["data_pagamento"]-df["primeiro_contato"]).dt.days
-    def classif(row):
-        if pd.isna(row.get("primeiro_contato")): return "ND"
-        d=row.get("diferenca_dias")
-        if pd.isna(d): return "ND"
-        return "Elegível" if int(d)>=0 else "Não Elegível"
-    df["elegibilidade"]=df.apply(classif,axis=1)
-    if "data_vencimento" in df.columns: df["dias_vencidos"]=(df["data_pagamento"]-df["data_vencimento"]).dt.days
-    else: df["dias_vencidos"]=None
-    df["aging"]=df["dias_vencidos"].apply(aging_faixa)
-    for col in ["data_vencimento","data_pagamento","primeiro_contato"]:
-        if col in df.columns:
-            try: df[col]=pd.to_datetime(df[col],errors="coerce").dt.strftime("%Y-%m-%d").where(pd.to_datetime(df[col],errors="coerce").notna(),other=None)
-            except: pass
-    df["equipe"]=eq; df["mes_ano"]=ma
-    return df,[],abas_lidas
-
 def gerar_pdf_monitoria(onome, prot, obs, crits, erros, nota, media, n_mon, ma):
     pontos=calc_pontos(media)
     L=[]
@@ -866,7 +744,6 @@ def tela_login():
             uid = usuario.lower().strip()
             u = USUARIOS.get(uid)
             if u:
-                # Tenta senha do banco primeiro, senão usa a do dicionário
                 senha_bd = None
                 try:
                     doc = get_db().usuarios_senhas.find_one({"_id": uid})
@@ -881,14 +758,12 @@ def tela_login():
 
 # ── SIDEBAR ────────────────────────────────────
 def _mini_operadores(u):
-    """Gestão de operadores dentro de Minha Conta"""
     eq = u.get("equipe")
     if not eq:
         st.info("Disponível apenas para gestores.")
         return
     ops = buscar_operadores(eq)
     st.markdown(f"<p style='font-size:11px;color:#5a9a70;margin-bottom:8px'>{len(ops)} operadores — Equipe {EQUIPES[eq]['nome']}</p>",unsafe_allow_html=True)
-    # Adicionar
     nn = st.text_input("Nome do novo operador",placeholder="Nome completo",key="mc_op_nome")
     np = st.checkbox("Pleno",key="mc_op_pleno")
     if st.button("Adicionar",use_container_width=True,key="mc_op_add"):
@@ -900,19 +775,17 @@ def _mini_operadores(u):
             c1,c2,c3 = st.columns([3,1,1])
             with c1: ne = st.text_input("",value=op["nome"],key=f"mc_n_{op['_id']}",label_visibility="collapsed")
             with c2:
-                if st.button("✓",key=f"mc_s_{op['_id']}",help="Salvar"):
+                if st.button("V",key=f"mc_s_{op['_id']}"):
                     atualizar_operador(op["_id"],ne,op.get("pleno",False)); st.rerun()
             with c3:
-                if st.button("✕",key=f"mc_d_{op['_id']}",help="Excluir"):
+                if st.button("X",key=f"mc_d_{op['_id']}"):
                     excluir_operador(op["_id"]); st.rerun()
 
 def _mini_criterios():
-    """Critérios de monitoria dentro de Minha Conta"""
     crits = get_criterios()
-    st.markdown("<p style='font-size:11px;color:#5a9a70;margin-bottom:8px'>Critérios de avaliação</p>",unsafe_allow_html=True)
     ce = []
     for i,c in enumerate(crits):
-        with st.expander(f"{c['num']} {c['nome']} — {c['peso']}pts",expanded=False):
+        with st.expander(f"{c['num']} {c['nome']}",expanded=False):
             nm = st.text_input("Nome",value=c["nome"],key=f"mcc_n_{i}")
             ps = st.number_input("Peso",min_value=1,max_value=100,value=int(c["peso"]),key=f"mcc_p_{i}")
             ob = st.checkbox("Obrigatório",value=c.get("obrigatorio",False),key=f"mcc_o_{i}")
@@ -924,7 +797,6 @@ def _mini_criterios():
 def render_sidebar():
     u=st.session_state.usuario
     with st.sidebar:
-        # LOGO
         st.markdown(
             '<div style="padding:16px 8px 8px">'
             '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">'
@@ -935,11 +807,7 @@ def render_sidebar():
             '<span style="color:#fff;font-weight:700;font-size:15px"> Performance</span></div>'
             '</div></div>',
             unsafe_allow_html=True)
-
-        # PERÍODO
-        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;'
-            'color:#3a5a3a;margin-bottom:4px;font-weight:600">PERÍODO</p>',
-            unsafe_allow_html=True)
+        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a5a3a;margin-bottom:4px;font-weight:600">PERÍODO</p>',unsafe_allow_html=True)
         anos=get_anos_disponiveis()
         ano=st.selectbox('Ano',anos,label_visibility='collapsed')
         meses=get_todos_meses_ano(int(ano))
@@ -947,25 +815,14 @@ def render_sidebar():
         mes_sel=st.selectbox('Mês',mes_labels,index=datetime.now().month-1,label_visibility='collapsed')
         mes_ano=f'{mes_sel}-{ano}'
         st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
-
-        # NAVEGAÇÃO
-        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;'
-            'color:#3a5a3a;margin-bottom:8px;font-weight:600">MENUS</p>',
-            unsafe_allow_html=True)
-        ICONS={'Quadro de Resultados':'▣  ','Lancamento':'＋  ','Visualizacao RCA':'◈  ',
-               'Analise dos Operadores':'◉  ','Monitorias':'◎  ','Upload de Bases':'↑  ',
-               'Analise de Inadimplencia':'◆  ','Metas':'◇  ','Minha Conta':'⚙  '}
+        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a5a3a;margin-bottom:8px;font-weight:600">MENUS</p>',unsafe_allow_html=True)
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
         elif u['role']=='admin':
             pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         else:
             pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
-
         pag=st.radio('',pags,label_visibility='collapsed')
-
-        st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
-
         st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
         if st.button('Sair',use_container_width=True,key='btn_sair'):
             del st.session_state.usuario; st.rerun()
@@ -1001,15 +858,128 @@ def pagina_operadores():
                         get_db().operadores.insert_one({"_id":oid,"equipeId":eq,"nome":nome,"pleno":pleno,"criadoEm":datetime.now()})
                 st.success("Importados!"); st.rerun()
         return
-    st.markdown(f"**{len(ops)} operadores — Equipe {EQUIPES[eq]['nome']}**")
     for op in ops:
         c1,c2,c3,c4=st.columns([3,1,1,1])
         with c1: nn=st.text_input("n",value=op["nome"],label_visibility="collapsed",key=f"n_{op['_id']}")
         with c2: np=st.checkbox("Pleno",value=op.get("pleno",False),key=f"p_{op['_id']}")
         with c3:
-            if st.button("Salvar",key=f"s_{op['_id']}"): atualizar_operador(op["_id"],nn,np); st.success("Salvo!"); st.rerun()
+            if st.button("Salvar",key=f"s_{op['_id']}"): atualizar_operador(op["_id"],nn,np); st.rerun()
         with c4:
             if st.button("Excluir",key=f"d_{op['_id']}"): excluir_operador(op["_id"]); st.rerun()
+
+
+def processar_base_unica(arquivo, eq, ma):
+    import unicodedata
+    def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
+    try: xls=pd.ExcelFile(arquivo)
+    except Exception as e: return None,[f"Erro: {e}"],[]
+
+    abas_norm=[norm(a) for a in xls.sheet_names]; abas_orig=xls.sheet_names
+
+    # Busca aba PAGOS — prioridade nome exato, depois variações
+    aba_pagos=None
+    for i,a in enumerate(abas_norm):
+        if a.strip()=='PAGOS': aba_pagos=abas_orig[i]; break
+    if not aba_pagos:
+        for i,a in enumerate(abas_norm):
+            if any(p in a for p in ['PAGO','PAGAM','RECEB','BASE','BAIXA','PAGT']):
+                aba_pagos=abas_orig[i]; break
+    if not aba_pagos:
+        for i,a in enumerate(abas_norm):
+            if not any(x in a for x in ['CHAT','LIG','DISPAR','CONTATO']):
+                aba_pagos=abas_orig[i]; break
+    if not aba_pagos: aba_pagos=abas_orig[0]
+
+    df=pd.read_excel(xls,sheet_name=aba_pagos,header=0).reset_index(drop=True)
+    df['_row_id']=df.index
+
+    # Mapeamento de colunas por nome — flexível para qualquer ordem
+    col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
+    for c in df.columns:
+        cn=norm(str(c))
+        if not col_cpf and any(x in cn for x in ['CPF','UC','INSTAL','MATRICUL','COD_C','CODIGO_C','ID_C','NUM_C','CONTRATO','MATRICULA','CODIGO']): col_cpf=c
+        if not col_val and any(x in cn for x in ['VALOR','VLR','VL_','PAGAR','APAGAR','TOTAL','VAL_TOT','RECEB']): col_val=c
+        if not col_dpag and any(x in cn for x in ['PAGAM','PAGTO','DT_PAG','DATA_PAG','BAIXA','DT_BAI','DATA DE PAG','DATAPAG','DATA PAG','DATA PAGAMENTO']): col_dpag=c
+        if not col_dvenc and any(x in cn for x in ['VENC','DATA DE VENC','DT_VENC','DATAVENC','DATA VENC','DATA VENCIMENTO','VENCIMENTO']): col_dvenc=c
+        if not col_forn and any(x in cn for x in ['FORNEC','DISTRIB','EMPRESA','CONCESS','FORNECEDOR','FORNECEDORA','FORN']): col_forn=c
+
+    # Fallback CPF: coluna com valores numéricos de 8-14 dígitos
+    if not col_cpf:
+        best_col=None; best_score=0
+        for c in df.columns:
+            try:
+                sample=df[c].dropna().astype(str).head(20)
+                score=sum(1 for s in sample if s.replace('.','').replace('-','').replace('/','').isdigit() and 8<=len(s.replace('.','').replace('-','').replace('/',''))<=14)
+                if score>best_score: best_score=score; best_col=c
+            except: pass
+        if best_col and best_score>=3: col_cpf=best_col
+
+    mapa={}
+    if col_cpf:   mapa[col_cpf]='uc_cpf'
+    if col_val:   mapa[col_val]='valor'
+    if col_dpag:  mapa[col_dpag]='data_pagamento'
+    if col_dvenc: mapa[col_dvenc]='data_vencimento'
+    if col_forn:  mapa[col_forn]='fornecedora'
+    df=df.rename(columns=mapa)
+
+    if 'uc_cpf' in df.columns: df['uc_cpf']=df['uc_cpf'].apply(normalizar_cpf)
+    if 'data_pagamento' in df.columns: df['data_pagamento']=pd.to_datetime(df['data_pagamento'],dayfirst=True,errors='coerce').dt.normalize()
+    if 'data_vencimento' in df.columns: df['data_vencimento']=pd.to_datetime(df['data_vencimento'],dayfirst=True,errors='coerce').dt.normalize()
+    if 'valor' in df.columns:
+        def cv(v):
+            s=str(v).strip().replace('R$','').replace(' ','')
+            try: return float(s)
+            except:
+                try: return float(s.replace('.','').replace(',','.'))
+                except: return 0.0
+        df['valor']=df['valor'].apply(cv)
+
+    # Lê abas de contato
+    contatos=[]; abas_lidas=[]
+    for busca,nome in [('CHAT','CHAT'),('LIG','LIGAÇÕES'),('DISPAR','DISPAROS')]:
+        aba=next((abas_orig[i] for i,a in enumerate(abas_norm) if busca in a),None)
+        if not aba: continue
+        try:
+            dc=pd.read_excel(xls,sheet_name=aba,header=0)
+            if dc.empty or len(dc.columns)<2: continue
+            cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ['CPF','UC','INSTAL','MATRICUL','COD','CLIENT','CONTRATO'])),dc.columns[0])
+            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ['DATA','DT_','BAIXA','CONTATO','INTERAC','LIGAC','CHAT','DISPAR','PAGAM'])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
+            dd=pd.DataFrame({'uc_cpf':dc[cc].apply(normalizar_cpf),'data_contato':pd.to_datetime(dc[cd],dayfirst=True,errors='coerce').dt.normalize()}).dropna(subset=['data_contato'])
+            dd=dd[dd['uc_cpf'].str.len()>=3]
+            if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
+        except: pass
+
+    if contatos:
+        pc=pd.concat(contatos,ignore_index=True).groupby('uc_cpf',as_index=False)['data_contato'].min()
+        df['primeiro_contato']=df['uc_cpf'].map(dict(zip(pc['uc_cpf'],pc['data_contato'])))
+    else:
+        df['primeiro_contato']=pd.NaT
+
+    df=df.drop(columns=['_row_id'],errors='ignore').reset_index(drop=True)
+    df['data_pagamento']=pd.to_datetime(df['data_pagamento'],errors='coerce').dt.normalize()
+    df['primeiro_contato']=pd.to_datetime(df['primeiro_contato'],errors='coerce').dt.normalize()
+    df['diferenca_dias']=(df['data_pagamento']-df['primeiro_contato']).dt.days
+
+    def classif(row):
+        if pd.isna(row.get('primeiro_contato')): return 'ND'
+        d=row.get('diferenca_dias')
+        if pd.isna(d): return 'ND'
+        return 'Elegível' if int(d)>=0 else 'Não Elegível'
+
+    df['elegibilidade']=df.apply(classif,axis=1)
+    if 'data_vencimento' in df.columns:
+        df['dias_vencidos']=(df['data_pagamento']-df['data_vencimento']).dt.days
+    else:
+        df['dias_vencidos']=None
+    df['aging']=df['dias_vencidos'].apply(aging_faixa)
+
+    for col in ['data_vencimento','data_pagamento','primeiro_contato']:
+        if col in df.columns:
+            try: df[col]=pd.to_datetime(df[col],errors='coerce').dt.strftime('%Y-%m-%d').where(pd.to_datetime(df[col],errors='coerce').notna(),other=None)
+            except: pass
+
+    df['equipe']=eq; df['mes_ano']=ma
+    return df,[],abas_lidas
 
 # ── METAS ──────────────────────────────────────
 def pagina_metas(ma):
@@ -1037,62 +1007,6 @@ def pagina_metas(ma):
         salvar_meta_gestora(ma,eq,mg_val,tpct)
         st.success("Metas salvas!"); st.rerun()
 
-    # ── HISTÓRICO DE METAS
-    st.markdown("---")
-    st.markdown("<p style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px'>HISTÓRICO DE METAS</p>",unsafe_allow_html=True)
-    idx_ma=MESES_NOMES.index(ma.split("-")[0]); ano_ma=int(ma.split("-")[1])
-    meses_hist=[]
-    for i in range(1,7):
-        m2=idx_ma-i; a2=ano_ma
-        if m2<0: m2+=12; a2-=1
-        meses_hist.append(f"{MESES_NOMES[m2]}-{a2}")
-
-    rows_hist=[]
-    mg_ant=None
-    for mh in reversed(meses_hist):
-        mg_h=buscar_meta_gestora(mh,eq)
-        meta_h=float(mg_h.get("metaGestora",0))
-        if meta_h==0: continue
-        var_h=calc_variacao(meta_h,mg_ant) if mg_ant else None
-        seta="↑" if (var_h or 0)>=0 else "↓"
-        rows_hist.append({
-            "Mês":mh.replace("-"," "),
-            "Meta Gestora":fmt_brl(meta_h),
-            "Variação":f"{seta} {abs(var_h):.1f}%" if var_h is not None else "—",
-        })
-        mg_ant=meta_h
-
-    # Mês atual
-    var_atual=calc_variacao(mg_val,mg_ant) if mg_ant else None
-    seta_atual="↑" if (var_atual or 0)>=0 else "↓"
-    rows_hist.append({
-        "Mês":f"{ma.replace('-',' ')} (atual)",
-        "Meta Gestora":fmt_brl(mg_val),
-        "Variação":f"{seta_atual} {abs(var_atual):.1f}%" if var_atual is not None else "—",
-    })
-
-    if rows_hist:
-        df_hist=pd.DataFrame(rows_hist)
-        df_hist.index=range(1,len(df_hist)+1)
-        st.dataframe(df_hist,use_container_width=True,hide_index=False)
-
-    # Histórico por operador
-    with st.expander("Ver histórico por operador"):
-        for op in ops:
-            vals=[]
-            meta_ant_op=None
-            for mh in reversed(meses_hist):
-                ms_h=buscar_metas_equipe(mh,eq)
-                mv=float(ms_h.get(op["_id"],0))
-                if mv==0: continue
-                var_op=calc_variacao(mv,meta_ant_op) if meta_ant_op else None
-                sv="↑" if (var_op or 0)>=0 else "↓"
-                vals.append({"Mês":mh.replace("-"," "),"Meta":fmt_brl(mv),"Var.":f"{sv} {abs(var_op):.1f}%" if var_op is not None else "—"})
-                meta_ant_op=mv
-            if vals:
-                st.markdown(f"<p style='color:#8ab89a;font-size:12px;font-weight:600;margin-bottom:4px'>{op['nome']}</p>",unsafe_allow_html=True)
-                st.dataframe(pd.DataFrame(vals),use_container_width=True,hide_index=True)
-
 # ── LANÇAMENTO ─────────────────────────────────
 def pagina_lancamento(ma):
     u=st.session_state.usuario
@@ -1110,15 +1024,10 @@ def pagina_lancamento(ma):
         hoje=date.today()
         data_sel=st.date_input("Data do Resultado *",value=hoje,min_value=date(hoje.year,1,1),max_value=date(hoje.year,12,31),key=f"data_{eq}_{ma}")
         eh_fech=st.checkbox("Fechamento do Mês",key=f"fech_{eq}_{ma}")
-    with c2:
-        dt=st.number_input("Dias Trabalhados *",min_value=0,max_value=31,value=0,key=f"dt_{eq}_{ma}")
-    with c3:
-        td=st.number_input("Total Dias do Mês *",min_value=0,max_value=31,value=0,key=f"td_{eq}_{ma}")
-    st.markdown("<p style='color:#81c784;font-size:11px;margin-top:4px'>* Campos obrigatórios — preenchidos a cada lançamento</p>",unsafe_allow_html=True)
+    with c2: dt=st.number_input("Dias Trabalhados *",min_value=0,max_value=31,value=0,key=f"dt_{eq}_{ma}")
+    with c3: td=st.number_input("Total Dias do Mês *",min_value=0,max_value=31,value=0,key=f"td_{eq}_{ma}")
     st.markdown("---")
     st.markdown("### Valores por Operador")
-    cols_h=st.columns([3,2,2])
-    cols_h[0].markdown("**Operador**"); cols_h[1].markdown("**Meta**"); cols_h[2].markdown("**Valor Recebido (R$)**")
     vi={}
     for op in ops:
         meta=float(ms.get(op["_id"],0))
@@ -1133,7 +1042,6 @@ def pagina_lancamento(ma):
         errs=[]
         if dt==0: errs.append("Dias Trabalhados é obrigatório.")
         if td==0: errs.append("Total de Dias do Mês é obrigatório.")
-        if not data_sel: errs.append("Data do Resultado é obrigatória.")
         if tc==0: errs.append("Preencha pelo menos um valor de operador.")
         if errs:
             for e in errs: st.error(e)
@@ -1160,46 +1068,29 @@ def pagina_quadro(ma):
     is_dir=u["role"]=="diretor"; is_adm=u["role"]=="admin"
     eqs=list(EQUIPES.keys()) if (is_dir or is_adm) else [u["equipe"]]
     header_page("Quadro de Resultados", ma.replace("-"," ").upper())
-
     for eq in eqs:
         try:
             ops=buscar_operadores(eq); lancs=buscar_lancamentos(ma,eq)
-        except Exception as e:
-            st.error(f"Erro ao conectar ao banco de dados. Tente recarregar a página.")
-            continue
+        except:
+            st.error("Erro ao conectar ao banco. Tente recarregar."); continue
         if not lancs: continue
         ul=lancs[0]; mg_doc=buscar_meta_gestora(ma,eq); mops=buscar_metas_equipe(ma,eq)
         mg=float(mg_doc.get("metaGestora",0))
-
-        # Com interação = soma dos operadores lançados
         tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict))
         dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
-
-        # Recebido Geral = total elegível do processamento (1° contato)
         up=buscar_ultimo_processamento(ma,eq)
         rec_geral=float(up.get("valorElegivel",0)) if up else 0
-
-        # Sem interação = Recebido Geral - Com Interação
         sem=max(0, rec_geral - tc)
-
-        # Projeção = (Recebido Geral / Dias Trabalhados) * Total Dias
         proj=calc_projecao(rec_geral, dt, td)
-
-        # % Meta = Recebido Geral / Meta
         pct=(rec_geral/mg*100) if mg>0 else 0
-
-        cor_pct_v=cor_pct(pct)
-
+        cv=cor_pct(pct)
         st.markdown(
             f"<div style='background:linear-gradient(135deg,#0a1f0a,#0d2a0d);border:1px solid #1e3a1e;"
-            f"border-radius:14px;padding:20px 24px;margin-bottom:6px;border-left:3px solid #00c853;"
-            f"box-shadow:0 4px 24px rgba(0,0,0,0.3)'>"
+            f"border-radius:14px;padding:20px 24px;margin-bottom:6px;border-left:3px solid #00c853'>"
             f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px'>"
-            f"<div style='font-size:15px;font-weight:700;color:#ffffff;letter-spacing:-0.2px'>Equipe {EQUIPES[eq]['nome']} · {ul.get('label','')}</div>"
-            f"<div style='text-align:right'>"
-            f"<div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>% META</div>"
-            f"<div style='color:{cor_pct_v};font-size:24px;font-weight:800;letter-spacing:-0.5px'>{pct:.1f}%</div>"
-            f"</div></div>"
+            f"<div style='font-size:15px;font-weight:700;color:#ffffff'>Equipe {EQUIPES[eq]['nome']} · {ul.get('label','')}</div>"
+            f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>% META</div>"
+            f"<div style='color:{cv};font-size:24px;font-weight:800'>{pct:.1f}%</div></div></div>"
             f"<div style='display:flex;gap:28px;flex-wrap:wrap'>"
             f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>RECEBIDO GERAL</div>"
             f"<div style='color:#00c853;font-weight:700;font-size:16px'>{fmt_brl(rec_geral)}</div></div>"
@@ -1213,10 +1104,7 @@ def pagina_quadro(ma):
             f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(proj)}</div></div>"
             f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>DIAS</div>"
             f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{dt}/{td}</div></div>"
-            f"</div></div>",
-            unsafe_allow_html=True)
-
-        # Diretor: oculta operadores por padrão
+            f"</div></div>", unsafe_allow_html=True)
         show=True
         if is_dir:
             k=f"show_ops_{eq}"
@@ -1224,79 +1112,51 @@ def pagina_quadro(ma):
             if st.button(f"{'Ocultar' if st.session_state[k] else 'Exibir'} Operadores — {EQUIPES[eq]['nome']}",key=f"btn_ops_{eq}"):
                 st.session_state[k]=not st.session_state[k]; st.rerun()
             show=st.session_state[k]
-
         if show and ops:
             rows=[]
             for op in ops:
                 v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
                 meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
-                rows.append({"Status":status_pct(pc) if meta>0 else "—",
-                    "Operador":op["nome"]+(" ★" if op.get("pleno") else ""),
-                    "Recebido":fmt_brl(v) if v>0 else "—",
-                    "Meta":fmt_brl(meta) if meta>0 else "—",
-                    "% Meta":f"{pc:.1f}%" if meta>0 else "—",
-                    "_v":v})
+                rows.append({"Status":status_pct(pc) if meta>0 else "—","Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","_v":v})
             df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
             df.index=range(1,len(df)+1)
             st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
-
-        # Por Fornecedora — apenas elegíveis para fechar com o total geral
         if up and up.get("registros"):
             try:
                 df_proc=pd.DataFrame(up["registros"])
                 if "fornecedora" in df_proc.columns and "valor" in df_proc.columns:
                     df_proc["valor"]=pd.to_numeric(df_proc["valor"],errors="coerce").fillna(0)
-                    # Filtra APENAS elegíveis — mesma base do rec_geral
-                    if "elegibilidade" in df_proc.columns:
-                        elig_proc=df_proc[df_proc["elegibilidade"]=="Elegível"]
-                    else:
-                        elig_proc=df_proc
+                    elig_proc=df_proc[df_proc["elegibilidade"]=="Elegível"] if "elegibilidade" in df_proc.columns else df_proc
                     forn_grp=elig_proc.groupby("fornecedora")["valor"].sum().reset_index()
                     forn_grp=forn_grp[forn_grp["valor"]>0].sort_values("valor",ascending=False)
                     if not forn_grp.empty:
                         total_forn=forn_grp["valor"].sum()
                         st.markdown("<p style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px'>POR FORNECEDORA</p>",unsafe_allow_html=True)
                         forn_rows=[{"Fornecedora":str(r["fornecedora"]),"Valor Recebido":fmt_brl(r["valor"])} for _,r in forn_grp.iterrows()]
-                        # Linha de total
                         forn_rows.append({"Fornecedora":"TOTAL GERAL","Valor Recebido":fmt_brl(total_forn)})
-                        df_forn=pd.DataFrame(forn_rows)
-                        df_forn.index=range(1,len(df_forn)+1)
+                        df_forn=pd.DataFrame(forn_rows); df_forn.index=range(1,len(df_forn)+1)
                         st.dataframe(df_forn,use_container_width=True,hide_index=False)
             except: pass
         st.markdown("---")
 
-    if st.button("Exportar Excel"):
-        out=io.BytesIO()
-        with pd.ExcelWriter(out,engine="xlsxwriter") as w:
-            for eq in eqs:
-                ops_e=buscar_operadores(eq); lancs_e=buscar_lancamentos(ma,eq)
-                if not ops_e or not lancs_e: continue
-                ul=lancs_e[0]; me=buscar_metas_equipe(ma,eq)
-                rows=[{"Operador":op["nome"],"Recebido":get_val_op(ul.get("agentes",{}),op["_id"],op["nome"]),"Meta":float(me.get(op["_id"],0))} for op in ops_e]
-                pd.DataFrame(rows).to_excel(w,sheet_name=EQUIPES[eq]["nome"],index=False)
-        st.download_button("Baixar Excel",data=out.getvalue(),file_name=f"iGreen_{ma}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 # ── MONITORIAS ─────────────────────────────────
 def pagina_monitorias(ma):
     u=st.session_state.usuario
-    header_page("Monitorias","Avaliação de qualidade · Inadimplência Comercial")
+    header_page("Monitorias","Avaliação de qualidade")
     if u["role"]=="diretor": pagina_monitorias_diretor(ma); return
     eq=seletor_equipe(u["equipe"]); ops=buscar_operadores(eq)
     if not ops: st.warning("Cadastre operadores primeiro."); return
     if "mon_op_sel" not in st.session_state: st.session_state.mon_op_sel=None
-    if "mon_modo"   not in st.session_state: st.session_state.mon_modo=None
+    if "mon_modo" not in st.session_state: st.session_state.mon_modo=None
 
     if st.session_state.mon_op_sel is None:
-        # Mostra sucesso se acabou de salvar
-        ultimo = st.session_state.pop('mon_ultimo_salvo', None)
+        ultimo=st.session_state.pop("mon_ultimo_salvo",None)
         if ultimo:
             st.success(f"Monitoria salva! {ultimo['nome']} — Nota: {ultimo['nota']:.0f}% | Média: {ultimo['media']:.1f}% | Pontos: {ultimo['pontos']}")
-            st.markdown(f'<a href="data:text/html;base64,{ultimo["b64"]}" download="Monitoria_{ultimo["nome"].replace(" ","_")}_{ultimo["prot"]}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;margin-bottom:12px">Baixar PDF desta monitoria</a>',unsafe_allow_html=True)
-
-        # Média da equipe
+            st.markdown(f'<a href="data:text/html;base64,{ultimo["b64"]}" download="Mon_{ultimo["nome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;margin-bottom:12px">Baixar PDF</a>',unsafe_allow_html=True)
         monts_eq=buscar_monitorias_equipe(eq,ma)
         if monts_eq:
-            medias_eq=[calc_media_operador(op['_id'],ma)[0] for op in ops if calc_media_operador(op['_id'],ma)[1]>0]
+            medias_eq=[calc_media_operador(op["_id"],ma)[0] for op in ops if calc_media_operador(op["_id"],ma)[1]>0]
             if medias_eq:
                 me_eq=sum(medias_eq)/len(medias_eq)
                 st_txt,st_cor,_=get_status_media(me_eq)
@@ -1308,7 +1168,6 @@ def pagina_monitorias(ma):
                     f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>STATUS</div>"
                     f"<div style='color:{st_cor};font-size:13px;font-weight:600'>{st_txt}</div></div>"
                     f"</div>",unsafe_allow_html=True)
-
         st.markdown(f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:16px'><div style='color:#81c784;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600'>Selecione um operador</div><div style='color:#a5d6a7;font-size:12px'>{len(ops)} operadores · {ma.replace('-',' ')}</div></div>",unsafe_allow_html=True)
         for i in range(0,len(ops),4):
             cols=st.columns(4)
@@ -1317,12 +1176,11 @@ def pagina_monitorias(ma):
                 st_txt,st_cor,st_bg=get_status_media(media)
                 ini=get_iniciais(op["nome"]); cini=get_cor_inicial(op["nome"])
                 with cols[j]:
-                    st.markdown(f"""<div style="background:#ffffff;border:1px solid #c8e6c9;border-radius:12px;padding:16px;text-align:center;margin-bottom:8px">
+                    st.markdown(f"""<div style="background:#0d1a0d;border:1px solid #1e3a1e;border-radius:12px;padding:16px;text-align:center;margin-bottom:8px">
                         <div style="width:48px;height:48px;background:{cini};border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px;margin-bottom:8px">{ini}</div>
-                        <div style="color:#1b5e20;font-weight:700;font-size:13px;margin-bottom:6px">{op['nome']}{'  ★' if op.get('pleno') else ''}</div>
-                        <div style="background:{st_bg};color:{st_cor};font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:6px">{st_txt}</div>
-                        <div style="color:#555;font-size:12px">Média: <strong style="color:{st_cor}">{media:.1f}%</strong></div>
-                        <div style="color:#888;font-size:11px">{n} monitoria{'s' if n!=1 else ''} no mês</div>
+                        <div style="color:#e8f5e9;font-weight:700;font-size:13px;margin-bottom:6px">{op['nome']}{'  ★' if op.get('pleno') else ''}</div>
+                        <div style="color:{st_cor};font-size:18px;font-weight:800">{media:.1f}%</div>
+                        <div style="color:#3a6a4a;font-size:11px">{n} monitoria{'s' if n!=1 else ''}</div>
                     </div>""",unsafe_allow_html=True)
                     c1,c2=st.columns(2)
                     with c1:
@@ -1335,162 +1193,81 @@ def pagina_monitorias(ma):
 
     op=st.session_state.mon_op_sel
     media_op,n_op=calc_media_operador(op["_id"],ma)
-    st_txt,st_cor,st_bg=get_status_media(media_op)
-    ini=get_iniciais(op["nome"]); cini=get_cor_inicial(op["nome"])
-    st.markdown(f"""<div style="background:#ffffff;border:1px solid #c8e6c9;border-radius:12px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px">
-        <div style="width:52px;height:52px;background:{cini};border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;flex-shrink:0">{ini}</div>
-        <div style="flex:1"><div style="color:#1b5e20;font-weight:700;font-size:16px">{op['nome']}</div><div style="color:#555;font-size:12px;margin-top:2px">{ma.replace('-',' ')}</div></div>
-        <div style="display:flex;gap:20px;text-align:center">
-            <div><div style="color:#666;font-size:10px;text-transform:uppercase">Média</div><div style="color:{st_cor};font-size:20px;font-weight:800">{media_op:.1f}%</div></div>
-            <div><div style="color:#666;font-size:10px;text-transform:uppercase">Status</div><div style="background:{st_bg};color:{st_cor};font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;margin-top:2px">{st_txt}</div></div>
-            <div><div style="color:#666;font-size:10px;text-transform:uppercase">Monitorias</div><div style="color:#1b5e20;font-size:20px;font-weight:800">{n_op}</div></div>
-        </div>
-    </div>""",unsafe_allow_html=True)
     if st.button("← Voltar"): st.session_state.mon_op_sel=None; st.session_state.mon_modo=None; st.rerun()
     st.markdown("---")
     t1,t2=st.tabs(["Nova Monitoria","Monitorias do Mês"])
-
     with t1:
         semana=st.selectbox("Qual monitoria é esta?",SEMANAS_MONITORIA,key="semana_sel")
-        # Aviso se já existe
-        monts_op=[m for m in buscar_monitorias_equipe(eq,ma) if m["opId"]==op["_id"]]
-        ja_tem=[m for m in monts_op if m.get("semana_mon")==semana]
-        if ja_tem:
-            st.markdown(f"""<div style="background:#ffebee;border:1px solid #ef9a9a;border-radius:8px;padding:12px 16px;margin-bottom:12px;border-left:4px solid #e53935">
-                <span style="color:#c62828;font-weight:700;font-size:13px">Atenção: já existe uma monitoria registrada para "{semana}" deste operador neste mês. Você pode salvar mesmo assim, mas ficará como ocorrência adicional.</span>
-            </div>""",unsafe_allow_html=True)
         prot=st.text_input("Protocolo da Ligação",placeholder="Ex: 20260520-001",key="prot_input")
         obs=st.text_area("Observações",placeholder="Anotações...",height=70,key="obs_input")
         st.markdown("---")
-        st.markdown("### Erros Críticos — Zera a Monitoria")
         erros_m=[]; c1,c2=st.columns(2)
         for i,ec in enumerate(get_erros_criticos()):
             with (c1 if i%2==0 else c2):
-                if st.checkbox(f"{ec['nome']} — {ec['desc']}",key=f"ec_{ec['id']}"): erros_m.append(ec)
+                if st.checkbox(f"{ec['nome']}",key=f"ec_{ec['id']}"): erros_m.append(ec)
         st.markdown("---")
-        st.markdown("### Critérios de Avaliação")
         zerada=len(erros_m)>0; crits_r=[]; nota=0 if zerada else 100
         if zerada:
             st.error("MONITORIA ZERADA — Erro crítico marcado!")
             for c in get_criterios(): crits_r.append({**c,"passou":False})
         else:
             for crit in get_criterios():
-                ct="#c62828" if crit["obrigatorio"] else "#1b5e20"
-                cb="#ef9a9a" if crit["obrigatorio"] else "#a5d6a7"
-                bg="#fff5f5" if crit["obrigatorio"] else "#e8f5e9"
-                ih="".join([f"<div style='font-size:13px;color:{'#b71c1c' if 'obrigatório' in it.lower() else '#333'};font-weight:{'700' if 'obrigatório' in it.lower() else '400'};padding:3px 0 3px 12px;border-left:2px solid {'#ef9a9a' if 'obrigatório' in it.lower() else '#c8e6c9'};margin-bottom:4px'>• {it}</div>" for it in crit["itens"]])
-                st.markdown(f"""<div style="background:{bg};border:1px solid {cb};border-radius:10px;padding:14px 18px;margin-bottom:10px">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                        <span style="color:{ct};font-weight:700;font-size:15px">{crit['num']} {crit['nome']}</span>
-                        <span style="background:rgba(0,0,0,0.06);color:{ct};padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">Peso {crit['peso']} {'— Obrigatório' if crit['obrigatorio'] else ''}</span>
-                    </div><div style="margin-bottom:10px">{ih}</div></div>""",unsafe_allow_html=True)
-                passou=st.checkbox(f"{crit['num']} {crit['nome']} — passou",key=f"cr_{crit['id']}",value=True)
+                passou=st.checkbox(f"{crit['num']} {crit['nome']} — Peso {crit['peso']}",key=f"cr_{crit['id']}",value=True)
                 if not passou: nota-=crit["peso"]
                 crits_r.append({**crit,"passou":passou})
         nota=max(0,nota)
         cn="#2e7d32" if nota>=80 else "#f57f17" if nota>=60 else "#c62828"
-        st.markdown(f"""<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:12px;padding:16px 24px;text-align:center;margin:16px 0">
-            <div style="color:#2e7d32;font-size:11px;text-transform:uppercase;letter-spacing:1px">Nota desta Monitoria</div>
-            <div style="color:{cn};font-size:44px;font-weight:800;margin:6px 0">{nota:.0f}%</div>
-            <div style="color:#555;font-size:12px">{semana}</div>
-        </div>""",unsafe_allow_html=True)
-        sk=f"mon_salvo_{op['_id']}_{semana}_{ma}"
-        if st.session_state.get(sk):
-            st.success("Monitoria já salva! Selecione outro operador ou semana para continuar.")
-        else:
-            if st.button("Salvar Monitoria",use_container_width=True):
-                if not prot.strip(): st.error("Preencha o protocolo da ligação!")
-                else:
-                    salvar_monitoria(eq,op["_id"],op["nome"],prot,obs,crits_r,erros_m,nota,ma,semana=semana)
-                    mm,nm=calc_media_operador(op["_id"],ma)
-                    html=gerar_pdf_monitoria(op["nome"],prot,obs,crits_r,erros_m,nota,mm,nm,ma)
-                    b64=base64.b64encode(html.encode()).decode()
-                    # Volta para grade de operadores
-                    st.session_state.mon_op_sel=None
-                    st.session_state.mon_modo=None
-                    st.session_state["mon_ultimo_salvo"]={"nome":op["nome"],"nota":nota,"media":mm,"pontos":calc_pontos(mm),"b64":b64,"prot":prot}
-                    st.rerun()
-
+        st.markdown(f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:12px;padding:16px 24px;text-align:center;margin:16px 0'><div style='color:#3a6a4a;font-size:11px;text-transform:uppercase'>Nota</div><div style='color:{cn};font-size:44px;font-weight:800'>{nota:.0f}%</div></div>",unsafe_allow_html=True)
+        if st.button("Salvar Monitoria",use_container_width=True):
+            if not prot.strip(): st.error("Preencha o protocolo da ligação!")
+            else:
+                salvar_monitoria(eq,op["_id"],op["nome"],prot,obs,crits_r,erros_m,nota,ma,semana=semana)
+                mm,nm=calc_media_operador(op["_id"],ma)
+                html=gerar_pdf_monitoria(op["nome"],prot,obs,crits_r,erros_m,nota,mm,nm,ma)
+                b64=base64.b64encode(html.encode()).decode()
+                st.session_state.mon_op_sel=None
+                st.session_state.mon_modo=None
+                st.session_state["mon_ultimo_salvo"]={"nome":op["nome"],"nota":nota,"media":mm,"pontos":calc_pontos(mm),"b64":b64,"prot":prot}
+                st.rerun()
     with t2:
         monts2=[m for m in buscar_monitorias_equipe(eq,ma) if m["opId"]==op["_id"]]
         if not monts2: st.info(f"Nenhuma monitoria para {op['nome']} em {ma.replace('-',' ')}.")
         else:
-            st.markdown(f"**{len(monts2)} monitoria(s)**")
             for m in monts2:
                 nm=float(m.get("nota",0)); cm="#2e7d32" if nm>=80 else "#f57f17" if nm>=60 else "#c62828"
-                st.markdown(f"""<div style="background:#ffffff;border:1px solid #c8e6c9;border-radius:10px;padding:14px 18px;margin-bottom:8px;border-left:4px solid {cm}">
-                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-                        <div><div style="color:#1b5e20;font-weight:600;font-size:14px">{m.get('semana_mon','—')}</div>
-                            <div style="color:#555;font-size:12px;margin-top:2px">Protocolo: <strong>{m.get('protocolo','—')}</strong> · {str(m.get('criadoEm',''))[:10]}</div></div>
-                        <div style="text-align:center"><div style="font-size:10px;color:#666;text-transform:uppercase">Nota</div>
-                            <div style="font-size:18px;font-weight:800;color:{cm}">{nm:.0f}%</div></div>
-                    </div></div>""",unsafe_allow_html=True)
+                st.markdown(f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:10px;padding:14px 18px;margin-bottom:8px;border-left:3px solid {cm}'><div style='color:#fff;font-weight:600'>{m.get('semana_mon','—')}</div><div style='color:#3a6a4a;font-size:11px'>Protocolo: {m.get('protocolo','—')} · {str(m.get('criadoEm',''))[:10]}</div><div style='color:{cm};font-size:18px;font-weight:800'>{nm:.0f}%</div></div>",unsafe_allow_html=True)
                 with st.expander("Ver detalhes"):
-                    ch="".join([f"<div style='display:flex;justify-content:space-between;padding:6px 12px;background:{'#f1f8f1' if c.get('passou',True) else '#fff5f5'};border-radius:6px;margin-bottom:4px;border-left:3px solid {'#2e7d32' if c.get('passou',True) else '#c62828'}'><span style='color:#333;font-size:13px'>{c.get('num','')} {c.get('nome','')}</span><span style='color:{'#2e7d32' if c.get('passou',True) else '#c62828'};font-weight:700;font-size:13px'>{'Passou' if c.get('passou',True) else 'Não passou'}</span></div>" for c in m.get("criterios",[])])
-                    if ch: st.markdown(ch,unsafe_allow_html=True)
-                    if m.get("observacao"): st.markdown(f"<div style='margin-top:8px;padding:8px 12px;background:#f9fbe7;border-radius:6px;border-left:3px solid #cddc39;color:#555;font-size:13px'><strong>Obs:</strong> {m['observacao']}</div>",unsafe_allow_html=True)
-                cp,cd,_=st.columns([2,2,6])
-                hp=gerar_pdf_monitoria(m["opNome"],m.get("protocolo",""),m.get("observacao",""),m.get("criterios",[]),m.get("errosCriticos",[]),nm,media_op,n_op,ma)
-                b64=base64.b64encode(hp.encode()).decode()
-                with cp: st.markdown(f'<a href="data:text/html;base64,{b64}" download="Mon_{m["opNome"].replace(" ","_")}.html" style="display:block;background:#00c853;color:white;text-align:center;padding:8px 16px;border-radius:6px;text-decoration:none;font-weight:600;font-size:13px">Baixar PDF</a>',unsafe_allow_html=True)
-                with cd:
-                    if st.button("Excluir",key=f"del_op_{m['_id']}"): excluir_monitoria(m["_id"]); st.rerun()
+                    for c in m.get("criterios",[]):
+                        passou=c.get("passou",True); cc="#2e7d32" if passou else "#c62828"
+                        st.markdown(f"<div style='display:flex;justify-content:space-between;padding:6px 12px;background:#0a1a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid {cc}'><span style='color:#e8f5e9;font-size:12px'>{c.get('num','')} {c.get('nome','')}</span><span style='color:{cc};font-weight:600;font-size:12px'>{'Passou' if passou else 'Nao passou'}</span></div>",unsafe_allow_html=True)
+                    if m.get("observacao"): st.markdown(f"<div style='padding:8px 12px;background:#0a1a0a;border-radius:6px;border-left:3px solid #3a6a4a;color:#8ab89a;font-size:12px'><strong>Obs:</strong> {m['observacao']}</div>",unsafe_allow_html=True)
+                if st.button("Excluir",key=f"del_op_{m['_id']}"): excluir_monitoria(m["_id"]); st.rerun()
 
 def pagina_monitorias_diretor(ma):
-    # Estado para operador selecionado pelo diretor
     if "dir_op_sel" not in st.session_state: st.session_state.dir_op_sel=None
     if "dir_eq_sel" not in st.session_state: st.session_state.dir_eq_sel=None
-
-    # Se operador selecionado, mostra detalhes
     if st.session_state.dir_op_sel:
-        op = st.session_state.dir_op_sel
-        eq = st.session_state.dir_eq_sel
+        op=st.session_state.dir_op_sel; eq=st.session_state.dir_eq_sel
         media_op,n_op=calc_media_operador(op["_id"],ma)
-        st_txt,st_cor,st_bg=get_status_media(media_op)
-        if st.button("← Voltar para todas as equipes"):
+        st_txt,st_cor,_=get_status_media(media_op)
+        if st.button("← Voltar"):
             st.session_state.dir_op_sel=None; st.session_state.dir_eq_sel=None; st.rerun()
-        st.markdown(
-            f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:12px;padding:16px 20px;margin-bottom:16px'>"
-            f"<div style='color:#fff;font-weight:700;font-size:16px'>{op['nome']}</div>"
-            f"<div style='color:#3a6a4a;font-size:12px'>Equipe {EQUIPES.get(eq,{}).get('nome','—')} · {ma.replace('-',' ')} · Média: <strong style='color:{st_cor}'>{media_op:.1f}%</strong> · {n_op} monitorias</div>"
-            f"</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:12px;padding:16px 20px;margin-bottom:16px'><div style='color:#fff;font-weight:700;font-size:16px'>{op['nome']}</div><div style='color:#3a6a4a;font-size:12px'>Equipe {EQUIPES.get(eq,{}).get('nome','—')} · {ma.replace('-',' ')} · Média: <strong style='color:{st_cor}'>{media_op:.1f}%</strong></div></div>",unsafe_allow_html=True)
         monts_op=[m for m in buscar_monitorias_equipe(eq,ma) if m["opId"]==op["_id"]]
-        if not monts_op:
-            st.info("Nenhuma monitoria registrada neste mês.")
+        if not monts_op: st.info("Nenhuma monitoria registrada neste mês.")
         else:
             for m in monts_op:
                 nm=float(m.get("nota",0)); cm="#2e7d32" if nm>=80 else "#f57f17" if nm>=60 else "#c62828"
-                st.markdown(
-                    f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:10px;padding:14px 18px;margin-bottom:8px;border-left:3px solid {cm}'>"
-                    f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px'>"
-                    f"<div><div style='color:#fff;font-weight:600;font-size:13px'>{m.get('semana_mon','—')}</div>"
-                    f"<div style='color:#3a6a4a;font-size:11px;margin-top:2px'>Protocolo: <strong>{m.get('protocolo','—')}</strong> · {str(m.get('criadoEm',''))[:10]}</div></div>"
-                    f"<div style='text-align:center'><div style='font-size:9px;color:#3a6a4a;text-transform:uppercase'>Nota</div>"
-                    f"<div style='font-size:18px;font-weight:800;color:{cm}'>{nm:.0f}%</div></div>"
-                    f"</div></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:10px;padding:14px 18px;margin-bottom:8px;border-left:3px solid {cm}'><div style='color:#fff;font-weight:600'>{m.get('semana_mon','—')}</div><div style='color:#3a6a4a;font-size:11px'>Protocolo: {m.get('protocolo','—')} · {str(m.get('criadoEm',''))[:10]}</div><div style='color:{cm};font-size:18px;font-weight:800'>{nm:.0f}%</div></div>",unsafe_allow_html=True)
                 with st.expander("Ver detalhes"):
-                    crits=m.get("criterios",[])
-                    if crits:
-                        for c in crits:
-                            passou=c.get("passou",True)
-                            cc="#2e7d32" if passou else "#c62828"
-                            bg="#0a1a0a" if passou else "#1a0a0a"
-                            st.markdown(
-                                f"<div style='display:flex;justify-content:space-between;padding:6px 12px;"
-                                f"background:{bg};border-radius:6px;margin-bottom:4px;border-left:3px solid {cc}'>"
-                                f"<span style='color:#e8f5e9;font-size:12px'>{c.get('num','')} {c.get('nome','')}</span>"
-                                f"<span style='color:{cc};font-weight:600;font-size:12px'>{'Passou' if passou else 'Nao passou'}</span></div>",
-                                unsafe_allow_html=True)
-                    if m.get("errosCriticos"):
-                        st.error(f"Erro critico: {', '.join(e['nome'] for e in m['errosCriticos'])}")
-                    if m.get("observacao"):
-                        st.markdown(f"<div style='margin-top:8px;padding:8px 12px;background:#0a1a0a;border-radius:6px;border-left:3px solid #3a6a4a;color:#8ab89a;font-size:12px'><strong>Obs:</strong> {m['observacao']}</div>",unsafe_allow_html=True)
+                    for c in m.get("criterios",[]):
+                        passou=c.get("passou",True); cc="#2e7d32" if passou else "#c62828"
+                        st.markdown(f"<div style='display:flex;justify-content:space-between;padding:6px 12px;background:#0a1a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid {cc}'><span style='color:#e8f5e9;font-size:12px'>{c.get('num','')} {c.get('nome','')}</span><span style='color:{cc};font-weight:600;font-size:12px'>{'Passou' if passou else 'Nao passou'}</span></div>",unsafe_allow_html=True)
+                    if m.get("observacao"): st.markdown(f"<div style='padding:8px 12px;background:#0a1a0a;border-radius:6px;border-left:3px solid #3a6a4a;color:#8ab89a;font-size:12px'><strong>Obs:</strong> {m['observacao']}</div>",unsafe_allow_html=True)
                     hp=gerar_pdf_monitoria(m["opNome"],m.get("protocolo",""),m.get("observacao",""),m.get("criterios",[]),m.get("errosCriticos",[]),nm,media_op,n_op,ma)
                     b64=base64.b64encode(hp.encode()).decode()
-                    st.markdown(f'<a href="data:text/html;base64,{b64}" download="Mon_{m["opNome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px;margin-top:6px">Baixar PDF</a>',unsafe_allow_html=True)
+                    st.markdown(f'<a href="data:text/html;base64,{b64}" download="Mon_{m["opNome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px">Baixar PDF</a>',unsafe_allow_html=True)
         return
-
-    # Grade principal por equipe
     st.markdown("### Visão Geral — Monitorias por Equipe")
     todas_medias=[]
     for eq in EQUIPES:
@@ -1503,47 +1280,26 @@ def pagina_monitorias_diretor(ma):
         if not medias: continue
         me=sum(v[1][0] for v in medias.values())/len(medias)
         todas_medias.append(me)
-        st.markdown(
-            f"<div style='background:linear-gradient(135deg,#0a1a0a,#0d2010);border:1px solid #1e3a1e;"
-            f"border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:3px solid #00c853'>"
-            f"<div style='display:flex;justify-content:space-between;align-items:center'>"
-            f"<div style='font-size:15px;font-weight:700;color:#fff'>Equipe {EQUIPES[eq]['nome']}</div>"
-            f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>MEDIA DA EQUIPE</div>"
-            f"<div style='color:{cor_pct(me)};font-size:24px;font-weight:800'>{me:.1f}%</div></div>"
-            f"</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:3px solid #00c853'><div style='display:flex;justify-content:space-between;align-items:center'><div style='font-size:15px;font-weight:700;color:#fff'>Equipe {EQUIPES[eq]['nome']}</div><div style='text-align:right'><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>MEDIA DA EQUIPE</div><div style='color:{cor_pct(me)};font-size:24px;font-weight:800'>{me:.1f}%</div></div></div></div>",unsafe_allow_html=True)
         cols_op=st.columns(4)
         for idx_op,(nome,(op_obj,(media,n))) in enumerate(sorted(medias.items(),key=lambda x:-x[1][1][0])):
-            st_txt,st_cor,st_bg=get_status_media(media)
+            st_txt,st_cor,_=get_status_media(media)
             with cols_op[idx_op%4]:
-                st.markdown(
-                    f"<div style='background:#0d1a0d;border:1px solid #1e3a1e;border-radius:10px;padding:12px;text-align:center;margin-bottom:8px'>"
-                    f"<div style='color:#fff;font-weight:600;font-size:12px;margin-bottom:4px'>{nome}</div>"
-                    f"<div style='color:{st_cor};font-size:18px;font-weight:800'>{media:.1f}%</div>"
-                    f"<div style='color:#3a6a4a;font-size:10px'>{n} monitoria{'s' if n!=1 else ''}</div>"
-                    f"</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='background:#0d1a0d;border:1px solid #1e3a1e;border-radius:10px;padding:12px;text-align:center;margin-bottom:8px'><div style='color:#fff;font-weight:600;font-size:12px'>{nome}</div><div style='color:{st_cor};font-size:18px;font-weight:800'>{media:.1f}%</div><div style='color:#3a6a4a;font-size:10px'>{n} monitoria{'s' if n!=1 else ''}</div></div>",unsafe_allow_html=True)
                 if st.button("Ver detalhes",key=f"dir_op_{op_obj['_id']}",use_container_width=True):
-                    st.session_state.dir_op_sel=op_obj
-                    st.session_state.dir_eq_sel=eq
-                    st.rerun()
+                    st.session_state.dir_op_sel=op_obj; st.session_state.dir_eq_sel=eq; st.rerun()
         st.markdown("---")
-
     if todas_medias:
         mg=sum(todas_medias)/len(todas_medias)
-        st.markdown(
-            f"<div style='background:#001a0a;border:2px solid #1e3a1e;"
-            f"border-radius:12px;padding:20px 24px;text-align:center;margin-top:8px'>"
-            f"<div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px'>MEDIA GERAL — TODAS AS EQUIPES</div>"
-            f"<div style='color:{cor_pct(mg)};font-size:32px;font-weight:800'>{mg:.1f}%</div>"
-            f"</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#001a0a;border:2px solid #1e3a1e;border-radius:12px;padding:20px 24px;text-align:center'><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px'>MEDIA GERAL</div><div style='color:{cor_pct(mg)};font-size:32px;font-weight:800'>{mg:.1f}%</div></div>",unsafe_allow_html=True)
 
-
+# ── ANÁLISE DOS OPERADORES ─────────────────────
 def pagina_analise_operadores(ma):
     u=st.session_state.usuario
     eqs=list(EQUIPES.keys()) if u["role"] in ["diretor","admin"] else [u["equipe"]]
-    header_page("Análise dos Operadores",f"Resultado real comparativo · {ma.replace('-',' ')}")
+    header_page("Análise dos Operadores",f"Resultado comparativo · {ma.replace('-',' ')}")
     idx=MESES_NOMES.index(ma.split("-")[0]); ano=int(ma.split("-")[1])
     ma_ant=f"{MESES_NOMES[11]}-{ano-1}" if idx==0 else f"{MESES_NOMES[idx-1]}-{ano}"
-    st.markdown(f"<p style='color:#3a6a4a;font-size:12px'>Comparando <strong style='color:#00c853'>{ma.replace('-',' ')}</strong> vs <strong style='color:#5a9a70'>{ma_ant.replace('-',' ')}</strong></p>",unsafe_allow_html=True)
     st.markdown("---")
     for eq in eqs:
         ops=buscar_operadores(eq)
@@ -1551,27 +1307,6 @@ def pagina_analise_operadores(ma):
         lat=buscar_lancamentos(ma,eq); lan=buscar_lancamentos(ma_ant,eq)
         if not lat: continue
         ul=lat[0]; ul_an=lan[0] if lan else None
-        dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
-        tc=float(ul.get("totalEquipe",0)); tc_an=float(ul_an.get("totalEquipe",0)) if ul_an else 0
-        var_eq=calc_variacao(tc,tc_an)
-        cor_var='#00c853' if (var_eq or 0)>=0 else '#ef5350'
-        seta='↑' if (var_eq or 0)>=0 else '↓'
-        var_str=f"{seta} {abs(var_eq):.1f}%" if var_eq is not None else "—"
-        st.markdown(
-            f"<div style='background:linear-gradient(135deg,#0a1a0a,#0d2010);border:1px solid #1e3a1e;"
-            f"border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:3px solid #00c853'>"
-            f"<div style='font-size:14px;font-weight:700;color:#ffffff;margin-bottom:10px'>Equipe {EQUIPES[eq]['nome']}</div>"
-            f"<div style='display:flex;gap:24px;flex-wrap:wrap'>"
-            f"<div><span style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>RECEBIDO {ma.split('-')[0].upper()}</span><br>"
-            f"<span style='color:#00c853;font-weight:700;font-size:16px'>{fmt_brl(tc)}</span></div>"
-            f"<div><span style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>MÊS ANTERIOR</span><br>"
-            f"<span style='color:#8ab89a;font-weight:600'>{fmt_brl(tc_an) if tc_an else chr(8212)}</span></div>"
-            f"<div><span style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>VARIAÇÃO</span><br>"
-            f"<span style='color:{cor_var};font-weight:700'>{var_str}</span></div>"
-            f"<div><span style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1px'>DIAS</span><br>"
-            f"<span style='color:#8ab89a;font-weight:600'>{dt}/{td}</span></div>"
-            f"</div></div>",
-            unsafe_allow_html=True)
         mops=buscar_metas_equipe(ma,eq)
         rows=[]
         for op in ops:
@@ -1580,15 +1315,9 @@ def pagina_analise_operadores(ma):
             meta=float(mops.get(op["_id"],0))
             pct=(vat/meta*100) if meta>0 else 0
             var_op=calc_variacao(vat,van)
-            sv='↑' if (var_op or 0)>=0 else '↓'
-            rows.append({
-                "Operador":("★ " if op.get("pleno") else "")+op["nome"],
-                "Recebido":fmt_brl(vat) if vat>0 else "—",
-                "Meta":fmt_brl(meta) if meta>0 else "—",
-                "% Meta":f"{pct:.1f}%" if meta>0 else "—",
-                "Mês Ant.":fmt_brl(van) if van>0 else "—",
-                "Variação":f"{sv} {abs(var_op):.1f}%" if var_op is not None else "—",
-                "_v":vat})
+            sv="↑" if (var_op or 0)>=0 else "↓"
+            rows.append({"Operador":("★ " if op.get("pleno") else "")+op["nome"],"Recebido":fmt_brl(vat) if vat>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.1f}%" if meta>0 else "—","Mês Ant.":fmt_brl(van) if van>0 else "—","Variação":f"{sv} {abs(var_op):.1f}%" if var_op is not None else "—","_v":vat})
+        st.markdown(f"**Equipe {EQUIPES[eq]['nome']}**")
         df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
         df.index=range(1,len(df)+1)
         st.dataframe(df,use_container_width=True)
@@ -1596,51 +1325,43 @@ def pagina_analise_operadores(ma):
 
 # ── VISUALIZAÇÃO RCA ───────────────────────────
 def pagina_dashboard_executivo():
-    u = st.session_state.usuario
     header_page("Visualização RCA","Gestão de Inadimplência Comercial")
     mp=listar_meses_processados()
     if not mp: st.info("Nenhuma base processada ainda."); return
-
     c1,c2,c3=st.columns(3)
     with c1: mf=st.selectbox("Mês",["Todos"]+mp)
     with c2: ef=st.selectbox("Equipe",["Todas","luciano","deborah","tamires"])
     df=buscar_processamentos(None if mf=="Todos" else mf, None if ef=="Todas" else ef)
     if df.empty: st.warning("Nenhum dado."); return
-
     df["valor"]=pd.to_numeric(df["valor"],errors="coerce").fillna(0)
-    # Só elegíveis para cálculo de valor recuperado
     elig=df[df["elegibilidade"]=="Elegível"] if "elegibilidade" in df.columns else df
-
     with c3:
         forns=["Todas"]+sorted(df["fornecedora"].dropna().unique().tolist())
         ff=st.selectbox("Fornecedora",forns)
-    if ff!="Todas": df=df[df["fornecedora"]==ff]; elig=elig[elig["fornecedora"]==ff] if "fornecedora" in elig.columns else elig
-
+    if ff!="Todas":
+        df=df[df["fornecedora"]==ff]
+        elig=elig[elig["fornecedora"]==ff] if "fornecedora" in elig.columns else elig
     st.markdown("---")
-    # Métricas — clientes únicos e boletos só dos elegíveis (1° contato)
-    val_rec   = float(elig["valor"].sum()) if not elig.empty else 0
-    cli_unic  = int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns and not elig.empty else 0
-    tot_bol   = len(elig)
+    val_rec=float(elig["valor"].sum()) if not elig.empty else 0
+    cli_unic=int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns and not elig.empty else 0
+    tot_bol=len(elig)
     c1,c2,c3=st.columns(3)
-    c1.metric("Valor Recuperado", fmt_brl(val_rec))
-    c2.metric("Clientes Únicos",  f'{cli_unic:,}')
-    c3.metric("Total Boletos",    f'{tot_bol:,}')
+    c1.metric("Valor Recuperado",fmt_brl(val_rec))
+    c2.metric("Clientes Únicos",f"{cli_unic:,}")
+    c3.metric("Total Boletos",f"{tot_bol:,}")
     st.markdown("---")
-
     t1,t2,t3,t4=st.tabs(["Aging","Fornecedoras","Evolução","Por Equipe"])
     with t1:
         if "aging" in df.columns:
             ag=df.groupby("aging").agg(Boletos=("uc_cpf","count"),Valor=("valor","sum")).reset_index()
             ag["Valor"]=ag["Valor"].apply(fmt_brl)
             st.dataframe(ag.rename(columns={"aging":"Faixa"}),use_container_width=True,hide_index=True)
-            st.bar_chart(df.groupby("aging")["uc_cpf"].count(),color="#2daf5c")
     with t2:
         if "fornecedora" in df.columns:
             fdf=df.groupby("fornecedora").agg(Boletos=("uc_cpf","count"),Valor=("valor","sum")).reset_index()
             fdf=fdf.sort_values("Valor",ascending=False)
             fdf["Valor"]=fdf["Valor"].apply(fmt_brl)
-            fdf["Fornecedora"]=fdf["fornecedora"].astype(str)
-            st.dataframe(fdf[["Fornecedora","Boletos","Valor"]],use_container_width=True,hide_index=True)
+            st.dataframe(fdf.rename(columns={"fornecedora":"Fornecedora"})[["Fornecedora","Boletos","Valor"]],use_container_width=True,hide_index=True)
     with t3:
         da=buscar_processamentos()
         if not da.empty:
@@ -1657,15 +1378,7 @@ def pagina_dashboard_executivo():
             ed["Valor"]=ed["Valor"].apply(fmt_brl)
             st.dataframe(ed[["Equipe","Boletos","Valor"]],use_container_width=True,hide_index=True)
 
-    st.markdown("---")
-    if st.button("Exportar Excel"):
-        out=io.BytesIO()
-        with pd.ExcelWriter(out,engine="xlsxwriter") as w:
-            df.to_excel(w,sheet_name="Dados",index=False)
-            elig.to_excel(w,sheet_name="Elegíveis",index=False)
-        st.download_button("Baixar",data=out.getvalue(),file_name=f"iGreen_{mf}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# -- UPLOAD -------------------------------------------------
 def pagina_upload(ma):
     u=st.session_state.usuario
     header_page('Upload de Bases Mensais','Processamento automatico')
