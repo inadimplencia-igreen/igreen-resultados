@@ -146,6 +146,20 @@ footer { display: none !important; }
 .viewerBadge_container__1QSob { display: none !important; }
 div[data-testid="stStatusWidget"] { display: none !important; }
 
+/* ── SIDEBAR SEMPRE VISÍVEL ── */
+[data-testid="stSidebar"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 260px !important;
+    min-width: 260px !important;
+    transform: none !important;
+    position: relative !important;
+}
+[data-testid="stSidebarCollapsedControl"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
+section[data-testid="stSidebar"] { display: flex !important; }
+
 /* ── CUSTOM ── */
 div[data-testid="stVerticalBlock"] label { color: #8ab89a !important; font-size: 12px !important; }
 
