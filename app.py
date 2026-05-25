@@ -921,6 +921,8 @@ def processar_base_unica(arquivo, eq, ma):
     if col_dvenc: mapa[col_dvenc]='data_vencimento'
     if col_forn:  mapa[col_forn]='fornecedora'
     df=df.rename(columns=mapa)
+    import streamlit as _st
+    _st.info(f'DEBUG: aba={aba_pagos} | CPF={col_cpf} | VALOR={col_val} | DPAG={col_dpag} | FORN={col_forn} | cols={list(df.columns)[:6]}')
 
     if 'uc_cpf' in df.columns: df['uc_cpf']=df['uc_cpf'].apply(normalizar_cpf)
     if 'data_pagamento' in df.columns: df['data_pagamento']=pd.to_datetime(df['data_pagamento'],dayfirst=True,errors='coerce').dt.normalize()
