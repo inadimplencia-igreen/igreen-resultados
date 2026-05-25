@@ -440,8 +440,10 @@ def buscar_monitorias_equipe(eq, ma=None):
 
 def excluir_monitoria(did): get_db().monitorias.delete_one({"_id":did})
 
-def salvar_processamento(ma, eq, df):
-    get_db().processamentos.update_one({"_id":f"proc__{ma}__{eq}"},{"$set":{"_id":f"proc__{ma}__{eq}","mesAno":ma,"equipeId":eq,"registros":df.to_dict("records"),"atualizadoEm":datetime.now()}},upsert=True)
+def salvar_processamento(ma, eq, df, usuario_nome=""):
+    get_db().processamentos.update_one({"_id":f"proc__{ma}__{eq}"},{"$set":{"_id":f"proc__{ma}__{eq}","mesAno":ma,"equipeId":eq,"registros":df.to_dict("records"),"usuarioNome":usuario_nome,"atualizadoEm":datetime.now()}},upsert=True)
+    try: salvar_historico_processamento(ma,eq,usuario_nome,df)
+    except: pass
 
 def buscar_ultimo_processamento(ma, eq):
     doc = get_db().processamentos.find_one({"mesAno":ma,"equipeId":eq},sort=[("criadoEm",-1)])
@@ -873,117 +875,109 @@ def processar_base_unica(arquivo, eq, ma):
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
     try: xls=pd.ExcelFile(arquivo)
     except Exception as e: return None,[f"Erro: {e}"],[]
-
     abas_norm=[norm(a) for a in xls.sheet_names]; abas_orig=xls.sheet_names
 
-    # Busca aba PAGOS — prioridade nome exato, depois variações
+    # Busca aba de pagamentos
     aba_pagos=None
     for i,a in enumerate(abas_norm):
-        if a.strip()=='PAGOS': aba_pagos=abas_orig[i]; break
+        if any(p in a for p in ["PAGO","PAGAM","RECEB","BASE","BAIXA","PAGT","RESULT"]):
+            aba_pagos=abas_orig[i]; break
     if not aba_pagos:
         for i,a in enumerate(abas_norm):
-            if any(p in a for p in ['PAGO','PAGAM','RECEB','BASE','BAIXA','PAGT']):
-                aba_pagos=abas_orig[i]; break
-    if not aba_pagos:
-        for i,a in enumerate(abas_norm):
-            if not any(x in a for x in ['CHAT','LIG','DISPAR','CONTATO']):
+            if not any(x in a for x in ["CHAT","LIG","DISPAR","CONTATO"]):
                 aba_pagos=abas_orig[i]; break
     if not aba_pagos: aba_pagos=abas_orig[0]
 
     df=pd.read_excel(xls,sheet_name=aba_pagos,header=0).reset_index(drop=True)
-    df['_row_id']=df.index
+    df["_row_id"]=df.index
 
-    # Mapeamento de colunas por nome — flexível para qualquer ordem
+    # Mapeamento de colunas por nome
     col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
     for c in df.columns:
         cn=norm(str(c))
-        if not col_cpf and any(x in cn for x in ['CPF','UC','INSTAL','MATRICUL','COD_C','CODIGO_C','ID_C','NUM_C','CONTRATO','MATRICULA','CODIGO']): col_cpf=c
-        if not col_val and any(x in cn for x in ['VALOR','VLR','VL_','PAGAR','APAGAR','TOTAL','VAL_TOT','RECEB']): col_val=c
-        if not col_dpag and any(x in cn for x in ['PAGAM','PAGTO','DT_PAG','DATA_PAG','BAIXA','DT_BAI','DATA DE PAG','DATAPAG','DATA PAG','DATA PAGAMENTO']): col_dpag=c
-        if not col_dvenc and any(x in cn for x in ['VENC','DATA DE VENC','DT_VENC','DATAVENC','DATA VENC','DATA VENCIMENTO','VENCIMENTO']): col_dvenc=c
-        if not col_forn and any(x in cn for x in ['FORNEC','DISTRIB','EMPRESA','CONCESS','FORNECEDOR','FORNECEDORA','FORN']): col_forn=c
+        if not col_cpf  and any(x in cn for x in ["CPF","UC","INSTAL","MATRICUL","COD_C","CODIGO_C","ID_C","NUM_C","CONTRATO","MATRICULA","CODIGO"]): col_cpf=c
+        if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
+        if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG","DATA PAG","DATA PAGAMENTO"]): col_dpag=c
+        if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC","DATA VENC","DATA VENCIMENTO","VENCIMENTO"]): col_dvenc=c
+        if not col_forn and any(x in cn for x in ["FORNEC","DISTRIB","EMPRESA","CONCESS","FORNECEDOR","FORNECEDORA","FORN"]): col_forn=c
 
-    # Fallback CPF: coluna com valores numéricos de 8-14 dígitos
+    # Fallback CPF por detecção numérica
     if not col_cpf:
         best_col=None; best_score=0
         for c in df.columns:
             try:
                 sample=df[c].dropna().astype(str).head(20)
-                score=sum(1 for s in sample if s.replace('.','').replace('-','').replace('/','').isdigit() and 8<=len(s.replace('.','').replace('-','').replace('/',''))<=14)
+                score=sum(1 for s in sample if s.replace(".","").replace("-","").replace("/","").isdigit() and 8<=len(s.replace(".","").replace("-","").replace("/",""))<=14)
                 if score>best_score: best_score=score; best_col=c
             except: pass
         if best_col and best_score>=3: col_cpf=best_col
 
-    mapa={}
-    if col_cpf:   mapa[col_cpf]='uc_cpf'
-    if col_val:   mapa[col_val]='valor'
-    if col_dpag:  mapa[col_dpag]='data_pagamento'
-    if col_dvenc: mapa[col_dvenc]='data_vencimento'
-    if col_forn:  mapa[col_forn]='fornecedora'
-    df=df.rename(columns=mapa)
     import streamlit as _st
-    _st.info(f'DEBUG: aba={aba_pagos} | CPF={col_cpf} | VALOR={col_val} | DPAG={col_dpag} | FORN={col_forn} | cols={list(df.columns)[:6]}')
+    _st.info(f"DEBUG: aba={aba_pagos} | CPF={col_cpf} | VALOR={col_val} | DPAG={col_dpag} | FORN={col_forn} | cols={list(df.columns)[:6]}")
 
-    if 'uc_cpf' in df.columns: df['uc_cpf']=df['uc_cpf'].apply(normalizar_cpf)
-    if 'data_pagamento' in df.columns: df['data_pagamento']=pd.to_datetime(df['data_pagamento'],dayfirst=True,errors='coerce').dt.normalize()
-    if 'data_vencimento' in df.columns: df['data_vencimento']=pd.to_datetime(df['data_vencimento'],dayfirst=True,errors='coerce').dt.normalize()
-    if 'valor' in df.columns:
+    mapa={}
+    if col_cpf:  mapa[col_cpf]="uc_cpf"
+    if col_val:  mapa[col_val]="valor"
+    if col_dpag: mapa[col_dpag]="data_pagamento"
+    if col_dvenc: mapa[col_dvenc]="data_vencimento"
+    if col_forn: mapa[col_forn]="fornecedora"
+    df=df.rename(columns=mapa)
+
+    if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
+    if "data_pagamento" in df.columns: df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],dayfirst=True,errors="coerce").dt.normalize()
+    if "data_vencimento" in df.columns: df["data_vencimento"]=pd.to_datetime(df["data_vencimento"],dayfirst=True,errors="coerce").dt.normalize()
+    if "valor" in df.columns:
         def cv(v):
-            s=str(v).strip().replace('R$','').replace(' ','')
+            s=str(v).strip().replace("R$","").replace(" ","")
             try: return float(s)
             except:
-                try: return float(s.replace('.','').replace(',','.'))
+                try: return float(s.replace(".","").replace(",","."))
                 except: return 0.0
-        df['valor']=df['valor'].apply(cv)
+        df["valor"]=df["valor"].apply(cv)
 
-    # Lê abas de contato
     contatos=[]; abas_lidas=[]
-    for busca,nome in [('CHAT','CHAT'),('LIG','LIGAÇÕES'),('DISPAR','DISPAROS')]:
+    for busca,nome in [("CHAT","CHAT"),("LIG","LIGAÇÕES"),("DISPAR","DISPAROS")]:
         aba=next((abas_orig[i] for i,a in enumerate(abas_norm) if busca in a),None)
         if not aba: continue
         try:
             dc=pd.read_excel(xls,sheet_name=aba,header=0)
             if dc.empty or len(dc.columns)<2: continue
-            cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ['CPF','UC','INSTAL','MATRICUL','COD','CLIENT','CONTRATO'])),dc.columns[0])
-            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ['DATA','DT_','BAIXA','CONTATO','INTERAC','LIGAC','CHAT','DISPAR','PAGAM'])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
-            dd=pd.DataFrame({'uc_cpf':dc[cc].apply(normalizar_cpf),'data_contato':pd.to_datetime(dc[cd],dayfirst=True,errors='coerce').dt.normalize()}).dropna(subset=['data_contato'])
-            dd=dd[dd['uc_cpf'].str.len()>=3]
+            cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","UC","INSTAL","MATRICUL","COD","CLIENT"])),dc.columns[0])
+            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
+            dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
+            dd=dd[dd["uc_cpf"].str.len()>=3]
             if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
         except: pass
 
     if contatos:
-        pc=pd.concat(contatos,ignore_index=True).groupby('uc_cpf',as_index=False)['data_contato'].min()
-        df['primeiro_contato']=df['uc_cpf'].map(dict(zip(pc['uc_cpf'],pc['data_contato'])))
-    else:
-        df['primeiro_contato']=pd.NaT
+        pc=pd.concat(contatos,ignore_index=True).groupby("uc_cpf",as_index=False)["data_contato"].min()
+        df["primeiro_contato"]=df["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"])))
+    else: df["primeiro_contato"]=pd.NaT
 
-    df=df.drop(columns=['_row_id'],errors='ignore').reset_index(drop=True)
-    df['data_pagamento']=pd.to_datetime(df['data_pagamento'],errors='coerce').dt.normalize()
-    df['primeiro_contato']=pd.to_datetime(df['primeiro_contato'],errors='coerce').dt.normalize()
-    df['diferenca_dias']=(df['data_pagamento']-df['primeiro_contato']).dt.days
+    df=df.drop(columns=["_row_id"],errors="ignore").reset_index(drop=True)
+    df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],errors="coerce").dt.normalize()
+    df["primeiro_contato"]=pd.to_datetime(df["primeiro_contato"],errors="coerce").dt.normalize()
+    df["diferenca_dias"]=(df["data_pagamento"]-df["primeiro_contato"]).dt.days
 
     def classif(row):
-        if pd.isna(row.get('primeiro_contato')): return 'ND'
-        d=row.get('diferenca_dias')
-        if pd.isna(d): return 'ND'
-        return 'Elegível' if int(d)>=0 else 'Não Elegível'
+        if pd.isna(row.get("primeiro_contato")): return "ND"
+        d=row.get("diferenca_dias")
+        if pd.isna(d): return "ND"
+        return "Elegível" if int(d)>=0 else "Não Elegível"
 
-    df['elegibilidade']=df.apply(classif,axis=1)
-    if 'data_vencimento' in df.columns:
-        df['dias_vencidos']=(df['data_pagamento']-df['data_vencimento']).dt.days
-    else:
-        df['dias_vencidos']=None
-    df['aging']=df['dias_vencidos'].apply(aging_faixa)
+    df["elegibilidade"]=df.apply(classif,axis=1)
+    if "data_vencimento" in df.columns: df["dias_vencidos"]=(df["data_pagamento"]-df["data_vencimento"]).dt.days
+    else: df["dias_vencidos"]=None
+    df["aging"]=df["dias_vencidos"].apply(aging_faixa)
 
-    for col in ['data_vencimento','data_pagamento','primeiro_contato']:
+    for col in ["data_vencimento","data_pagamento","primeiro_contato"]:
         if col in df.columns:
-            try: df[col]=pd.to_datetime(df[col],errors='coerce').dt.strftime('%Y-%m-%d').where(pd.to_datetime(df[col],errors='coerce').notna(),other=None)
+            try: df[col]=pd.to_datetime(df[col],errors="coerce").dt.strftime("%Y-%m-%d").where(pd.to_datetime(df[col],errors="coerce").notna(),other=None)
             except: pass
 
-    df['equipe']=eq; df['mes_ano']=ma
+    df["equipe"]=eq; df["mes_ano"]=ma
     return df,[],abas_lidas
 
-# ── METAS ──────────────────────────────────────
 def pagina_metas(ma):
     u=st.session_state.usuario
     header_page("Metas",ma.replace("-"," "))
