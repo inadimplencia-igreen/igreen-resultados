@@ -895,7 +895,8 @@ def processar_base_unica(arquivo, eq, ma):
     col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
     for c in df.columns:
         cn=norm(str(c))
-        if not col_cpf  and any(x in cn for x in ["CPF","UC","INSTAL","MATRICUL","COD_C","CODIGO_C","ID_C","NUM_C","CONTRATO","MATRICULA","CODIGO"]): col_cpf=c
+        # CPF — nunca pegar Cliente ou Nome
+        if not col_cpf and "CLIENTE" not in cn and "NOME" not in cn and any(x in cn for x in ["CPF","UC","INSTAL","MATRICUL","COD_C","CODIGO_C","ID_C","NUM_C","CONTRATO","MATRICULA","CODIGO"]): col_cpf=c
         if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
         if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG","DATA PAG","DATA PAGAMENTO"]): col_dpag=c
         if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC","DATA VENC","DATA VENCIMENTO","VENCIMENTO"]): col_dvenc=c
