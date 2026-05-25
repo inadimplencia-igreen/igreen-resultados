@@ -43,7 +43,6 @@ git push -u origin main
 
 ```toml
 [mongo]
-uri = "mongodb+srv://igreenadmin:Algar%402019@cluster0.vccyluq.mongodb.net/?appName=Cluster0"
 db  = "igreen_resultados"
 ```
 
@@ -52,14 +51,6 @@ db  = "igreen_resultados"
 
 ---
 
-## Usuários e senhas
-
-| Usuário | Senha      | Acesso              |
-|---------|------------|---------------------|
-| luciano | luciano123 | Equipe Luciano      |
-| deborah | deborah123 | Equipe Déborah      |
-| tamires | tamires123 | Equipe Tamires      |
-| veloso  | veloso123  | Visão Geral Diretor |
 
 ⚠️ Para trocar as senhas edite o arquivo `app.py` na seção `USUARIOS`.
 
