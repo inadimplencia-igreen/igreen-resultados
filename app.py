@@ -18,7 +18,7 @@ st.markdown("""
 /* ── BASE ── */
 .stApp { background-color: #0a0f0a; }
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #060d06 0%, #0a140a 100%);
+    background: linear-gradient(180deg, #0a1a0a 0%, #0d1f0d 100%);
     border-right: 1px solid #1a2e1a;
 }
 
@@ -144,7 +144,7 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
     gap: 0px !important;
 }
 [data-testid="stSidebar"] .stRadio label {
-    color: #e8f0e8 !important;
+    color: #ffffff !important;
     font-size: 13px !important;
     font-weight: 500 !important;
     padding: 10px 16px !important;
@@ -842,7 +842,7 @@ def render_sidebar():
             f"<div style='color:#00c853;font-weight:700;font-size:13px'>{u['nome']}</div>"
             f"<div style='color:#3a6a4a;font-size:10px'>{role_label}</div>"
             f"</div>",unsafe_allow_html=True)
-        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#6a9a6a;margin-bottom:8px;font-weight:600">MENUS</p>',unsafe_allow_html=True)
+        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#81c784;margin-bottom:8px;font-weight:600">MENUS</p>',unsafe_allow_html=True)
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
         elif u['role']=='admin':
