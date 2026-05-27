@@ -16,12 +16,12 @@ st.markdown("""
 * { font-family: 'Inter', sans-serif !important; }
 
 /* ── BASE — tema claro corporativo ── */
-.stApp { background-color: #f4f6f4 !important; }
+.stApp { background-color: #eef6ee !important; }
 
 /* ── SIDEBAR ── */
 [data-testid="stSidebar"] {
-    background: #ffffff !important;
-    border-right: 1px solid #e0e8e0 !important;
+    background: #f5fbf5 !important;
+    border-right: 1px solid #d0e8d0 !important;
 }
 
 /* ── SIDEBAR NAV ── */
