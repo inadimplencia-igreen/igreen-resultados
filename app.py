@@ -24,6 +24,15 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
+/* ── Botões nav invisíveis mas clicáveis ── */
+[data-testid="stSidebar"] .stButton > button {
+    position: relative !important;
+    margin-top: -44px !important;
+    opacity: 0 !important;
+    height: 40px !important;
+    z-index: 10 !important;
+}
+
 /* ── Esconde label vazio do radio ── */
 [data-testid="stSidebar"] .stRadio > div > label:first-child:empty,
 [data-testid="stSidebar"] .stRadio > div > div:first-child > label:has(> div:empty) {
@@ -793,60 +802,82 @@ div[data-testid="stVerticalBlock"] label { color: #8b949e !important; }
 
 def render_sidebar():
     u=st.session_state.usuario
+    role_label='Administrador' if u['role']=='admin' else 'Diretoria' if u['role']=='diretor' else 'Gestor'
+
     with st.sidebar:
+        # LOGO
         st.markdown(
-            '<div style="padding:16px 8px 8px">'
-            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">'
-            '<div style="width:32px;height:32px;background:linear-gradient(135deg,#00a844,#00c853);'
-            'border-radius:8px;display:flex;align-items:center;justify-content:center;'
-            'font-weight:900;font-size:16px;color:#fff">G</div>'
-            '<div><span style="color:#00c853;font-weight:700;font-size:15px">iGreen</span>'
-            '<span style="color:#fff;font-weight:700;font-size:15px"> Performance</span></div>'
-            '</div></div>',
+            f"<div style='padding:16px 12px 8px'>"
+            f"<div style='display:flex;align-items:center;gap:10px;margin-bottom:16px'>"
+            f"<div style='width:34px;height:34px;background:#2e7d32;border-radius:8px;"
+            f"display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff'>G</div>"
+            f"<div><span style='color:#2e7d32;font-weight:700;font-size:15px'>iGreen</span>"
+            f"<span style='color:#1a2e1a;font-weight:700;font-size:15px'> Performance</span></div>"
+            f"</div></div>",
             unsafe_allow_html=True)
-        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a5a3a;margin-bottom:4px;font-weight:600">PERÍODO</p>',unsafe_allow_html=True)
+
+        # USUÁRIO
+        st.markdown(
+            f"<div style='margin:0 8px 12px;background:#f0f7f0;border:1px solid #c8e0c8;"
+            f"border-radius:8px;padding:10px 12px'>"
+            f"<div style='color:#2e7d32;font-weight:700;font-size:14px'>{u['nome']}</div>"
+            f"<div style='color:#5a8a5a;font-size:11px'>{role_label}</div>"
+            f"</div>",
+            unsafe_allow_html=True)
+
+        # PERÍODO
+        st.markdown("<p style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5a8a5a;margin:0 0 6px 4px;font-weight:600'>Período</p>",unsafe_allow_html=True)
         anos=get_anos_disponiveis()
         ano=st.selectbox('Ano',anos,label_visibility='collapsed')
         meses=get_todos_meses_ano(int(ano))
         mes_labels=[m.split('-')[0] for m in meses]
         mes_sel=st.selectbox('Mês',mes_labels,index=datetime.now().month-1,label_visibility='collapsed')
         mes_ano=f'{mes_sel}-{ano}'
-        st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
-            # Nome do gestor visível
-        role_label='Administrador' if u['role']=='admin' else 'Diretoria' if u['role']=='diretor' else 'Gestor'
-        st.markdown(
-            f"<div style='background:#f0f7f0;border:1px solid #c8e0c8;border-radius:8px;padding:8px 12px;margin-bottom:12px'>"
-            f"<div style='color:#2e7d32;font-weight:700;font-size:13px'>{u['nome']}</div>"
-            f"<div style='color:#5a8a5a;font-size:10px'>{role_label}</div>"
-            f"</div>",unsafe_allow_html=True)
-        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#81c784;margin-bottom:8px;font-weight:600">MENUS</p>',unsafe_allow_html=True)
+        st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
+
+        # MENU
+        st.markdown("<p style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5a8a5a;margin:0 0 6px 4px;font-weight:600'>Menu</p>",unsafe_allow_html=True)
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
         elif u['role']=='admin':
             pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         else:
             pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
-        pag=st.radio('',pags,label_visibility='collapsed')
-        st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
-        # Toggle de tema
-        st.markdown('<hr style="border-color:#d0e8d0;margin:8px 0">',unsafe_allow_html=True)
+
+        if 'nav_pag' not in st.session_state: st.session_state.nav_pag=pags[0]
+        if st.session_state.nav_pag not in pags: st.session_state.nav_pag=pags[0]
+        pag=st.session_state.nav_pag
+
+        for p in pags:
+            ativo=pag==p
+            bg='background:#2e7d32;color:#ffffff;font-weight:600;border:1px solid #2e7d32;' if ativo else 'background:#ffffff;color:#2d4a2d;font-weight:500;border:1px solid #d8ead8;'
+            st.markdown(
+                f"<div style='{bg}border-radius:8px;padding:9px 14px;margin:3px 4px;"
+                f"font-size:13px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)'>{p}</div>",
+                unsafe_allow_html=True)
+            if st.button(p, key=f"nav_{p}", use_container_width=True):
+                st.session_state.nav_pag=p; st.rerun()
+
+        st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
+
+        # TEMA
         tema_atual=st.session_state.get('tema','claro')
         col_t1,col_t2=st.columns(2)
         with col_t1:
-            if st.button('☀ Claro' if tema_atual=='escuro' else '☀ Claro',use_container_width=True,key='btn_tema_claro',
-                help='Tema claro'):
+            if st.button('☀ Claro',use_container_width=True,key='btn_tema_claro'):
                 st.session_state['tema']='claro'; st.rerun()
         with col_t2:
-            if st.button('🌙 Escuro',use_container_width=True,key='btn_tema_escuro',
-                help='Tema escuro'):
+            if st.button('🌙 Escuro',use_container_width=True,key='btn_tema_escuro'):
                 st.session_state['tema']='escuro'; st.rerun()
-        st.markdown('<hr style="border-color:#d0e8d0;margin:8px 0">',unsafe_allow_html=True)
+
+        st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
         if st.button('Sair',use_container_width=True,key='btn_sair'):
             del st.session_state.usuario; st.rerun()
-    # Injetar CSS do tema escuro se necessário
+
     if st.session_state.get('tema')=='escuro':
         st.markdown(f'<style>{DARK_CSS}</style>',unsafe_allow_html=True)
     return mes_ano,pag
+
 
 # ── OPERADORES ─────────────────────────────────
 def pagina_operadores():
