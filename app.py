@@ -144,7 +144,7 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
     gap: 0px !important;
 }
 [data-testid="stSidebar"] .stRadio label {
-    color: #b0c4b0 !important;
+    color: #d0ddd0 !important;
     font-size: 13px !important;
     font-weight: 500 !important;
     padding: 10px 16px !important;
@@ -179,6 +179,12 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
 }
 
 /* ── FIX DROPDOWN ARROW SOBREPOSIÇÃO ── */
+/* Esconde a seta arrow do select */
+[data-baseweb="select"] svg {
+    fill: #0d1a0d !important;
+    color: #0d1a0d !important;
+    opacity: 0 !important;
+}
 .stSelectbox [data-baseweb="select"] > div {
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -655,6 +661,10 @@ def header_page(titulo, sub=""):
 
 def seletor_equipe(default=None, key_suffix=""):
     u=st.session_state.usuario
+    # Gestor e diretor sempre veem só a própria equipe
+    if u["role"] in ["gestor","diretor"]:
+        return u["equipe"]
+    # Admin pode trocar de equipe
     if u["role"]=="admin":
         eq_opts=list(EQUIPES.keys())
         eq_labels=[f"Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
@@ -817,7 +827,14 @@ def render_sidebar():
         mes_sel=st.selectbox('Mês',mes_labels,index=datetime.now().month-1,label_visibility='collapsed')
         mes_ano=f'{mes_sel}-{ano}'
         st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
-        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3a5a3a;margin-bottom:8px;font-weight:600">MENUS</p>',unsafe_allow_html=True)
+            # Nome do gestor visível
+        role_label='Administrador' if u['role']=='admin' else 'Diretoria' if u['role']=='diretor' else 'Gestor'
+        st.markdown(
+            f"<div style='background:#0d2010;border:1px solid #1e3a1e;border-radius:8px;padding:8px 12px;margin-bottom:12px'>"
+            f"<div style='color:#00c853;font-weight:700;font-size:13px'>{u['nome']}</div>"
+            f"<div style='color:#3a6a4a;font-size:10px'>{role_label}</div>"
+            f"</div>",unsafe_allow_html=True)
+        st.markdown('<p style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#6a9a6a;margin-bottom:8px;font-weight:600">MENUS</p>',unsafe_allow_html=True)
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
         elif u['role']=='admin':
@@ -1062,7 +1079,7 @@ def pagina_lancamento(ma):
 def pagina_quadro(ma):
     u=st.session_state.usuario
     is_dir=u["role"]=="diretor"; is_adm=u["role"]=="admin"
-    eqs=list(EQUIPES.keys()) if (is_dir or is_adm) else [u["equipe"]]
+    eqs=list(EQUIPES.keys()) if is_adm else ([u["equipe"]] if u["equipe"] else list(EQUIPES.keys())) if is_dir else [u["equipe"]]
     header_page("Quadro de Resultados", ma.replace("-"," ").upper())
     for eq in eqs:
         try:
@@ -1113,7 +1130,8 @@ def pagina_quadro(ma):
             for op in ops:
                 v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
                 meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
-                rows.append({"Status":status_pct(pc) if meta>0 else "—","Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","_v":v})
+                proj_op=calc_projecao(v,dt,td) if v>0 else 0
+                rows.append({"Status":status_pct(pc) if meta>0 else "—","Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if v>0 else "—","_v":v})
             df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
             df.index=range(1,len(df)+1)
             st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
@@ -1207,13 +1225,23 @@ def pagina_monitorias(ma):
             st.error("MONITORIA ZERADA — Erro crítico marcado!")
             for c in get_criterios(): crits_r.append({**c,"passou":False})
         else:
+            st.markdown("<p style='color:#e53935;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>ITENS DE QUALIDADE — MARQUE O QUE NÃO FOI FEITO</p>",unsafe_allow_html=True)
             for crit in get_criterios():
-                passou=st.checkbox(f"{crit['num']} {crit['nome']} — Peso {crit['peso']}",key=f"cr_{crit['id']}",value=True)
+                c1,c2=st.columns([8,1])
+                with c1: nao_passou=st.checkbox(f"{crit['nome']}",key=f"cr_{crit['id']}",value=False)
+                with c2: st.markdown(f"<div style='padding-top:6px;color:#e53935;font-size:12px;font-weight:600;text-align:right'>−{crit['peso']} pts</div>",unsafe_allow_html=True)
+                passou=not nao_passou
                 if not passou: nota-=crit["peso"]
                 crits_r.append({**crit,"passou":passou})
         nota=max(0,nota)
+        pontos_perdidos=100-nota
         cn="#2e7d32" if nota>=80 else "#f57f17" if nota>=60 else "#c62828"
-        st.markdown(f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:12px;padding:16px 24px;text-align:center;margin:16px 0'><div style='color:#3a6a4a;font-size:11px;text-transform:uppercase'>Nota</div><div style='color:{cn};font-size:44px;font-weight:800'>{nota:.0f}%</div></div>",unsafe_allow_html=True)
+        st.markdown(
+            f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:10px;padding:14px 20px;margin-top:16px;display:flex;justify-content:space-between;align-items:center'>"
+            f"<div><div style='color:#3a6a4a;font-size:11px'>Pontuação final (máx. 100 pts)</div>"
+            f"<div style='color:#5a9a70;font-size:11px'>Pontos perdidos: {pontos_perdidos}</div></div>"
+            f"<div style='color:{cn};font-size:32px;font-weight:800'>{nota:.0f}</div>"
+            f"</div>",unsafe_allow_html=True)
         if st.button("Salvar Monitoria",use_container_width=True):
             if not prot.strip(): st.error("Preencha o protocolo da ligação!")
             else:
@@ -1437,7 +1465,11 @@ def pagina_upload(ma):
 
     with col_hist:
         st.markdown('<p style="color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">HISTORICO DE BASES PROCESSADAS</p>',unsafe_allow_html=True)
-        hist_geral=buscar_historico_geral()
+        u_hist=st.session_state.usuario
+        if u_hist['role'] in ['admin','diretor']:
+            hist_geral=buscar_historico_geral()
+        else:
+            hist_geral=buscar_historico_geral(equipe_id=u_hist.get('equipe'))
         if not hist_geral:
             st.info('Nenhuma base processada ainda.')
         else:
