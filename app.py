@@ -179,11 +179,19 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
 }
 
 /* ── FIX DROPDOWN ARROW SOBREPOSIÇÃO ── */
-/* Esconde a seta arrow do select */
-[data-baseweb="select"] svg {
-    fill: #0d1a0d !important;
-    color: #0d1a0d !important;
+/* Esconde seta e texto sobreposto do select */
+[data-baseweb="select"] svg { display: none !important; }
+[data-baseweb="select"] [aria-hidden="true"] { display: none !important; }
+[data-baseweb="select"] input[aria-autocomplete] {
     opacity: 0 !important;
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    pointer-events: none !important;
+}
+[data-baseweb="select"] > div > div:last-child { display: none !important; }
+[data-baseweb="select"] > div {
+    padding-right: 8px !important;
 }
 .stSelectbox [data-baseweb="select"] > div {
     white-space: nowrap !important;
