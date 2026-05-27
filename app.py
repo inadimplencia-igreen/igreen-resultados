@@ -24,6 +24,15 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
+/* ── Esconde label vazio do radio ── */
+[data-testid="stSidebar"] .stRadio > div > label:first-child:empty,
+[data-testid="stSidebar"] .stRadio > div > div:first-child > label:has(> div:empty) {
+    display: none !important;
+}
+[data-testid="stSidebar"] .stRadio [data-baseweb="radio"]:first-child {
+    display: none !important;
+}
+
 /* ── SIDEBAR NAV — cards executivos ── */
 [data-testid="stSidebar"] .stRadio > div { gap: 4px !important; }
 [data-testid="stSidebar"] .stRadio label {
@@ -731,39 +740,56 @@ def _mini_criterios():
         salvar_criterios(ce); st.success("Salvo!"); st.rerun()
 
 DARK_CSS = """
-.stApp { background-color: #0a0f0a !important; }
-[data-testid=\"stSidebar\"] { background: #111811 !important; border-right: 1px solid #1a2e1a !important; }
-[data-testid=\"stSidebar\"] .stRadio label { color: #c8d8c8 !important; background: #1a2a1a !important; border: 1px solid #1e3a1e !important; }
-[data-testid=\"stSidebar\"] .stRadio label:hover { background: #1e3a1e !important; color: #ffffff !important; }
-[data-testid=\"stSidebar\"] .stRadio label[data-checked=\"true\"] { background: #2e7d32 !important; color: #ffffff !important; }
-[data-testid=\"stMetric\"] { background: linear-gradient(135deg,#0d1f0d,#111f11) !important; border: 1px solid #1e3a1e !important; border-top: 2px solid #00c853 !important; }
-[data-testid=\"stMetricValue\"] { color: #ffffff !important; }
-[data-testid=\"stMetricLabel\"] { color: #5a9a70 !important; }
-.stButton > button { background: #1a3a1a !important; color: #a0c4a0 !important; border: 1px solid #2a4a2a !important; }
-.stButton > button:hover { background: #2e7d32 !important; color: #ffffff !important; }
-h1 { color: #ffffff !important; } h2 { color: #e8f5e9 !important; } p { color: #8ab89a !important; }
-hr { border-top: 1px solid #1a2e1a !important; }
-.stTextInput input, .stNumberInput input, .stTextArea textarea { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; color: #e8f5e9 !important; }
-.stSelectbox > div > div { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; color: #e8f5e9 !important; }
-[data-baseweb=\"select\"] { background: #0d1a0d !important; } [data-baseweb=\"select\"] > div { background: #0d1a0d !important; color: #e8f5e9 !important; }
-[data-baseweb=\"popover\"] { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; }
-[role=\"option\"] { background: #0d1a0d !important; color: #e8f5e9 !important; }
-[role=\"option\"]:hover { background: #1a3a1a !important; }
-.stTabs [data-baseweb=\"tab-list\"] { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; }
-.stTabs [data-baseweb=\"tab\"] { color: #5a9a70 !important; }
-.stTabs [aria-selected=\"true\"] { background: #2e7d32 !important; color: #ffffff !important; }
-.stCheckbox label { color: #8ab89a !important; }
-[data-testid=\"stFileUploader\"] > div { background: #0d1a0d !important; border: 1.5px dashed #1e3a1e !important; }
-.stSuccess > div { background: #0a1f0a !important; border-left: 3px solid #00c853 !important; color: #4caf50 !important; }
-.stError > div { background: #1a0a0a !important; border-left: 3px solid #ef5350 !important; color: #ef5350 !important; }
-.stWarning > div { background: #1a1500 !important; border-left: 3px solid #ffc107 !important; color: #ffc107 !important; }
-.stInfo > div { background: #0a0f1a !important; border-left: 3px solid #42a5f5 !important; color: #42a5f5 !important; }
-[data-testid=\"stDataFrame\"] { border: 1px solid #1e3a1e !important; background: #0d1a0d !important; }
-[data-testid=\"stDataFrame\"] * { color: #e8f5e9 !important; }
-.streamlit-expanderHeader { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; color: #8ab89a !important; }
-.streamlit-expanderContent { background: #0a140a !important; border: 1px solid #1e3a1e !important; }
-div[data-testid=\"stVerticalBlock\"] label { color: #8ab89a !important; }
+.stApp { background-color: #0d1117 !important; }
+[data-testid="stSidebar"] { background: #161b22 !important; border-right: 1px solid #30363d !important; }
+[data-testid="stSidebar"] .stRadio label {
+    color: #e6edf3 !important;
+    background: #21262d !important;
+    border: 1px solid #30363d !important;
+    font-weight: 500 !important;
+}
+[data-testid="stSidebar"] .stRadio label:hover {
+    background: #2d333b !important;
+    color: #ffffff !important;
+    border-color: #3fb950 !important;
+}
+[data-testid="stSidebar"] .stRadio label[data-checked="true"] {
+    background: #238636 !important;
+    color: #ffffff !important;
+    border-color: #3fb950 !important;
+    font-weight: 600 !important;
+}
+[data-testid="stMetric"] { background: #161b22 !important; border: 1px solid #30363d !important; border-top: 2px solid #3fb950 !important; }
+[data-testid="stMetricValue"] { color: #e6edf3 !important; }
+[data-testid="stMetricLabel"] { color: #7ee787 !important; }
+.stButton > button { background: #21262d !important; color: #7ee787 !important; border: 1px solid #30363d !important; }
+.stButton > button:hover { background: #238636 !important; color: #ffffff !important; border-color: #3fb950 !important; }
+h1 { color: #e6edf3 !important; } h2 { color: #c9d1d9 !important; } p { color: #8b949e !important; }
+hr { border-top: 1px solid #30363d !important; }
+.stTextInput input, .stNumberInput input, .stTextArea textarea { background: #0d1117 !important; border: 1px solid #30363d !important; color: #e6edf3 !important; }
+.stSelectbox > div > div { background: #161b22 !important; border: 1px solid #30363d !important; color: #e6edf3 !important; }
+[data-baseweb="select"] { background: #161b22 !important; }
+[data-baseweb="select"] > div { background: #161b22 !important; color: #e6edf3 !important; }
+[data-baseweb="popover"] { background: #161b22 !important; border: 1px solid #30363d !important; }
+[role="option"] { background: #161b22 !important; color: #e6edf3 !important; }
+[role="option"]:hover { background: #21262d !important; }
+.stTabs [data-baseweb="tab-list"] { background: #161b22 !important; border: 1px solid #30363d !important; }
+.stTabs [data-baseweb="tab"] { color: #8b949e !important; }
+.stTabs [aria-selected="true"] { background: #238636 !important; color: #ffffff !important; }
+.stCheckbox label { color: #c9d1d9 !important; }
+[data-testid="stFileUploader"] > div { background: #161b22 !important; border: 1.5px dashed #30363d !important; }
+.stSuccess > div { background: #0f2117 !important; border-left: 3px solid #3fb950 !important; color: #7ee787 !important; }
+.stError > div { background: #2d1117 !important; border-left: 3px solid #f85149 !important; color: #ffa198 !important; }
+.stWarning > div { background: #271a00 !important; border-left: 3px solid #d29922 !important; color: #e3b341 !important; }
+.stInfo > div { background: #0c2d6b !important; border-left: 3px solid #388bfd !important; color: #79c0ff !important; }
+[data-testid="stDataFrame"] { border: 1px solid #30363d !important; background: #161b22 !important; }
+[data-testid="stDataFrame"] * { color: #e6edf3 !important; }
+.streamlit-expanderHeader { background: #161b22 !important; border: 1px solid #30363d !important; color: #c9d1d9 !important; }
+.streamlit-expanderContent { background: #0d1117 !important; border: 1px solid #30363d !important; }
+div[data-testid="stVerticalBlock"] label { color: #8b949e !important; }
+.block-container { background: #0d1117 !important; }
 """
+
 
 def render_sidebar():
     u=st.session_state.usuario
@@ -1209,8 +1235,8 @@ def pagina_monitorias(ma):
                 # Itens detalhados do critério
                 if crit.get('itens'):
                     for it in crit['itens']:
-                        cor_it = "#e53935" if "obrigatório" in it.lower() or "!" in it else "#5a9a70"
-                        st.markdown(f"<div style='padding:2px 0 2px 24px;font-size:12px;color:{cor_it}'>• {it}</div>",unsafe_allow_html=True)
+                        cor_it = "#f87171" if "obrigatório" in it.lower() or "!" in it else "#34d399"
+                        st.markdown(f"<div style='padding:3px 0 3px 24px;font-size:12px;color:{cor_it};line-height:1.5'>• {it}</div>",unsafe_allow_html=True)
                 passou=not nao_passou
                 if not passou: nota-=crit["peso"]
                 crits_r.append({**crit,"passou":passou})
