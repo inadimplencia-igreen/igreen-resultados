@@ -24,15 +24,6 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
-/* ── Botões nav invisíveis mas clicáveis ── */
-[data-testid="stSidebar"] .stButton > button {
-    position: relative !important;
-    margin-top: -44px !important;
-    opacity: 0 !important;
-    height: 40px !important;
-    z-index: 10 !important;
-}
-
 /* ── Esconde label vazio do radio ── */
 [data-testid="stSidebar"] .stRadio > div > label:first-child:empty,
 [data-testid="stSidebar"] .stRadio > div > div:first-child > label:has(> div:empty) {
@@ -826,7 +817,6 @@ def render_sidebar():
             unsafe_allow_html=True)
 
         # PERÍODO
-        st.markdown("<p style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5a8a5a;margin:0 0 6px 4px;font-weight:600'>Período</p>",unsafe_allow_html=True)
         anos=get_anos_disponiveis()
         ano=st.selectbox('Ano',anos,label_visibility='collapsed')
         meses=get_todos_meses_ano(int(ano))
@@ -835,8 +825,7 @@ def render_sidebar():
         mes_ano=f'{mes_sel}-{ano}'
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
-        # MENU
-        st.markdown("<p style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5a8a5a;margin:0 0 6px 4px;font-weight:600'>Menu</p>",unsafe_allow_html=True)
+        # MENU — radio nativo (funciona) com CSS para esconder bolinha
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
         elif u['role']=='admin':
@@ -844,24 +833,11 @@ def render_sidebar():
         else:
             pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
 
-        if 'nav_pag' not in st.session_state: st.session_state.nav_pag=pags[0]
-        if st.session_state.nav_pag not in pags: st.session_state.nav_pag=pags[0]
-        pag=st.session_state.nav_pag
-
-        for p in pags:
-            ativo=pag==p
-            bg='background:#2e7d32;color:#ffffff;font-weight:600;border:1px solid #2e7d32;' if ativo else 'background:#ffffff;color:#2d4a2d;font-weight:500;border:1px solid #d8ead8;'
-            st.markdown(
-                f"<div style='{bg}border-radius:8px;padding:9px 14px;margin:3px 4px;"
-                f"font-size:13px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)'>{p}</div>",
-                unsafe_allow_html=True)
-            if st.button(p, key=f"nav_{p}", use_container_width=True):
-                st.session_state.nav_pag=p; st.rerun()
+        pag=st.radio('Menu',pags,label_visibility='collapsed')
 
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
         # TEMA
-        tema_atual=st.session_state.get('tema','claro')
         col_t1,col_t2=st.columns(2)
         with col_t1:
             if st.button('☀ Claro',use_container_width=True,key='btn_tema_claro'):
