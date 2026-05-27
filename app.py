@@ -24,25 +24,30 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
-/* ── SIDEBAR NAV ── */
-[data-testid="stSidebar"] .stRadio > div { gap: 2px !important; }
+/* ── SIDEBAR NAV — cards executivos ── */
+[data-testid="stSidebar"] .stRadio > div { gap: 4px !important; }
 [data-testid="stSidebar"] .stRadio label {
     color: #2d4a2d !important;
     font-size: 13px !important;
     font-weight: 500 !important;
-    padding: 9px 14px !important;
+    padding: 10px 14px !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     display: flex !important;
     align-items: center !important;
-    border-radius: 6px !important;
-    margin: 1px 4px !important;
-    transition: background 0.15s !important;
+    border-radius: 8px !important;
+    margin: 2px 4px !important;
+    transition: all 0.15s !important;
+    background: #ffffff !important;
+    border: 1px solid #d8ead8 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
 }
 [data-testid="stSidebar"] .stRadio label:hover {
     color: #1a3a1a !important;
     background: #e8f5e8 !important;
+    border-color: #2e7d32 !important;
+    box-shadow: 0 2px 6px rgba(46,125,50,0.12) !important;
 }
 [data-testid="stSidebar"] .stRadio [data-baseweb="radio"] > div:first-child { display: none !important; }
 [data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p {
@@ -53,7 +58,9 @@ st.markdown("""
 [data-testid="stSidebar"] .stRadio label[data-checked="true"] {
     color: #ffffff !important;
     background: #2e7d32 !important;
+    border-color: #2e7d32 !important;
     font-weight: 600 !important;
+    box-shadow: 0 2px 8px rgba(46,125,50,0.25) !important;
 }
 
 /* ── METRICS ── */
@@ -90,7 +97,7 @@ st.markdown("""
 h1 { color: #1a2e1a !important; font-size: 20px !important; font-weight: 700 !important; }
 h2 { color: #2d4a2d !important; font-size: 16px !important; font-weight: 600 !important; }
 h3 { color: #5a8a5a !important; font-size: 10px !important; font-weight: 600 !important; text-transform: uppercase; letter-spacing: 2px; }
-p  { color: #3a5a3a !important; font-size: 13px; }
+p  { color: #1a3a1a !important; font-size: 13px; }
 hr { border: none !important; border-top: 1px solid #e0e8e0 !important; margin: 14px 0 !important; }
 
 /* ── INPUTS ── */
@@ -723,6 +730,41 @@ def _mini_criterios():
     if st.button("Salvar Critérios",use_container_width=True,key="mc_crit_save"):
         salvar_criterios(ce); st.success("Salvo!"); st.rerun()
 
+DARK_CSS = """
+.stApp { background-color: #0a0f0a !important; }
+[data-testid=\"stSidebar\"] { background: #111811 !important; border-right: 1px solid #1a2e1a !important; }
+[data-testid=\"stSidebar\"] .stRadio label { color: #c8d8c8 !important; background: #1a2a1a !important; border: 1px solid #1e3a1e !important; }
+[data-testid=\"stSidebar\"] .stRadio label:hover { background: #1e3a1e !important; color: #ffffff !important; }
+[data-testid=\"stSidebar\"] .stRadio label[data-checked=\"true\"] { background: #2e7d32 !important; color: #ffffff !important; }
+[data-testid=\"stMetric\"] { background: linear-gradient(135deg,#0d1f0d,#111f11) !important; border: 1px solid #1e3a1e !important; border-top: 2px solid #00c853 !important; }
+[data-testid=\"stMetricValue\"] { color: #ffffff !important; }
+[data-testid=\"stMetricLabel\"] { color: #5a9a70 !important; }
+.stButton > button { background: #1a3a1a !important; color: #a0c4a0 !important; border: 1px solid #2a4a2a !important; }
+.stButton > button:hover { background: #2e7d32 !important; color: #ffffff !important; }
+h1 { color: #ffffff !important; } h2 { color: #e8f5e9 !important; } p { color: #8ab89a !important; }
+hr { border-top: 1px solid #1a2e1a !important; }
+.stTextInput input, .stNumberInput input, .stTextArea textarea { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; color: #e8f5e9 !important; }
+.stSelectbox > div > div { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; color: #e8f5e9 !important; }
+[data-baseweb=\"select\"] { background: #0d1a0d !important; } [data-baseweb=\"select\"] > div { background: #0d1a0d !important; color: #e8f5e9 !important; }
+[data-baseweb=\"popover\"] { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; }
+[role=\"option\"] { background: #0d1a0d !important; color: #e8f5e9 !important; }
+[role=\"option\"]:hover { background: #1a3a1a !important; }
+.stTabs [data-baseweb=\"tab-list\"] { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; }
+.stTabs [data-baseweb=\"tab\"] { color: #5a9a70 !important; }
+.stTabs [aria-selected=\"true\"] { background: #2e7d32 !important; color: #ffffff !important; }
+.stCheckbox label { color: #8ab89a !important; }
+[data-testid=\"stFileUploader\"] > div { background: #0d1a0d !important; border: 1.5px dashed #1e3a1e !important; }
+.stSuccess > div { background: #0a1f0a !important; border-left: 3px solid #00c853 !important; color: #4caf50 !important; }
+.stError > div { background: #1a0a0a !important; border-left: 3px solid #ef5350 !important; color: #ef5350 !important; }
+.stWarning > div { background: #1a1500 !important; border-left: 3px solid #ffc107 !important; color: #ffc107 !important; }
+.stInfo > div { background: #0a0f1a !important; border-left: 3px solid #42a5f5 !important; color: #42a5f5 !important; }
+[data-testid=\"stDataFrame\"] { border: 1px solid #1e3a1e !important; background: #0d1a0d !important; }
+[data-testid=\"stDataFrame\"] * { color: #e8f5e9 !important; }
+.streamlit-expanderHeader { background: #0d1a0d !important; border: 1px solid #1e3a1e !important; color: #8ab89a !important; }
+.streamlit-expanderContent { background: #0a140a !important; border: 1px solid #1e3a1e !important; }
+div[data-testid=\"stVerticalBlock\"] label { color: #8ab89a !important; }
+"""
+
 def render_sidebar():
     u=st.session_state.usuario
     with st.sidebar:
@@ -760,8 +802,24 @@ def render_sidebar():
             pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         pag=st.radio('',pags,label_visibility='collapsed')
         st.markdown('<hr style="border-color:#1a2e1a;margin:12px 0">',unsafe_allow_html=True)
+        # Toggle de tema
+        st.markdown('<hr style="border-color:#d0e8d0;margin:8px 0">',unsafe_allow_html=True)
+        tema_atual=st.session_state.get('tema','claro')
+        col_t1,col_t2=st.columns(2)
+        with col_t1:
+            if st.button('☀ Claro' if tema_atual=='escuro' else '☀ Claro',use_container_width=True,key='btn_tema_claro',
+                help='Tema claro'):
+                st.session_state['tema']='claro'; st.rerun()
+        with col_t2:
+            if st.button('🌙 Escuro',use_container_width=True,key='btn_tema_escuro',
+                help='Tema escuro'):
+                st.session_state['tema']='escuro'; st.rerun()
+        st.markdown('<hr style="border-color:#d0e8d0;margin:8px 0">',unsafe_allow_html=True)
         if st.button('Sair',use_container_width=True,key='btn_sair'):
             del st.session_state.usuario; st.rerun()
+    # Injetar CSS do tema escuro se necessário
+    if st.session_state.get('tema')=='escuro':
+        st.markdown(f'<style>{DARK_CSS}</style>',unsafe_allow_html=True)
     return mes_ano,pag
 
 # ── OPERADORES ─────────────────────────────────
@@ -962,8 +1020,8 @@ def pagina_lancamento(ma):
     for op in ops:
         meta=float(ms.get(op["_id"],0))
         c1,c2,c3=st.columns([3,2,2])
-        with c1: st.markdown(f"<div style='padding-top:10px;color:#e0f0e8;font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
-        with c2: st.markdown(f"<div style='padding-top:10px;color:#5a9a70;font-size:13px'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
+        with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a;font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
+        with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px;font-weight:500'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
         with c3: vi[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"op_{eq}_{ma}_{op['_id']}")
     tc=sum(vi.values())
     st.markdown("---")
