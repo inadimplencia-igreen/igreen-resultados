@@ -144,7 +144,7 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
     gap: 0px !important;
 }
 [data-testid="stSidebar"] .stRadio label {
-    color: #d0ddd0 !important;
+    color: #e8f0e8 !important;
     font-size: 13px !important;
     font-weight: 500 !important;
     padding: 10px 16px !important;
@@ -159,7 +159,7 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
     transition: all 0.15s !important;
 }
 [data-testid="stSidebar"] .stRadio label:hover {
-    color: #ccd4cc !important;
+    color: #ffffff !important;
     background: rgba(255,255,255,0.05) !important;
 }
 /* Esconde bolinha */
@@ -172,10 +172,10 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
 }
 /* Item ativo */
 [data-testid="stSidebar"] .stRadio label[data-checked="true"] {
-    color: #00c853 !important;
-    background: rgba(0,200,83,0.1) !important;
+    color: #00ff6a !important;
+    background: rgba(0,200,83,0.15) !important;
     border-left: 3px solid #00c853 !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
 }
 
 /* ── FIX DROPDOWN ARROW SOBREPOSIÇÃO ── */
@@ -1227,9 +1227,15 @@ def pagina_monitorias(ma):
         else:
             st.markdown("<p style='color:#e53935;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>ITENS DE QUALIDADE — MARQUE O QUE NÃO FOI FEITO</p>",unsafe_allow_html=True)
             for crit in get_criterios():
+                # Cabeçalho do critério com pontuação
                 c1,c2=st.columns([8,1])
                 with c1: nao_passou=st.checkbox(f"{crit['nome']}",key=f"cr_{crit['id']}",value=False)
                 with c2: st.markdown(f"<div style='padding-top:6px;color:#e53935;font-size:12px;font-weight:600;text-align:right'>−{crit['peso']} pts</div>",unsafe_allow_html=True)
+                # Itens detalhados do critério
+                if crit.get('itens'):
+                    for it in crit['itens']:
+                        cor_it = "#e53935" if "obrigatório" in it.lower() or "!" in it else "#5a9a70"
+                        st.markdown(f"<div style='padding:2px 0 2px 24px;font-size:12px;color:{cor_it}'>• {it}</div>",unsafe_allow_html=True)
                 passou=not nao_passou
                 if not passou: nota-=crit["peso"]
                 crits_r.append({**crit,"passou":passou})
@@ -1242,16 +1248,42 @@ def pagina_monitorias(ma):
             f"<div style='color:#5a9a70;font-size:11px'>Pontos perdidos: {pontos_perdidos}</div></div>"
             f"<div style='color:{cn};font-size:32px;font-weight:800'>{nota:.0f}</div>"
             f"</div>",unsafe_allow_html=True)
-        if st.button("Salvar Monitoria",use_container_width=True):
-            if not prot.strip(): st.error("Preencha o protocolo da ligação!")
-            else:
-                salvar_monitoria(eq,op["_id"],op["nome"],prot,obs,crits_r,erros_m,nota,ma,semana=semana)
-                mm,nm=calc_media_operador(op["_id"],ma)
-                html=gerar_pdf_monitoria(op["nome"],prot,obs,crits_r,erros_m,nota,mm,nm,ma)
-                b64=base64.b64encode(html.encode()).decode()
+        # Estado: salva e aguarda download antes de fechar
+        sk_salvo=f"mon_salvo_{op['_id']}_{semana}_{ma}"
+        if not st.session_state.get(sk_salvo):
+            if st.button("Salvar Monitoria",use_container_width=True,key="btn_salvar_mon"):
+                if not prot.strip(): st.error("Preencha o protocolo da ligação!")
+                else:
+                    salvar_monitoria(eq,op["_id"],op["nome"],prot,obs,crits_r,erros_m,nota,ma,semana=semana)
+                    mm,nm=calc_media_operador(op["_id"],ma)
+                    html=gerar_pdf_monitoria(op["nome"],prot,obs,crits_r,erros_m,nota,mm,nm,ma)
+                    b64=base64.b64encode(html.encode()).decode()
+                    st.session_state[sk_salvo]={"nome":op["nome"],"nota":nota,"media":mm,"pontos":calc_pontos(mm),"b64":b64,"prot":prot}
+                    st.rerun()
+        else:
+            salvo=st.session_state[sk_salvo]
+            cn2="#2e7d32" if salvo['nota']>=80 else "#f57f17" if salvo['nota']>=60 else "#c62828"
+            st.markdown(
+                f"<div style='background:#0a1a0a;border:2px solid #00c853;border-radius:12px;padding:20px 24px;margin:16px 0'>"
+                f"<div style='color:#00c853;font-weight:700;font-size:15px;margin-bottom:8px'>✓ Monitoria salva!</div>"
+                f"<div style='color:#e8f5e9;font-size:13px'>Operador: <strong>{salvo['nome']}</strong></div>"
+                f"<div style='color:#e8f5e9;font-size:13px'>Nota: <strong style='color:{cn2}'>{salvo['nota']:.0f}%</strong> | "
+                f"Média: <strong>{salvo['media']:.1f}%</strong> | Pontos: <strong>{salvo['pontos']}</strong></div>"
+                f"</div>",unsafe_allow_html=True)
+            # Botão baixar PDF
+            st.markdown(
+                f'<a href="data:text/html;base64,{salvo["b64"]}" '
+                f'download="Monitoria_{salvo["nome"].replace(" ","_")}_{salvo["prot"]}.html" '
+                f'style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;'
+                f'padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:13px;margin-bottom:12px">'
+                f'⬇ Baixar PDF da Monitoria</a>',
+                unsafe_allow_html=True)
+            st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
+            if st.button("Concluir e Voltar",use_container_width=True,key="btn_concluir_mon"):
+                ultimo=st.session_state.pop(sk_salvo,None)
                 st.session_state.mon_op_sel=None
                 st.session_state.mon_modo=None
-                st.session_state["mon_ultimo_salvo"]={"nome":op["nome"],"nota":nota,"media":mm,"pontos":calc_pontos(mm),"b64":b64,"prot":prot}
+                if ultimo: st.session_state["mon_ultimo_salvo"]=ultimo
                 st.rerun()
     with t2:
         monts2=[m for m in buscar_monitorias_equipe(eq,ma) if m["opId"]==op["_id"]]
