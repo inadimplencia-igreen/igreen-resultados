@@ -18,7 +18,7 @@ st.markdown("""
 /* ── BASE ── */
 .stApp { background-color: #0a0f0a; }
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0a1a0a 0%, #0d1f0d 100%);
+    background: #111811 !important;
     border-right: 1px solid #1a2e1a;
 }
 
@@ -139,28 +139,26 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
     color: #ffffff !important;
 }
 
-/* ── SIDEBAR NAV — igual print iGreen Tickets ── */
-[data-testid="stSidebar"] .stRadio > div {
-    gap: 0px !important;
-}
+/* ── SIDEBAR NAV — estilo iGreen Tickets ── */
+[data-testid="stSidebar"] .stRadio > div { gap: 2px !important; }
 [data-testid="stSidebar"] .stRadio label {
-    color: #ffffff !important;
+    color: #c8d8c8 !important;
     font-size: 13px !important;
-    font-weight: 500 !important;
-    padding: 10px 16px !important;
+    font-weight: 400 !important;
+    padding: 9px 16px !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     display: flex !important;
     align-items: center !important;
-    border-radius: 0 8px 8px 0 !important;
-    border-left: 3px solid transparent !important;
-    margin: 1px 0 !important;
-    transition: all 0.15s !important;
+    border-radius: 6px !important;
+    margin: 1px 4px !important;
+    transition: background 0.15s !important;
+    cursor: pointer !important;
 }
 [data-testid="stSidebar"] .stRadio label:hover {
     color: #ffffff !important;
-    background: rgba(255,255,255,0.05) !important;
+    background: rgba(255,255,255,0.07) !important;
 }
 /* Esconde bolinha */
 [data-testid="stSidebar"] .stRadio [data-baseweb="radio"] > div:first-child { display: none !important; }
@@ -170,12 +168,12 @@ hr { border: none !important; border-top: 1px solid #1a2e1a !important; margin: 
     white-space: nowrap !important;
     font-size: 13px !important;
 }
-/* Item ativo */
+/* Item ativo — fundo verde sólido igual iGreen Tickets */
 [data-testid="stSidebar"] .stRadio label[data-checked="true"] {
-    color: #00ff6a !important;
-    background: rgba(0,200,83,0.15) !important;
-    border-left: 3px solid #00c853 !important;
-    font-weight: 700 !important;
+    color: #ffffff !important;
+    background: #1a7a3a !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
 }
 
 /* ── FIX DROPDOWN ARROW SOBREPOSIÇÃO ── */
