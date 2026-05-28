@@ -16,7 +16,7 @@ st.markdown("""
 * { font-family: 'Inter', sans-serif !important; }
 
 /* ── BASE — tema claro corporativo ── */
-.stApp { background-color: #eef6ee !important; }
+.stApp { background-color: #eef6ee !important; --text-color: #1a3a1a; --text-muted: #5a8a5a; --bg-card: #ffffff; --border-color: #c8e0c8; }
 
 /* ── SIDEBAR ── */
 [data-testid="stSidebar"] {
@@ -196,6 +196,10 @@ hr { border: none !important; border-top: 1px solid #e0e8e0 !important; margin: 
 
 /* ── HIDE STREAMLIT CHROME ── */
 /* Esconder keyboard_double e outros ícones Streamlit */
+[data-testid="stSidebarCollapseButton"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
+button[data-testid="baseButton-header"] { display: none !important; }
+.st-emotion-cache-1egp75k { display: none !important; }
 [data-testid="stSidebarContent"] > div:first-child > div:first-child { display: none !important; }
 button[kind="header"] { display: none !important; }
 [data-testid="collapsedControl"] { display: none !important; }
@@ -750,7 +754,7 @@ def _mini_criterios():
         salvar_criterios(ce); st.success("Salvo!"); st.rerun()
 
 DARK_CSS = """
-.stApp { background-color: #0d1117 !important; }
+.stApp { background-color: #0d1117 !important; --text-color: #e6edf3; --text-muted: #8b949e; --bg-card: #161b22; --border-color: #30363d; }
 [data-testid="stSidebar"] { background: #161b22 !important; border-right: 1px solid #30363d !important; }
 [data-testid="stSidebar"] .stRadio label {
     color: #e6edf3 !important;
@@ -798,6 +802,17 @@ hr { border-top: 1px solid #30363d !important; }
 .streamlit-expanderContent { background: #0d1117 !important; border: 1px solid #30363d !important; }
 div[data-testid="stVerticalBlock"] label { color: #8b949e !important; }
 .block-container { background: #0d1117 !important; }
+/* Override textos inline hardcoded */
+[data-testid="stMarkdownContainer"] p { color: #c9d1d9 !important; }
+[data-testid="stMarkdownContainer"] div { color: #c9d1d9 !important; }
+div[style*="color:#1a3a1a"] { color: #e6edf3 !important; }
+div[style*="color:#2e7d32"] { color: #7ee787 !important; }
+div[style*="color:#5a8a5a"] { color: #8b949e !important; }
+div[style*="color:#1a2e1a"] { color: #e6edf3 !important; }
+div[style*="color:#3a5a3a"] { color: #c9d1d9 !important; }
+div[style*="color:#2d4a2d"] { color: #c9d1d9 !important; }
+div[style*="background:#ffffff"] { background: #161b22 !important; border-color: #30363d !important; }
+div[style*="background:#f0f7f0"] { background: #0d1117 !important; }
 """
 
 
@@ -843,7 +858,7 @@ def render_sidebar():
         else:
             pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
 
-        pag=st.radio('',pags,label_visibility='collapsed')
+        pag=st.radio('​',pags,label_visibility='collapsed')
 
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
@@ -932,7 +947,7 @@ def processar_base_unica(arquivo, eq, ma):
     for c in df.columns:
         cn=norm(str(c))
         # CPF: apenas coluna com nome exato CPF ou variações sem UC sozinho
-        if not col_cpf and cn in ["CPF","NUMERO CPF","NUM CPF","NUMCPF","NR CPF","NRCPF","CPF CLIENTE","CPF_CLIENTE"]: col_cpf=c
+        if not col_cpf and cn in ["CPF","NUMERO CPF","NUM CPF","NUMCPF","NR CPF","NRCPF","CPF CLIENTE","CPF_CLIENTE","IDENTIFICADOR","IDENTIF","ID_CLIENTE","IDCLIENTE"]: col_cpf=c
         if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
         if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG","DATA PAG","DATA PAGAMENTO"]): col_dpag=c
         if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC","DATA VENC","DATA VENCIMENTO","VENCIMENTO"]): col_dvenc=c
@@ -1064,7 +1079,7 @@ def pagina_lancamento(ma):
     for op in ops:
         meta=float(ms.get(op["_id"],0))
         c1,c2,c3=st.columns([3,2,2])
-        with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a;font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
+        with c1: st.markdown(f"<div style='padding-top:10px;color:var(--text-color,#1a3a1a);font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
         with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px;font-weight:500'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
         with c3: vi[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"op_{eq}_{ma}_{op['_id']}")
     tc=sum(vi.values())
