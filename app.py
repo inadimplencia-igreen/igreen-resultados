@@ -259,7 +259,7 @@ ERROS_CRITICOS_PADRAO = [
     {"id":"e4","nome":"Retenção de ligação","desc":"Segurar a ligação até dar o tempo legível para cota"},
     {"id":"e5","nome":"Contra-argumentação indevida","desc":"Cliente reclama do desconto e você oferta conta única"},
 ]
-FAIXAS_PONTOS = [(0,60,0),(61,70,300),(71,80,500),(81,90,700),(91,99,1000),(100,100,1100)]
+FAIXAS_PONTOS = [(0,70,0),(71,80,300),(81,90,500),(91,95,700),(96,99,1000),(100,100,1100)]
 SEMANAS_MONITORIA = [
     "1ª Semana — 1ª Monitoria","1ª Semana — 2ª Monitoria",
     "2ª Semana — 1ª Monitoria","2ª Semana — 2ª Monitoria",
@@ -575,8 +575,15 @@ def status_pct(p):
     return "Abaixo"
 
 def calc_pontos(media):
-    for lo,hi,pts in FAIXAS_PONTOS:
-        if lo<=media<=hi: return pts
+    # Regra: <=70=0, <=80=300, <=90=500, <=95=700, <=99=1000, 100=1100
+    import math
+    m=math.floor(media+0.5)
+    if m<=70: return 0
+    if m<=80: return 300
+    if m<=90: return 500
+    if m<=95: return 700
+    if m<=99: return 1000
+    if m>=100: return 1100
     return 0
 
 def calc_media_operador(oid, ma=None):
@@ -585,7 +592,8 @@ def calc_media_operador(oid, ma=None):
     if not monts: return 0,0
     notas=[m["nota"] for m in monts if "nota" in m]
     if not notas: return 0,0
-    return round(sum(notas)/len(notas),1),len(notas)
+    media=sum(notas)/len(notas)
+    return round(media,1),len(notas)
 
 def get_status_media(media):
     if media==0:   return "Zerada","#e53935","#ffebee"
@@ -1340,7 +1348,7 @@ def pagina_monitorias(ma):
                     st.markdown(f"""<div style="background:#ffffff;border:1px solid #c8e0c8;border-radius:12px;padding:16px;text-align:center;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
                         <div style="width:44px;height:44px;background:{cini};border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:15px;margin-bottom:8px">{ini}</div>
                         <div style="color:#1a2e1a;font-weight:700;font-size:12px;margin-bottom:4px">{op['nome']}{'  ★' if op.get('pleno') else ''}</div>
-                        <div style="color:{st_cor};font-size:20px;font-weight:800">{int(media)}%</div>
+                        <div style="color:{st_cor};font-size:20px;font-weight:800">{round(media)}%</div>
                         <div style="color:#5a8a5a;font-size:10px">{n} monitoria{'s' if n!=1 else ''}</div>
                         <div style="color:#2e7d32;font-size:11px;font-weight:600;margin-top:2px">{pontos_op} pts</div>
                     </div>""",unsafe_allow_html=True)
@@ -1395,7 +1403,7 @@ def pagina_monitorias(ma):
             f"<div style='background:#f0f7f0;border:1px solid #c8e0c8;border-radius:10px;padding:14px 20px;margin-top:16px;display:flex;justify-content:space-between;align-items:center'>"
             f"<div><div style='color:#5a8a5a;font-size:11px'>Pontuação final (máx. 100 pts)</div>"
             f"<div style='color:#5a8a5a;font-size:11px'>Pontos perdidos: {pontos_perdidos}</div></div>"
-            f"<div style='color:{cn};font-size:36px;font-weight:800'>{int(nota)}</div>"
+            f"<div style='color:{cn};font-size:36px;font-weight:800'>{round(nota)}</div>"
             f"</div>",unsafe_allow_html=True)
         # Estado: salva e aguarda download antes de fechar
         sk_salvo=f"mon_salvo_{op['_id']}_{semana}_{ma}"
