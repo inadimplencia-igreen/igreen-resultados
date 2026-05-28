@@ -285,6 +285,8 @@ FORNECEDORAS_POR_GESTOR = {
     "deborah": ["SUNNE","SOLATIO","EDP","FIT","GV"],
     "metcool": ["COMERC"],
 }
+OPERADORES_MEETCALL = ['Leilson Gomes', 'Hannah Vitoria', 'Kesia Lima', 'Renata Ribeiro', 'Thayna Guerreiro Ferreira', 'Kimberlyn da Silva', 'Vitor Eder', 'Laiza Teixeira', 'Glaucio Fernandes', 'Thais de Fatima', 'Mayara Leal', 'Ivone Coutinho', 'Aline Cristine', 'Anderson Soares da Silva', 'Michelle Pereira', 'Maria Ferreira', 'Mariana Matias', 'Jessica Faria Albertino Miranda Vieira', 'Lorrane Moura', 'Jennifer Edjane', 'Haissa Batista', 'Bruna de Barros Santanna']
+
 CORES_FORN = {"COTESA/MOVE":"#1b5e20","ULTRA":"#0d47a1","VANTAGE":"#e65100","FARO":"#b71c1c","BOM FUTURO":"#4a148c","SUNCLICK":"#004d40","ATUA":"#37474f","GEDISA":"#006064","SUNNE":"#f57f17","SOLATIO":"#4527a0","EDP":"#0277bd","FIT":"#2e7d32","GV":"#558b2f","COMERC":"#37474f"}
 
 # ── MONGODB ────────────────────────────────────
@@ -320,6 +322,22 @@ def get_erros_criticos():
 
 def salvar_erros_criticos(e):
     get_db().configuracoes.update_one({"_id":"erros_criticos_monitoria"},{"$set":{"_id":"erros_criticos_monitoria","erros":e,"atualizadoEm":datetime.now()}},upsert=True)
+
+def migrar_meetcall_para_luciano():
+    """Move operadores da equipe metcool para luciano — executa uma vez."""
+    try:
+        db = get_db()
+        ops_mc = list(db.operadores.find({"equipeId":"metcool"}))
+        for op in ops_mc:
+            nome = op.get("nome","")
+            if not nome: continue
+            oid = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
+            oid = re.sub(r'-+','-',oid).strip('-')
+            oid = f"luc-{oid}"[:40]
+            if not db.operadores.find_one({"_id":oid}):
+                db.operadores.insert_one({"_id":oid,"equipeId":"luciano","nome":nome,"pleno":False,"meetcall":True,"criadoEm":op.get("criadoEm",datetime.now())})
+            db.operadores.delete_one({"_id":op["_id"]})
+    except: pass
 
 def corrigir_ids_operadores():
     db = get_db()
@@ -1044,10 +1062,20 @@ def pagina_metas(ma):
     st.markdown("---")
     st.markdown("### Metas por Operador")
     ms=buscar_metas_equipe(ma,eq); mn={}
-    for op in ops:
-        c1,c2=st.columns([3,2])
-        with c1: st.markdown(f"<div style='padding-top:10px;color:#e0f0e8'>{'[P] ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
-        with c2: mn[op["_id"]]=st.number_input("m",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",value=float(ms.get(op["_id"],0)),key=f"mg_{ma}_{op['_id']}")
+    ops_igreen=[op for op in ops if op["nome"] not in OPERADORES_MEETCALL]
+    ops_mc=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
+    if ops_igreen:
+        st.markdown("<p style='color:#2e7d32;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px'>Operadores iGreen</p>",unsafe_allow_html=True)
+        for op in ops_igreen:
+            c1,c2=st.columns([3,2])
+            with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a'>{'[P] ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
+            with c2: mn[op["_id"]]=st.number_input("m",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",value=float(ms.get(op["_id"],0)),key=f"mg_{ma}_{op['_id']}")
+    if ops_mc:
+        st.markdown("<p style='color:#1565c0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:12px 0 4px'>Operadores Meet Call</p>",unsafe_allow_html=True)
+        for op in ops_mc:
+            c1,c2=st.columns([3,2])
+            with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a'>{op['nome']}</div>",unsafe_allow_html=True)
+            with c2: mn[op["_id"]]=st.number_input("m",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",value=float(ms.get(op["_id"],0)),key=f"mg_{ma}_{op['_id']}")
     st.markdown("---")
     if st.button("Salvar Metas",use_container_width=True):
         for oid,v in mn.items(): salvar_meta_operador(ma,eq,oid,v)
@@ -1084,12 +1112,23 @@ def pagina_lancamento(ma):
     st.markdown("---")
     st.markdown("### Valores por Operador")
     vi={}
-    for op in ops:
-        meta=float(ms.get(op["_id"],0))
-        c1,c2,c3=st.columns([3,2,2])
-        with c1: st.markdown(f"<div style='padding-top:10px;color:var(--text-color,#1a3a1a);font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
-        with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px;font-weight:500'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
-        with c3: vi[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"op_{eq}_{ma}_{op['_id']}")
+    ops_igreen=[op for op in ops if op["nome"] not in OPERADORES_MEETCALL]
+    ops_mc=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
+    grupos=[]
+    if eq=="luciano":
+        if ops_igreen: grupos.append(("Operadores iGreen","#2e7d32",ops_igreen))
+        if ops_mc: grupos.append(("Operadores Meet Call","#1565c0",ops_mc))
+    else:
+        grupos.append(("",None,ops))
+    for grupo_nome,grupo_cor,grupo_ops in grupos:
+        if grupo_nome:
+            st.markdown(f"<p style='color:{grupo_cor};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:12px 0 4px'>{grupo_nome}</p>",unsafe_allow_html=True)
+        for op in grupo_ops:
+            meta=float(ms.get(op["_id"],0))
+            c1,c2,c3=st.columns([3,2,2])
+            with c1: st.markdown(f"<div style='padding-top:10px;color:var(--text-color,#1a3a1a);font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
+            with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px;font-weight:500'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
+            with c3: vi[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"op_{eq}_{ma}_{op['_id']}")
     tc=sum(vi.values())
     st.markdown("---")
     usar_manual=st.checkbox("Inserir valor total manualmente",key=f"manual_{eq}_{ma}")
@@ -1182,7 +1221,21 @@ def pagina_quadro(ma):
             df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
             df.index=range(1,len(df)+1)
             st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
-        if up and up.get("registros"):
+        if eq=="luciano":
+            # Para Luciano: mostrar iGreen vs Meet Call
+            if ops:
+                total_igreen=0; total_meetcall=0
+                for op in ops:
+                    v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
+                    if op["nome"] in OPERADORES_MEETCALL: total_meetcall+=v
+                    else: total_igreen+=v
+                st.markdown("<p style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px'>POR EQUIPE</p>",unsafe_allow_html=True)
+                c1,c2=st.columns(2)
+                with c1:
+                    st.markdown(f"<div style='background:#0a1f0a;border:1px solid #1e3a1e;border-radius:10px;padding:14px 18px'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>OPERADORES IGREEN</div><div style='color:#00c853;font-size:18px;font-weight:700;margin-top:4px'>{fmt_brl(total_igreen)}</div></div>",unsafe_allow_html=True)
+                with c2:
+                    st.markdown(f"<div style='background:#0a1f0a;border:1px solid #1e3a1e;border-radius:10px;padding:14px 18px'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>OPERADORES MEET CALL</div><div style='color:#00c853;font-size:18px;font-weight:700;margin-top:4px'>{fmt_brl(total_meetcall)}</div></div>",unsafe_allow_html=True)
+        elif up and up.get("registros"):
             try:
                 df_proc=pd.DataFrame(up["registros"])
                 if "fornecedora" in df_proc.columns and "valor" in df_proc.columns:
@@ -1817,6 +1870,8 @@ def main():
     # Só corrige IDs após login, com proteção
     if "ids_corrigidos" not in st.session_state:
         try: corrigir_ids_operadores()
+        except: pass
+        try: migrar_meetcall_para_luciano()
         except: pass
         st.session_state.ids_corrigidos=True
     ma,pag=render_sidebar()
