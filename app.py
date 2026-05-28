@@ -635,7 +635,7 @@ def normalizar_cpf(s):
     s=str(s).strip()
     try: s=str(int(float(s)))
     except: s=s.replace(".","").replace("-","").replace("/","").replace(" ","")
-    if s.isdigit() and len(s)<11: s=s.zfill(11)
+    if s.isdigit() and len(s)<10: s=s.zfill(11)
     return s
 
 def gerar_pdf_monitoria(onome, prot, obs, crits, erros, nota, media, n_mon, ma):
