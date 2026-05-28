@@ -1174,9 +1174,16 @@ def pagina_quadro(ma):
         dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
         up=buscar_ultimo_processamento(ma,eq)
         rec_geral=float(up.get("valorElegivel",0)) if up else 0
-        # Se não tem processamento mas tem recGeral manual no lançamento, usar ele
-        if rec_geral==0 and ul.get("recGeral",0)>0:
-            rec_geral=float(ul["recGeral"])
+        # Se não tem processamento, busca recGeral do lançamento (manual ou anterior)
+        if rec_geral==0:
+            # Tenta lançamento atual
+            if ul.get("recGeral",0)>0:
+                rec_geral=float(ul["recGeral"])
+            else:
+                # Busca em lançamentos anteriores
+                for l in lancs[1:]:
+                    if l.get("recGeral",0)>0:
+                        rec_geral=float(l["recGeral"]); break
         sem=max(0, rec_geral - tc)
         proj=calc_projecao(rec_geral, dt, td)
         pct=(rec_geral/mg*100) if mg>0 else 0
