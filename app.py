@@ -921,7 +921,7 @@ def processar_base_unica(arquivo, eq, ma):
     for c in df.columns:
         cn=norm(str(c))
         if not col_cpf  and any(x in cn for x in ["CPF","UC","INSTAL","MATRICUL","COD_C","CODIGO_C","ID_C","NUM_C","CONTRATO","MATRICULA","CODIGO"]): col_cpf=c
-        if not col_val  and any(x in cn for x in ["VALOR A PAGAR","VALOR PAGAR","VLR_PAG","VL_PAG","VALOR TOTAL","VAL_TOT","VALOR","VLR","VL_","PAGAR","RECEB"]): col_val=c
+        if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
         if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG","DATA PAG","DATA PAGAMENTO"]): col_dpag=c
         if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC","DATA VENC","DATA VENCIMENTO","VENCIMENTO"]): col_dvenc=c
         if not col_forn and any(x in cn for x in ["FORNEC","DISTRIB","EMPRESA","CONCESS","FORNECEDOR","FORNECEDORA","FORN"]): col_forn=c
@@ -936,9 +936,6 @@ def processar_base_unica(arquivo, eq, ma):
                 if score>best_score: best_score=score; best_col=c
             except: pass
         if best_col and best_score>=3: col_cpf=best_col
-
-    import streamlit as _st
-    _st.info(f"DEBUG: aba={aba_pagos} | CPF={col_cpf} | VALOR={col_val} | DPAG={col_dpag} | FORN={col_forn} | cols={list(df.columns)[:6]}")
 
     mapa={}
     if col_cpf:  mapa[col_cpf]="uc_cpf"
