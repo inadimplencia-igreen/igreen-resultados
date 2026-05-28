@@ -634,8 +634,7 @@ def get_val_op(ag, oid, onome):
 def normalizar_cpf(s):
     s=str(s).strip()
     try: s=str(int(float(s)))
-    except: s=s.replace(".","").replace("-","").replace("/","").replace(" ","")
-    if s.isdigit() and len(s)<11: s=s.zfill(11)
+    except: s=s.replace(".","").replace("-","").replace("/","").replace(" ","").replace("(","").replace(")","")
     return s
 
 def gerar_pdf_monitoria(onome, prot, obs, crits, erros, nota, media, n_mon, ma):
@@ -947,7 +946,7 @@ def processar_base_unica(arquivo, eq, ma):
     for c in df.columns:
         cn=norm(str(c))
         # CPF: apenas coluna com nome exato CPF ou variações sem UC sozinho
-        if not col_cpf and cn in ["CPF","NUMERO CPF","NUM CPF","NUMCPF","NR CPF","NRCPF","CPF CLIENTE","CPF_CLIENTE","IDENTIFICADOR","IDENTIF","ID_CLIENTE","IDCLIENTE"]: col_cpf=c
+        if not col_cpf and (cn in ["CPF","NUMERO CPF","NUM CPF","NUMCPF","NR CPF","NRCPF","CPF CLIENTE","CPF_CLIENTE","IDENTIFICADOR","IDENTIFICACAO","IDENTIF","ID_CLIENTE","IDCLIENTE"] or cn.startswith("IDENTIF") or cn.startswith("CPF")): col_cpf=c
         if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
         if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG","DATA PAG","DATA PAGAMENTO"]): col_dpag=c
         if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC","DATA VENC","DATA VENCIMENTO","VENCIMENTO"]): col_dvenc=c
@@ -992,9 +991,9 @@ def processar_base_unica(arquivo, eq, ma):
             dc=pd.read_excel(xls,sheet_name=aba,header=0)
             if dc.empty or len(dc.columns)<2: continue
             # Busca identificador: CPF exato, Identificador exato, ou variações
-            cc=next((c for c in dc.columns if norm(str(c)) in ["CPF","IDENTIFICADOR","IDENTIF"]),None)
-            if not cc: cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","IDENTIFICADOR","IDENTIF","ID_C","MATRICUL","CONTRATO","CODIGO"])),dc.columns[0])
-            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
+            cc=next((c for c in dc.columns if norm(str(c)) in ["CPF","IDENTIFICADOR","IDENTIFICACAO","IDENTIF"]),None)
+            if not cc: cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","IDENTIF","IDENTIC","ID_C","MATRICUL","CONTRATO","CODIGO"])),dc.columns[0])
+            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM","CALL","DATE"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
             dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
             dd=dd[dd["uc_cpf"].str.len()>=3]
             if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
