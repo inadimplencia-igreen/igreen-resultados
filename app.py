@@ -24,12 +24,8 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
-/* ── Esconde label vazio do radio ── */
-[data-testid="stSidebar"] .stRadio > div > label:first-child:empty,
-[data-testid="stSidebar"] .stRadio > div > div:first-child > label:has(> div:empty) {
-    display: none !important;
-}
-[data-testid="stSidebar"] .stRadio [data-baseweb="radio"]:first-child {
+/* ── Esconde primeiro item vazio do radio ── */
+[data-testid="stSidebar"] .stRadio > div > div:first-child {
     display: none !important;
 }
 
@@ -857,7 +853,7 @@ def render_sidebar():
         else:
             pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
 
-        pag=st.radio('​',pags,label_visibility='collapsed')
+        pag=st.radio('nav',pags,label_visibility='collapsed')
 
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
@@ -1083,6 +1079,10 @@ def pagina_lancamento(ma):
         with c3: vi[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"op_{eq}_{ma}_{op['_id']}")
     tc=sum(vi.values())
     st.markdown("---")
+    usar_manual=st.checkbox("Inserir valor total manualmente",key=f"manual_{eq}_{ma}")
+    if usar_manual:
+        tc_manual=st.number_input("Valor Total com Interação (R$)",min_value=0.0,step=100.0,format="%.2f",value=tc,key=f"tc_manual_{eq}_{ma}")
+        tc=tc_manual
     st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin-bottom:16px'><span style='color:#5a9a70;font-size:11px'>TOTAL COM INTERAÇÃO</span><br><span style='color:#2daf5c;font-size:20px;font-weight:700'>{fmt_brl(tc)}</span></div>",unsafe_allow_html=True)
     if st.button("Salvar Lançamento",use_container_width=True,key=f"btn_{eq}_{ma}"):
         errs=[]
