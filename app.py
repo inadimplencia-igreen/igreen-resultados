@@ -324,9 +324,10 @@ def salvar_erros_criticos(e):
     get_db().configuracoes.update_one({"_id":"erros_criticos_monitoria"},{"$set":{"_id":"erros_criticos_monitoria","erros":e,"atualizadoEm":datetime.now()}},upsert=True)
 
 def migrar_meetcall_para_luciano():
-    """Move operadores da equipe metcool para luciano — executa uma vez."""
+    """Garante que todos os operadores Meet Call estão na equipe luciano."""
     try:
         db = get_db()
+        # Mover de metcool para luciano
         ops_mc = list(db.operadores.find({"equipeId":"metcool"}))
         for op in ops_mc:
             nome = op.get("nome","")
@@ -337,6 +338,13 @@ def migrar_meetcall_para_luciano():
             if not db.operadores.find_one({"_id":oid}):
                 db.operadores.insert_one({"_id":oid,"equipeId":"luciano","nome":nome,"pleno":False,"meetcall":True,"criadoEm":op.get("criadoEm",datetime.now())})
             db.operadores.delete_one({"_id":op["_id"]})
+        # Importar padrão se não existirem
+        for nome in OPERADORES_MEETCALL:
+            oid = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
+            oid = re.sub(r'-+','-',oid).strip('-')
+            oid = f"luc-{oid}"[:40]
+            if not db.operadores.find_one({"_id":oid}):
+                db.operadores.insert_one({"_id":oid,"equipeId":"luciano","nome":nome,"pleno":False,"meetcall":True,"criadoEm":datetime.now()})
     except: pass
 
 def corrigir_ids_operadores():
@@ -1871,9 +1879,10 @@ def main():
     if "ids_corrigidos" not in st.session_state:
         try: corrigir_ids_operadores()
         except: pass
-        try: migrar_meetcall_para_luciano()
-        except: pass
         st.session_state.ids_corrigidos=True
+    # Migrar meetcall sempre
+    try: migrar_meetcall_para_luciano()
+    except: pass
     ma,pag=render_sidebar()
     u=st.session_state.usuario
     # Limpa área principal antes de renderizar nova tela
