@@ -324,21 +324,9 @@ def salvar_erros_criticos(e):
     get_db().configuracoes.update_one({"_id":"erros_criticos_monitoria"},{"$set":{"_id":"erros_criticos_monitoria","erros":e,"atualizadoEm":datetime.now()}},upsert=True)
 
 def migrar_meetcall_para_luciano():
-    """Garante que todos os operadores Meet Call estão na equipe luciano."""
+    """Insere operadores Meet Call na equipe luciano se não existirem."""
     try:
         db = get_db()
-        # Mover de metcool para luciano
-        ops_mc = list(db.operadores.find({"equipeId":"metcool"}))
-        for op in ops_mc:
-            nome = op.get("nome","")
-            if not nome: continue
-            oid = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
-            oid = re.sub(r'-+','-',oid).strip('-')
-            oid = f"luc-{oid}"[:40]
-            if not db.operadores.find_one({"_id":oid}):
-                db.operadores.insert_one({"_id":oid,"equipeId":"luciano","nome":nome,"pleno":False,"meetcall":True,"criadoEm":op.get("criadoEm",datetime.now())})
-            db.operadores.delete_one({"_id":op["_id"]})
-        # Importar padrão se não existirem
         for nome in OPERADORES_MEETCALL:
             oid = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
             oid = re.sub(r'-+','-',oid).strip('-')
@@ -1880,8 +1868,10 @@ def main():
         try: corrigir_ids_operadores()
         except: pass
         st.session_state.ids_corrigidos=True
-    # Migrar meetcall sempre
-    try: migrar_meetcall_para_luciano()
+    # Migrar meetcall sempre — limpa cache para garantir
+    try:
+        migrar_meetcall_para_luciano()
+        buscar_operadores.clear()
     except: pass
     ma,pag=render_sidebar()
     u=st.session_state.usuario
