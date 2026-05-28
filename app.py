@@ -1875,11 +1875,13 @@ def main():
         try: corrigir_ids_operadores()
         except: pass
         st.session_state.ids_corrigidos=True
-    # Migrar meetcall sempre — limpa cache para garantir
-    try:
-        migrar_meetcall_para_luciano()
-        buscar_operadores.clear()
-    except: pass
+    # Migrar meetcall só uma vez por sessão
+    if 'meetcall_migrado' not in st.session_state:
+        try:
+            migrar_meetcall_para_luciano()
+            buscar_operadores.clear()
+        except: pass
+        st.session_state.meetcall_migrado=True
     ma,pag=render_sidebar()
     u=st.session_state.usuario
     # Limpa área principal antes de renderizar nova tela
