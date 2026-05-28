@@ -920,7 +920,7 @@ def processar_base_unica(arquivo, eq, ma):
     col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
     for c in df.columns:
         cn=norm(str(c))
-        if not col_cpf  and any(x in cn for x in ["CPF","UC","INSTAL","MATRICUL","COD_C","CODIGO_C","ID_C","NUM_C","CONTRATO","MATRICULA","CODIGO"]): col_cpf=c
+        if not col_cpf and "CLIENTE" not in cn and "NOME" not in cn and any(x in cn for x in ["CPF","UC","INSTAL","MATRICUL","COD_C","CODIGO_C","ID_C","NUM_C","CONTRATO","MATRICULA","CODIGO"]): col_cpf=c
         if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
         if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG","DATA PAG","DATA PAGAMENTO"]): col_dpag=c
         if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC","DATA VENC","DATA VENCIMENTO","VENCIMENTO"]): col_dvenc=c
@@ -964,7 +964,7 @@ def processar_base_unica(arquivo, eq, ma):
         try:
             dc=pd.read_excel(xls,sheet_name=aba,header=0)
             if dc.empty or len(dc.columns)<2: continue
-            cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","UC","INSTAL","MATRICUL","COD","CLIENT"])),dc.columns[0])
+            cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","UC","INSTAL","MATRICUL","COD","CLIENT","IDENTIF","CONTRATO","MATRICULA","CODIGO","ID_"])),dc.columns[0])
             cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
             dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
             dd=dd[dd["uc_cpf"].str.len()>=3]
