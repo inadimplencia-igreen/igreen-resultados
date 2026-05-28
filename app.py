@@ -24,8 +24,11 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
-/* ── Esconde primeiro item vazio do radio ── */
+/* ── Esconde label do radio e primeiro item vazio ── */
 [data-testid="stSidebar"] .stRadio > div > div:first-child {
+    display: none !important;
+}
+[data-testid="stSidebar"] .stRadio > label {
     display: none !important;
 }
 
@@ -233,6 +236,7 @@ def _get_usuarios():
         "deborah": {"senha": _s("deborah","L4f10IJo5bGJ3O"), "equipe":"deborah","role":"gestor", "nome":"Déborah"},
         "veloso":  {"senha": _s("veloso", "U2B!niJH7W96rL"), "equipe":None,    "role":"diretor","nome":"Veloso"},
         "moyara":  {"senha": _s("moyara", "ug8omeP4Cvt3nl"), "equipe":None,    "role":"diretor","nome":"Moyara"},
+        "gabriel": {"senha": _s("gabriel","gabriel123"),   "equipe":"metcool","role":"gestor", "nome":"Gabriel"},
     }
 
 USUARIOS = _get_usuarios()
@@ -240,7 +244,7 @@ EQUIPES = {
     "luciano":{"nome":"Luciano","cor":"#2daf5c"},
     "deborah":{"nome":"Déborah","cor":"#a855f7"},
     "tamires":{"nome":"Tamires","cor":"#f97316"},
-    "metcool":{"nome":"MetCool","cor":"#3b82f6"},
+    "metcool":{"nome":"Meet Call","cor":"#3b82f6"},
 }
 MESES_NOMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
                "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
@@ -271,7 +275,7 @@ OPERADORES_PADRAO = {
     "luciano":[("Jennifer Silveira",True),("Paulo Roberto",False),("Samires Barros",False),("Maycow Gabriel",False),("Otaides Junior",False),("Heverton Tavares",False),("Camila Nara",False),("Caua Alves",False),("Eduarda Sanqueta",False),("Jheniffer Santos",False),("Ketie Silva",False),("Emanuel Cardoso",False),("Victória Silva",False),("Grasielli Santos",False),("Laura Silva",False),("Michelle Batista",False),("Lorenzzo Pereira",False),("Diogo Oliveira",False),("Maria Paulino",False),("Gabrielle Martins",False),("Marcos Martins",False)],
     "deborah":[("Mikael Dias",False),("Amanda Eduarda",False),("Larissa Barcelos",False),("Nicole Amaral",False),("Sara Rocha",False),("Isabelly Araujo",False),("Silye Paula",False)],
     "tamires":[("Danilo Rodrigues",True),("Raiane Pereira",False),("Wynara Dos Reis",False),("Esteffany Souza",False),("André Gomes",False),("Wanessa Cardoso",False),("Larisse Garcia",False),("Arthur Alves",False)],
-    "metcool":[],
+    "metcool":[("Leilson Gomes",False),("Hannah Vitoria",False),("Kesia Lima",False),("Renata Ribeiro",False),("Thayna Guerreiro Ferreira",False),("Kimberlyn da Silva",False),("Vitor Eder",False),("Laiza Teixeira",False),("Glaucio Fernandes",False),("Thais de Fatima",False),("Mayara Leal",False),("Ivone Coutinho",False),("Aline Cristine",False),("Anderson Soares da Silva",False),("Michelle Pereira",False),("Maria Ferreira",False),("Mariana Matias",False),("Jessica Faria Albertino Miranda Vieira",False),("Lorrane Moura",False),("Jennifer Edjane",False),("Haissa Batista",False),("Bruna de Barros Santanna",False)],
 }
 FORNECEDORAS_TODAS = ["COTESA/MOVE","ULTRA","VANTAGE","FARO","BOM FUTURO","SUNCLICK","ATUA","GEDISA","SUNNE","SOLATIO","EDP","FIT","GV","COMERC"]
 
@@ -279,6 +283,7 @@ FORNECEDORAS_POR_GESTOR = {
     "luciano": ["COMERC"],
     "tamires": ["VANTAGE","BOM FUTURO","COTESA/MOVE","SUNCLICK","FARO","ULTRA","GEDISA"],
     "deborah": ["SUNNE","SOLATIO","EDP","FIT","GV"],
+    "metcool": ["COMERC"],
 }
 CORES_FORN = {"COTESA/MOVE":"#1b5e20","ULTRA":"#0d47a1","VANTAGE":"#e65100","FARO":"#b71c1c","BOM FUTURO":"#4a148c","SUNCLICK":"#004d40","ATUA":"#37474f","GEDISA":"#006064","SUNNE":"#f57f17","SOLATIO":"#4527a0","EDP":"#0277bd","FIT":"#2e7d32","GV":"#558b2f","COMERC":"#37474f"}
 
@@ -853,7 +858,7 @@ def render_sidebar():
         else:
             pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
 
-        pag=st.radio('nav',pags,label_visibility='collapsed')
+        pag=st.radio('',pags,label_visibility='collapsed')
 
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
