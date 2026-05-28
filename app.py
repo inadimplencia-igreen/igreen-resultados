@@ -33,43 +33,49 @@ st.markdown("""
     display: none !important;
 }
 
-/* ── SIDEBAR NAV — cards executivos ── */
-[data-testid="stSidebar"] .stRadio > div { gap: 4px !important; }
+/* ── SIDEBAR NAV — cards padronizados ── */
+[data-testid="stSidebar"] .stRadio > div {
+    gap: 3px !important;
+    padding: 0 8px !important;
+}
 [data-testid="stSidebar"] .stRadio label {
     color: #2d4a2d !important;
     font-size: 13px !important;
     font-weight: 500 !important;
-    padding: 10px 14px !important;
+    padding: 10px 16px !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     display: flex !important;
     align-items: center !important;
     border-radius: 8px !important;
-    margin: 2px 4px !important;
+    margin: 1px 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
     transition: all 0.15s !important;
     background: #ffffff !important;
     border: 1px solid #d8ead8 !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+    min-height: 40px !important;
 }
 [data-testid="stSidebar"] .stRadio label:hover {
     color: #1a3a1a !important;
-    background: #e8f5e8 !important;
+    background: #edf7ed !important;
     border-color: #2e7d32 !important;
-    box-shadow: 0 2px 6px rgba(46,125,50,0.12) !important;
 }
 [data-testid="stSidebar"] .stRadio [data-baseweb="radio"] > div:first-child { display: none !important; }
 [data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p {
     color: inherit !important;
     white-space: nowrap !important;
     font-size: 13px !important;
+    margin: 0 !important;
 }
 [data-testid="stSidebar"] .stRadio label[data-checked="true"] {
     color: #ffffff !important;
     background: #2e7d32 !important;
     border-color: #2e7d32 !important;
     font-weight: 600 !important;
-    box-shadow: 0 2px 8px rgba(46,125,50,0.25) !important;
+    box-shadow: 0 2px 6px rgba(46,125,50,0.2) !important;
 }
 
 /* ── METRICS ── */
@@ -81,7 +87,7 @@ st.markdown("""
     border-top: 3px solid #2e7d32 !important;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
 }
-[data-testid="stMetricValue"] { color: #1a2e1a !important; font-size: 22px !important; font-weight: 700 !important; }
+[data-testid="stMetricValue"] { color: #1a2e1a !important; font-size: 16px !important; font-weight: 700 !important; white-space: nowrap !important; overflow: visible !important; }
 [data-testid="stMetricLabel"] { color: #5a8a5a !important; font-size: 10px !important; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
 
 /* ── BUTTONS ── */
@@ -189,6 +195,10 @@ hr { border: none !important; border-top: 1px solid #e0e8e0 !important; margin: 
 ::-webkit-scrollbar-thumb:hover { background: #2e7d32; }
 
 /* ── HIDE STREAMLIT CHROME ── */
+/* Esconder keyboard_double e outros ícones Streamlit */
+[data-testid="stSidebarContent"] > div:first-child > div:first-child { display: none !important; }
+button[kind="header"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 #MainMenu { visibility: hidden !important; }
 header[data-testid="stHeader"] { display: none !important; }
 footer { display: none !important; }
@@ -760,7 +770,7 @@ DARK_CSS = """
     font-weight: 600 !important;
 }
 [data-testid="stMetric"] { background: #161b22 !important; border: 1px solid #30363d !important; border-top: 2px solid #3fb950 !important; }
-[data-testid="stMetricValue"] { color: #e6edf3 !important; }
+[data-testid="stMetricValue"] { color: #e6edf3 !important; font-size: 16px !important; white-space: nowrap !important; overflow: visible !important; }
 [data-testid="stMetricLabel"] { color: #7ee787 !important; }
 .stButton > button { background: #21262d !important; color: #7ee787 !important; border: 1px solid #30363d !important; }
 .stButton > button:hover { background: #238636 !important; color: #ffffff !important; border-color: #3fb950 !important; }
@@ -833,11 +843,12 @@ def render_sidebar():
         else:
             pags=['Quadro de Resultados','Lançamento','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
 
-        pag=st.radio('Menu',pags,label_visibility='collapsed')
+        pag=st.radio('',pags,label_visibility='collapsed')
 
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
         # TEMA
+        st.markdown('<p style="font-size:10px;color:#5a8a5a;text-transform:uppercase;letter-spacing:1px;margin:4px 0 6px 2px">Tema</p>',unsafe_allow_html=True)
         col_t1,col_t2=st.columns(2)
         with col_t1:
             if st.button('☀ Claro',use_container_width=True,key='btn_tema_claro'):
