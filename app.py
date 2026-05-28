@@ -1078,7 +1078,7 @@ def pagina_lancamento(ma):
     rec_auto=float(up_atual.get("valorElegivel",0)) if up_atual else 0
     usar_rec_manual=st.checkbox("Inserir Recebido Geral manualmente",key=f"rec_manual_chk_{eq}_{ma}")
     if usar_rec_manual:
-        rec_geral_manual=st.number_input("Recebido Geral (R$)",min_value=0.0,step=100.0,format="%.2f",value=rec_auto,key=f"rec_geral_manual_{eq}_{ma}")
+        rec_geral_manual=st.number_input("Recebido Geral (R$)",min_value=0.0,step=100.0,format="%.2f",value=float(rec_auto or 0),key=f"rec_geral_manual_{eq}_{ma}")
     else:
         rec_geral_manual=rec_auto
     st.markdown("---")
@@ -1167,13 +1167,11 @@ def pagina_quadro(ma):
             f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>DIAS</div>"
             f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{dt}/{td}</div></div>"
             f"</div></div>", unsafe_allow_html=True)
-        show=True
-        if is_dir:
-            k=f"show_ops_{eq}"
-            if k not in st.session_state: st.session_state[k]=False
-            if st.button(f"{'Ocultar' if st.session_state[k] else 'Exibir'} Operadores — {EQUIPES[eq]['nome']}",key=f"btn_ops_{eq}"):
-                st.session_state[k]=not st.session_state[k]; st.rerun()
-            show=st.session_state[k]
+        k=f"show_ops_{eq}"
+        if k not in st.session_state: st.session_state[k]=False
+        if st.button(f"{'Ocultar' if st.session_state[k] else 'Exibir'} Operadores — {EQUIPES[eq]['nome']}",key=f"btn_ops_{eq}"):
+            st.session_state[k]=not st.session_state[k]; st.rerun()
+        show=st.session_state[k]
         if show and ops:
             rows=[]
             for op in ops:
