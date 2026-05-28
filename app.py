@@ -24,10 +24,8 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
-/* ── Esconde label do radio e primeiro item vazio ── */
-[data-testid="stSidebar"] .stRadio > div > div:first-child { display: none !important; }
+/* ── Esconde apenas o label título do radio ── */
 [data-testid="stSidebar"] .stRadio > label { display: none !important; }
-[data-testid="stSidebar"] .stRadio label:has(div:empty) { display: none !important; }
 
 /* ── SIDEBAR NAV — cards padronizados ── */
 [data-testid="stSidebar"] .stRadio > div {
