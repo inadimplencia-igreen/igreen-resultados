@@ -993,7 +993,7 @@ def processar_base_unica(arquivo, eq, ma):
             if dc.empty or len(dc.columns)<2: continue
             # Prioridade: CPF exato primeiro, depois outros identificadores
             cc=next((c for c in dc.columns if norm(str(c))=="CPF"),None)
-            if not cc: cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","UC","MATRICUL","CONTRATO","CODIGO","ID_C"])),dc.columns[0])
+            if not cc: cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","IDENTIFICADOR","IDENTIF","ID_C","MATRICUL","CONTRATO","CODIGO"])),dc.columns[0])
             cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
             dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
             dd=dd[dd["uc_cpf"].str.len()>=3]
