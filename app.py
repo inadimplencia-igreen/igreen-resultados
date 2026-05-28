@@ -363,9 +363,9 @@ def salvar_meta_gestora(ma, eq, meta, tpct):
 def buscar_meta_gestora(ma, eq):
     return get_db().metas.find_one({"_id":f"meta_gest__{ma}__{eq}"}) or {"metaGestora":0,"targetPct":125}
 
-def criar_lancamento(ma, eq, data_ref, label, agentes, total, sem_int, dt, td):
+def criar_lancamento(ma, eq, data_ref, label, agentes, total, sem_int, dt, td, rec_geral=0):
     ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
-    get_db().lancamentos.insert_one({"_id":f"lanc__{ma}__{eq}__{ts}","mesAno":ma,"equipeId":eq,"dataRef":data_ref,"label":label,"agentes":agentes,"totalEquipe":total,"semInteracao":sem_int,"diasTrabalhados":dt,"totalDias":td,"criadoEm":datetime.now()})
+    get_db().lancamentos.insert_one({"_id":f"lanc__{ma}__{eq}__{ts}","mesAno":ma,"equipeId":eq,"dataRef":data_ref,"label":label,"agentes":agentes,"totalEquipe":total,"semInteracao":sem_int,"diasTrabalhados":dt,"totalDias":td,"recGeral":rec_geral,"criadoEm":datetime.now()})
 
 @st.cache_data(ttl=30)
 def buscar_lancamentos(ma, eq):
@@ -1073,6 +1073,14 @@ def pagina_lancamento(ma):
         eh_fech=st.checkbox("Fechamento do Mês",key=f"fech_{eq}_{ma}")
     with c2: dt=st.number_input("Dias Trabalhados *",min_value=0,max_value=31,value=0,key=f"dt_{eq}_{ma}")
     with c3: td=st.number_input("Total Dias do Mês *",min_value=0,max_value=31,value=0,key=f"td_{eq}_{ma}")
+    # Recebido Geral manual
+    up_atual=buscar_ultimo_processamento(ma,eq)
+    rec_auto=float(up_atual.get("valorElegivel",0)) if up_atual else 0
+    usar_rec_manual=st.checkbox("Inserir Recebido Geral manualmente",key=f"rec_manual_chk_{eq}_{ma}")
+    if usar_rec_manual:
+        rec_geral_manual=st.number_input("Recebido Geral (R$)",min_value=0.0,step=100.0,format="%.2f",value=rec_auto,key=f"rec_geral_manual_{eq}_{ma}")
+    else:
+        rec_geral_manual=rec_auto
     st.markdown("---")
     st.markdown("### Valores por Operador")
     vi={}
@@ -1099,7 +1107,7 @@ def pagina_lancamento(ma):
         else:
             label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
             ag={op["_id"]:{"valorRecebido":vi[op["_id"]],"nome":op["nome"]} for op in ops}
-            criar_lancamento(ma,eq,str(data_sel),label,ag,tc,0,dt,td)
+            criar_lancamento(ma,eq,str(data_sel),label,ag,tc,0,dt,td,rec_geral_manual)
             st.session_state.ultimo_salvo=f"Lançamento de {label} salvo! Total: {fmt_brl(tc)}"
             st.rerun()
     st.markdown("---")
@@ -1131,6 +1139,9 @@ def pagina_quadro(ma):
         dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
         up=buscar_ultimo_processamento(ma,eq)
         rec_geral=float(up.get("valorElegivel",0)) if up else 0
+        # Se não tem processamento mas tem recGeral manual no lançamento, usar ele
+        if rec_geral==0 and ul.get("recGeral",0)>0:
+            rec_geral=float(ul["recGeral"])
         sem=max(0, rec_geral - tc)
         proj=calc_projecao(rec_geral, dt, td)
         pct=(rec_geral/mg*100) if mg>0 else 0
