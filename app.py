@@ -1229,14 +1229,15 @@ def pagina_lancamento(ma):
     st.markdown("### Valores por Operador")
 
     # Importar Excel
-    with st.expander("Importar via Excel", expanded=False):
+    mostrar_imp = st.checkbox("Importar via Excel", key=f"chk_imp_{eq}_{ma}")
+    if mostrar_imp:
         arq_imp = st.file_uploader("Planilha Excel (.xlsx)", type=["xlsx"], key=f"imp_{eq}_{ma}")
-        if arq_imp:
-            arq_imp.seek(0)
-            resultados_imp, erro_imp = importar_excel_operadores(arq_imp, ops)
-            if erro_imp:
-                st.error(erro_imp)
-            elif resultados_imp:
+    if arq_imp:
+        arq_imp.seek(0)
+        resultados_imp, erro_imp = importar_excel_operadores(arq_imp, ops)
+        if erro_imp:
+            st.error(erro_imp)
+        elif resultados_imp:
                 st.markdown("**Prévia do lançamento:**")
                 prev_rows = []
                 for r in resultados_imp:
@@ -2205,7 +2206,8 @@ def pagina_meetcall(ma):
     st.markdown("### Valores por Operador")
 
     # Importar Excel Meet Call
-    with st.expander("Importar via Excel", expanded=False):
+    mostrar_imp_mc = st.checkbox("Importar via Excel", key=f"chk_imp_mc_{ma}")
+    if mostrar_imp_mc:
         arq_imp_mc = st.file_uploader("Planilha Excel (.xlsx)", type=["xlsx"], key=f"imp_mc_{ma}")
         if arq_imp_mc:
             arq_imp_mc.seek(0)
