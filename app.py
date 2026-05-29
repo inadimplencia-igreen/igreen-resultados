@@ -1292,7 +1292,20 @@ def pagina_quadro(ma):
             f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(proj)}</div></div>"
             f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>DIAS</div>"
             f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{dt}/{td}</div></div>"
-            f"</div></div>", unsafe_allow_html=True)
+            f"</div>"
+            # Seção Meet Call dentro do card
+            + ((
+                f"<div style='border-top:1px solid #1e3a1e;margin-top:12px;padding-top:10px'>"
+                f"<div style='color:#3a6a4a;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px'>Meet Call</div>"
+                f"<div style='display:flex;gap:16px;flex-wrap:wrap'>"
+                f"<div><div style='color:#3a6a4a;font-size:7px;text-transform:uppercase'>RECEBIDO GERAL</div><div style='color:#00c853;font-weight:700;font-size:11px'>{fmt_brl(rg_mc)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:7px;text-transform:uppercase'>COM INTERAÇÃO</div><div style='color:#e8f5e9;font-size:11px'>{fmt_brl(ci_mc)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:7px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-size:11px'>{fmt_brl(mg_mc)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:7px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:11px'>{fmt_brl(proj_mc)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:7px;text-transform:uppercase'>% META</div><div style='color:{cv_mc};font-size:11px;font-weight:700'>{pct_mc:.1f}%</div></div>"
+                f"</div></div>"
+            ) if eq=='luciano' and 'rg_mc' in dir() else '') +
+            f"</div>", unsafe_allow_html=True)
         k=f"show_ops_{eq}"
         if k not in st.session_state: st.session_state[k]=False
         col_b1,col_b2=st.columns([1,1]) if eq=="luciano" else (st.columns(1)[0],None)
@@ -1388,25 +1401,17 @@ def pagina_quadro(ma):
                 pct_mc=(rg_mc/mg_mc*100) if mg_mc>0 else 0
                 cv_mc=cor_pct(pct_mc)
                 st.markdown(
-                    f"<div style='background:linear-gradient(135deg,#0a1f0a,#0d2a0d);border:1px solid #1e3a1e;"
-                    f"border-radius:14px;padding:20px 24px;margin-bottom:6px;border-left:3px solid #1565c0'>"
-                    f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px'>"
-                    f"<div style='font-size:15px;font-weight:700;color:#ffffff'>Equipe Meet Call</div>"
-                    f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>% META</div>"
-                    f"<div style='color:{cv_mc};font-size:24px;font-weight:800'>{pct_mc:.1f}%</div></div></div>"
-                    f"<div style='display:flex;gap:28px;flex-wrap:wrap'>"
-                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>RECEBIDO GERAL</div>"
-                    f"<div style='color:#00c853;font-weight:700;font-size:16px'>{fmt_brl(rg_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>COM INTERAÇÃO</div>"
-                    f"<div style='color:#ffffff;font-weight:600;font-size:14px'>{fmt_brl(ci_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>SEM INTERAÇÃO</div>"
-                    f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(si_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>META</div>"
-                    f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(mg_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>PROJEÇÃO</div>"
-                    f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(proj_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>DIAS</div>"
-                    f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{dt_mc}/{td_mc}</div></div>"
+                    f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:8px;"
+                    f"padding:12px 16px;margin:4px 0 8px 24px;border-left:3px solid #1565c0'>"
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>"
+                    f"<div style='color:#79c0ff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px'>↳ Subequipe Meet Call</div>"
+                    f"<div style='color:{cv_mc};font-size:14px;font-weight:700'>{pct_mc:.1f}%</div></div>"
+                    f"<div style='display:flex;gap:20px;flex-wrap:wrap'>"
+                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>RECEBIDO GERAL</div><div style='color:#00c853;font-weight:700;font-size:13px'>{fmt_brl(rg_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>COM INTERAÇÃO</div><div style='color:#e8f5e9;font-size:13px'>{fmt_brl(ci_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-size:13px'>{fmt_brl(mg_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:13px'>{fmt_brl(proj_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>DIAS</div><div style='color:#8ab89a;font-size:13px'>{dt_mc}/{td_mc}</div></div>"
                     f"</div></div>", unsafe_allow_html=True)
             except: pass
 
