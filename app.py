@@ -326,15 +326,22 @@ def salvar_erros_criticos(e):
     get_db().configuracoes.update_one({"_id":"erros_criticos_monitoria"},{"$set":{"_id":"erros_criticos_monitoria","erros":e,"atualizadoEm":datetime.now()}},upsert=True)
 
 def migrar_meetcall_para_luciano():
-    """Insere operadores Meet Call na equipe luciano se não existirem."""
+    """Insere operadores Meet Call nas equipes luciano E metcool se não existirem."""
     try:
         db = get_db()
         for nome in OPERADORES_MEETCALL:
-            oid = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
-            oid = re.sub(r'-+','-',oid).strip('-')
-            oid = f"luc-{oid}"[:40]
-            if not db.operadores.find_one({"_id":oid}):
-                db.operadores.insert_one({"_id":oid,"equipeId":"luciano","nome":nome,"pleno":False,"meetcall":True,"criadoEm":datetime.now()})
+            # Cadastrar na equipe luciano
+            oid_luc = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
+            oid_luc = re.sub(r'-+','-',oid_luc).strip('-')
+            oid_luc = f"luc-{oid_luc}"[:40]
+            if not db.operadores.find_one({"_id":oid_luc}):
+                db.operadores.insert_one({"_id":oid_luc,"equipeId":"luciano","nome":nome,"pleno":False,"meetcall":True,"criadoEm":datetime.now()})
+            # Cadastrar também na equipe metcool
+            oid_mc = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
+            oid_mc = re.sub(r'-+','-',oid_mc).strip('-')
+            oid_mc = f"mc-{oid_mc}"[:40]
+            if not db.operadores.find_one({"_id":oid_mc}):
+                db.operadores.insert_one({"_id":oid_mc,"equipeId":"metcool","nome":nome,"pleno":False,"meetcall":True,"criadoEm":datetime.now()})
     except: pass
 
 def corrigir_ids_operadores():
