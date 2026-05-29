@@ -24,9 +24,15 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
-/* ── Esconde label título do radio ── */
-[data-testid="stSidebar"] .stRadio > div > p { display: none !important; }
-[data-testid="stSidebar"] .stRadio > div > label:not([data-baseweb]) { display: none !important; }
+/* ── Botões menu invisíveis (só HTML visual aparece) ── */
+[data-testid="stSidebar"] .stButton > button {
+    position: absolute !important;
+    opacity: 0 !important;
+    height: 38px !important;
+    margin-top: -40px !important;
+    z-index: 10 !important;
+    cursor: pointer !important;
+}
 
 /* ── SIDEBAR NAV — cards padronizados ── */
 [data-testid="stSidebar"] .stRadio > div {
@@ -878,7 +884,7 @@ def render_sidebar():
         mes_ano=f'{mes_sel}-{ano}'
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
-        # MENU — radio nativo (funciona) com CSS para esconder bolinha
+        # MENU — selectbox estilizado, sem card vazio
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
         elif u['role']=='admin':
@@ -886,7 +892,15 @@ def render_sidebar():
         else:
             pags=['Quadro de Resultados','Lançamento','Meet Call','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
 
-        pag=st.radio('nav',pags,label_visibility='collapsed')
+        if 'pag_sel' not in st.session_state or st.session_state.pag_sel not in pags:
+            st.session_state.pag_sel = pags[0]
+        for p in pags:
+            ativo = st.session_state.pag_sel == p
+            bg = 'background:#2e7d32;color:#ffffff;font-weight:600;border:1px solid #2e7d32;' if ativo else 'background:#ffffff;color:#1a2e1a;font-weight:500;border:1px solid #d8ead8;'
+            st.markdown(f"<div style='{bg}border-radius:8px;padding:9px 14px;margin:2px 0;font-size:13px;cursor:pointer'>{p}</div>", unsafe_allow_html=True)
+            if st.button(p, key=f"menu_{p}", use_container_width=True):
+                st.session_state.pag_sel = p; st.rerun()
+        pag = st.session_state.pag_sel
 
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
