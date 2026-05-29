@@ -1272,6 +1272,21 @@ def pagina_quadro(ma):
         proj=calc_projecao(rec_geral, dt, td)
         pct=(rec_geral/mg*100) if mg>0 else 0
         cv=cor_pct(pct)
+        # Calcular dados Meet Call antes do card
+        rg_mc=ci_mc=mg_mc=si_mc=proj_mc=pct_mc=0.0; cv_mc="#e03c3c"; dt_mc=dt; td_mc=td
+        if eq=="luciano":
+            try:
+                ci_mc=sum(float(v.get("valorRecebido",0)) for k,v in ul.get("agentes",{}).items() if isinstance(v,dict) and v.get("nome","") in OPERADORES_MEETCALL)
+                lancs_mc=buscar_lancamentos(ma,"metcool")
+                if lancs_mc:
+                    ul_mc=lancs_mc[0]
+                    rg_mc=float(ul_mc.get("totalEquipe",0))
+                    dt_mc=int(ul_mc.get("diasTrabalhados",dt)); td_mc=int(ul_mc.get("totalDias",td))
+                mg_mc=float(buscar_meta_gestora(ma,"metcool").get("metaGestora",0))
+                si_mc=max(0,rg_mc-ci_mc); proj_mc=calc_projecao(rg_mc,dt_mc,td_mc)
+                pct_mc=(rg_mc/mg_mc*100) if mg_mc>0 else 0; cv_mc=cor_pct(pct_mc)
+            except: pass
+
         st.markdown(
             f"<div style='background:linear-gradient(135deg,#0a1f0a,#0d2a0d);border:1px solid #1e3a1e;"
             f"border-radius:14px;padding:20px 24px;margin-bottom:6px;border-left:3px solid #00c853'>"
@@ -1376,43 +1391,6 @@ def pagina_quadro(ma):
                         forn_rows.append({"Fornecedora":"TOTAL GERAL","Valor Recebido":fmt_brl(total_forn)})
                         df_forn=pd.DataFrame(forn_rows); df_forn.index=range(1,len(df_forn)+1)
                         st.dataframe(df_forn,use_container_width=True,hide_index=False)
-            except: pass
-        # Card Meet Call separado (só após equipe Luciano)
-        if eq=="luciano":
-            try:
-                # Com Interação = soma operadores Meet Call do lançamento Luciano
-                ci_mc=sum(
-                    float(v.get("valorRecebido",0))
-                    for k,v in ul.get("agentes",{}).items()
-                    if isinstance(v,dict) and v.get("nome","") in OPERADORES_MEETCALL
-                )
-                # Recebido Geral = lançamento separado metcool
-                lancs_mc=buscar_lancamentos(ma,"metcool")
-                rg_mc=0.0
-                dt_mc=dt; td_mc=td
-                if lancs_mc:
-                    ul_mc=lancs_mc[0]
-                    rg_mc=float(ul_mc.get("totalEquipe",0))
-                    dt_mc=int(ul_mc.get("diasTrabalhados",dt))
-                    td_mc=int(ul_mc.get("totalDias",td))
-                mg_mc=float(buscar_meta_gestora(ma,"metcool").get("metaGestora",0))
-                si_mc=max(0,rg_mc-ci_mc)
-                proj_mc=calc_projecao(rg_mc,dt_mc,td_mc)
-                pct_mc=(rg_mc/mg_mc*100) if mg_mc>0 else 0
-                cv_mc=cor_pct(pct_mc)
-                st.markdown(
-                    f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:8px;"
-                    f"padding:12px 16px;margin:4px 0 8px 24px;border-left:3px solid #1565c0'>"
-                    f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>"
-                    f"<div style='color:#79c0ff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px'>↳ Subequipe Meet Call</div>"
-                    f"<div style='color:{cv_mc};font-size:14px;font-weight:700'>{pct_mc:.1f}%</div></div>"
-                    f"<div style='display:flex;gap:20px;flex-wrap:wrap'>"
-                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>RECEBIDO GERAL</div><div style='color:#00c853;font-weight:700;font-size:13px'>{fmt_brl(rg_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>COM INTERAÇÃO</div><div style='color:#e8f5e9;font-size:13px'>{fmt_brl(ci_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-size:13px'>{fmt_brl(mg_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:13px'>{fmt_brl(proj_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>DIAS</div><div style='color:#8ab89a;font-size:13px'>{dt_mc}/{td_mc}</div></div>"
-                    f"</div></div>", unsafe_allow_html=True)
             except: pass
 
         # Exibir Meet Call separado
