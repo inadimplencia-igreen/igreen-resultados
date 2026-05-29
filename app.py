@@ -677,7 +677,19 @@ def importar_excel_operadores(arquivo, ops):
         s = unicodedata.normalize('NFKD', str(s).strip()).encode('ascii','ignore').decode().upper()
         return re.sub(r'\s+', ' ', s).strip()
     def limpar_valor(v):
-        s = str(v).strip().replace('R$','').replace(' ','').replace('.','').replace(',','.').strip()
+        # Tratar formato brasileiro: 1.234.567,89 -> 1234567.89
+        s = str(v).strip()
+        # Se for float/int do Excel, já está correto
+        try:
+            f = float(v)
+            if f > 0: return f
+        except: pass
+        s = s.replace('R$','').replace(' ','').strip()
+        # Formato brasileiro: tem vírgula como decimal
+        if ',' in s:
+            s = s.replace('.','').replace(',','.')
+        else:
+            s = s.replace('.','')
         try: return float(s)
         except: return 0.0
 
