@@ -2113,6 +2113,8 @@ def main():
         except: pass
         st.session_state.ids_corrigidos=True
     # Limpar duplicatas meetcall uma vez
+    # Limpar duplicatas sempre até resolver
+    st.session_state.pop('meetcall_limpo', None)
     if 'meetcall_limpo' not in st.session_state:
         try:
             db = get_db()
