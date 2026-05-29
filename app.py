@@ -26,6 +26,20 @@ st.markdown("""
 
 
 
+/* ── Botões menu invisíveis sobre cards HTML ── */
+[data-testid="stSidebar"] div[data-testid="stButton"] > button:not([kind="secondary"]) {
+    margin-top: -40px !important;
+    opacity: 0 !important;
+    height: 38px !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
+[data-testid="stSidebar"] div[data-testid="stButton"]:has(button[key="btn_sair"]) > button {
+    opacity: 1 !important;
+    margin-top: 0 !important;
+    position: relative !important;
+}
+
 /* ── SIDEBAR NAV — cards padronizados ── */
 [data-testid="stSidebar"] .stRadio > div {
     gap: 3px !important;
@@ -883,7 +897,7 @@ def render_sidebar():
         mes_ano=f'{mes_sel}-{ano}'
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
-        # MENU — selectbox estilizado, sem card vazio
+        # MENU — cards visuais
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
         elif u['role']=='admin':
@@ -896,10 +910,14 @@ def render_sidebar():
         for p in pags:
             ativo = st.session_state.pag_sel == p
             bg = 'background:#2e7d32;color:#ffffff;font-weight:600;border:1px solid #2e7d32;' if ativo else 'background:#ffffff;color:#1a2e1a;font-weight:500;border:1px solid #d8ead8;'
-            st.markdown(f"<div style='{bg}border-radius:8px;padding:9px 14px;margin:2px 0;font-size:13px;cursor:pointer'>{p}</div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='{bg}border-radius:8px;padding:9px 14px;margin:2px 0;"
+                f"font-size:13px;box-shadow:0 1px 2px rgba(0,0,0,0.04)'>{p}</div>",
+                unsafe_allow_html=True)
             if st.button(p, key=f"menu_{p}", use_container_width=True):
                 st.session_state.pag_sel = p; st.rerun()
         pag = st.session_state.pag_sel
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
