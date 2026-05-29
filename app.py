@@ -1364,6 +1364,52 @@ def pagina_quadro(ma):
                         df_forn=pd.DataFrame(forn_rows); df_forn.index=range(1,len(df_forn)+1)
                         st.dataframe(df_forn,use_container_width=True,hide_index=False)
             except: pass
+        # Card Meet Call separado (só após equipe Luciano)
+        if eq=="luciano":
+            try:
+                # Com Interação = soma operadores Meet Call do lançamento Luciano
+                ci_mc=sum(
+                    float(v.get("valorRecebido",0))
+                    for k,v in ul.get("agentes",{}).items()
+                    if isinstance(v,dict) and v.get("nome","") in OPERADORES_MEETCALL
+                )
+                # Recebido Geral = lançamento separado metcool
+                lancs_mc=buscar_lancamentos(ma,"metcool")
+                rg_mc=0.0
+                dt_mc=dt; td_mc=td
+                if lancs_mc:
+                    ul_mc=lancs_mc[0]
+                    rg_mc=float(ul_mc.get("totalEquipe",0))
+                    dt_mc=int(ul_mc.get("diasTrabalhados",dt))
+                    td_mc=int(ul_mc.get("totalDias",td))
+                mg_mc=float(buscar_meta_gestora(ma,"metcool").get("metaGestora",0))
+                si_mc=max(0,rg_mc-ci_mc)
+                proj_mc=calc_projecao(rg_mc,dt_mc,td_mc)
+                pct_mc=(rg_mc/mg_mc*100) if mg_mc>0 else 0
+                cv_mc=cor_pct(pct_mc)
+                st.markdown(
+                    f"<div style='background:linear-gradient(135deg,#0a1f0a,#0d2a0d);border:1px solid #1e3a1e;"
+                    f"border-radius:14px;padding:20px 24px;margin-bottom:6px;border-left:3px solid #1565c0'>"
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px'>"
+                    f"<div style='font-size:15px;font-weight:700;color:#ffffff'>Equipe Meet Call</div>"
+                    f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>% META</div>"
+                    f"<div style='color:{cv_mc};font-size:24px;font-weight:800'>{pct_mc:.1f}%</div></div></div>"
+                    f"<div style='display:flex;gap:28px;flex-wrap:wrap'>"
+                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>RECEBIDO GERAL</div>"
+                    f"<div style='color:#00c853;font-weight:700;font-size:16px'>{fmt_brl(rg_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>COM INTERAÇÃO</div>"
+                    f"<div style='color:#ffffff;font-weight:600;font-size:14px'>{fmt_brl(ci_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>SEM INTERAÇÃO</div>"
+                    f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(si_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>META</div>"
+                    f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(mg_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>PROJEÇÃO</div>"
+                    f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{fmt_brl(proj_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>DIAS</div>"
+                    f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{dt_mc}/{td_mc}</div></div>"
+                    f"</div></div>", unsafe_allow_html=True)
+            except: pass
+
         # Exibir Meet Call separado
         if eq=="luciano" and st.session_state.get(f"show_meetcall_{eq}",False):
             ops_mc_show=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
@@ -2007,24 +2053,70 @@ def pagina_meetcall(ma):
     u=st.session_state.usuario
     if u.get("equipe") != "luciano" and u["role"] not in ["admin","diretor"]:
         st.warning("Acesso restrito."); return
-    header_page("Meet Call","Lançamento geral da equipe Meet Call")
-    doc=buscar_lancamento_meetcall(ma)
-    st.markdown("### Lançamento Meet Call")
-    c1,c2=st.columns(2)
+    header_page("Meet Call","Lançamento da equipe Meet Call")
+
+    # Buscar operadores da metcool
+    ops_mc=buscar_operadores("metcool")
+    if not ops_mc:
+        st.warning("Nenhum operador cadastrado na Meet Call. Aguarde o sistema carregar.")
+        return
+
+    ms_mc=buscar_metas_equipe(ma,"metcool")
+
+    if st.session_state.get("mc_ultimo_salvo"):
+        st.success(st.session_state.mc_ultimo_salvo)
+        st.session_state.mc_ultimo_salvo=""
+
+    st.markdown("### Configuração")
+    c1,c2,c3=st.columns([2,1,1])
     with c1:
-        total_lig=st.number_input("Total Ligações acima de 5s",min_value=0,step=1,value=int(doc.get("totalLigacoes",0)),key=f"mc_lig_{ma}")
-    with c2:
-        rec_mc=st.number_input("Recebido Geral Meet Call (R$)",min_value=0.0,step=100.0,format="%.2f",value=float(doc.get("recGeral",0)),key=f"mc_rec_{ma}")
+        hoje=date.today()
+        data_sel=st.date_input("Data *",value=hoje,key=f"mc_data_{ma}")
+        eh_fech=st.checkbox("Fechamento do Mês",key=f"mc_fech_{ma}")
+    with c2: dt_mc=st.number_input("Dias Trabalhados *",min_value=0,max_value=31,value=0,key=f"mc_dt_{ma}")
+    with c3: td_mc=st.number_input("Total Dias do Mês *",min_value=0,max_value=31,value=0,key=f"mc_td_{ma}")
+
     st.markdown("---")
-    if st.button("Salvar",use_container_width=True,key="mc_salvar"):
-        salvar_lancamento_meetcall(ma,total_lig,rec_mc)
-        st.success("Salvo!")
-        st.rerun()
-    if doc:
+    st.markdown("### Total de Ligações")
+    total_lig=st.number_input("Total Ligações acima de 5s",min_value=0,step=1,value=0,key=f"mc_lig_{ma}")
+
+    st.markdown("---")
+    st.markdown("### Valores por Operador")
+    vi_mc={}
+    for op in ops_mc:
+        meta=float(ms_mc.get(op["_id"],0))
+        c1,c2,c3=st.columns([3,2,2])
+        with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a;font-weight:500'>{op['nome']}</div>",unsafe_allow_html=True)
+        with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
+        with c3: vi_mc[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"mc_op_{ma}_{op['_id']}")
+
+    tc_mc=sum(vi_mc.values())
+    st.markdown("---")
+    st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin-bottom:16px'><span style='color:#5a9a70;font-size:11px'>TOTAL COM INTERAÇÃO</span><br><span style='color:#2daf5c;font-size:20px;font-weight:700'>{fmt_brl(tc_mc)}</span></div>",unsafe_allow_html=True)
+
+    if st.button("Salvar Lançamento Meet Call",use_container_width=True,key="mc_salvar"):
+        if dt_mc==0: st.error("Dias Trabalhados é obrigatório.")
+        elif td_mc==0: st.error("Total de Dias do Mês é obrigatório.")
+        elif tc_mc==0: st.error("Preencha pelo menos um valor.")
+        else:
+            label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
+            ag_mc={op["_id"]:{"valorRecebido":vi_mc[op["_id"]],"nome":op["nome"]} for op in ops_mc}
+            criar_lancamento(ma,"metcool",str(data_sel),label,ag_mc,tc_mc,0,dt_mc,td_mc)
+            salvar_lancamento_meetcall(ma,total_lig,tc_mc)
+            st.session_state.mc_ultimo_salvo=f"Lançamento salvo! Total: {fmt_brl(tc_mc)}"
+            st.rerun()
+
+    # Histórico lançamentos
+    lancs_mc=buscar_lancamentos(ma,"metcool")
+    if lancs_mc:
         st.markdown("---")
-        c1,c2=st.columns(2)
-        c1.metric("Total Ligações +5s",f"{int(doc.get('totalLigacoes',0)):,}")
-        c2.metric("Recebido Geral",fmt_brl(doc.get("recGeral",0)))
+        st.markdown("<p style='color:#5a8a5a;font-size:11px;text-transform:uppercase;margin-bottom:8px'>Lançamentos do mês</p>",unsafe_allow_html=True)
+        for lanc in reversed(lancs_mc):
+            soma=sum(float(v.get("valorRecebido",0) if isinstance(v,dict) else v) for v in lanc.get("agentes",{}).values())
+            with st.expander(f"{lanc.get('label','')} — {fmt_brl(soma)}"):
+                rows=[{"Operador":op["nome"],"Valor":fmt_brl(get_val_op(lanc.get("agentes",{}),op["_id"],op["nome"]))} for op in ops_mc]
+                st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
+                if st.button("Excluir",key=f"mc_del_{lanc['_id']}"): excluir_lancamento(lanc["_id"]); st.rerun()
 
 # ── MAIN ───────────────────────────────────────
 def main():
