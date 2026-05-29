@@ -1232,11 +1232,18 @@ def pagina_lancamento(ma):
     # Recebido Geral manual
     up_atual=buscar_ultimo_processamento(ma,eq)
     rec_auto=float(up_atual.get("valorElegivel",0)) if up_atual else 0
+    # Buscar recGeral anterior se não tem processamento
+    rec_anterior=rec_auto
+    if rec_anterior==0:
+        lancs_ant=buscar_lancamentos(ma,eq)
+        for l in lancs_ant:
+            if l.get("recGeral",0)>0:
+                rec_anterior=float(l["recGeral"]); break
     usar_rec_manual=st.checkbox("Inserir Recebido Geral manualmente",key=f"rec_manual_chk_{eq}_{ma}")
     if usar_rec_manual:
-        rec_geral_manual=st.number_input("Recebido Geral (R$)",min_value=0.0,step=100.0,format="%.2f",value=float(rec_auto or 0),key=f"rec_geral_manual_{eq}_{ma}")
+        rec_geral_manual=st.number_input("Recebido Geral (R$)",min_value=0.0,step=100.0,format="%.2f",value=float(rec_anterior or 0),key=f"rec_geral_manual_{eq}_{ma}")
     else:
-        rec_geral_manual=rec_auto
+        rec_geral_manual=rec_anterior
     st.markdown("---")
     st.markdown("### Valores por Operador")
 
