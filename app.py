@@ -192,6 +192,11 @@ hr { border: none !important; border-top: 1px solid #e0e8e0 !important; margin: 
 ::-webkit-scrollbar-thumb { background: #c8e0c8; border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: #2e7d32; }
 
+/* ── Esconde ícones arrow do expander ── */
+.streamlit-expanderHeader svg { display: none !important; }
+.streamlit-expanderHeader [data-testid="stExpanderToggleIcon"] { display: none !important; }
+details summary svg { display: none !important; }
+
 /* ── HIDE STREAMLIT CHROME ── */
 /* Esconder keyboard_double e outros ícones Streamlit */
 [data-testid="stSidebarCollapseButton"] { display: none !important; }
@@ -1224,7 +1229,7 @@ def pagina_lancamento(ma):
     st.markdown("### Valores por Operador")
 
     # Importar Excel
-    with st.expander("📥 Importar via Excel", expanded=False):
+    with st.expander("Importar via Excel", expanded=False):
         arq_imp = st.file_uploader("Planilha Excel (.xlsx)", type=["xlsx"], key=f"imp_{eq}_{ma}")
         if arq_imp:
             arq_imp.seek(0)
@@ -1236,11 +1241,11 @@ def pagina_lancamento(ma):
                 prev_rows = []
                 for r in resultados_imp:
                     if r['status'] == 'ambiguo':
-                        icone = "⚠️ Ambíguo"
+                        icone = " Ambíguo"
                     elif r['op'] is None:
-                        icone = "❌ Não encontrado"
+                        icone = " Não encontrado"
                     else:
-                        icone = "✅ " + r['op']['nome']
+                        icone = "" + r['op']['nome']
                     row = {"Excel": r['nome_excel'], "Sistema": icone, "Valor": fmt_brl(r['valor'])}
                     if r['col_lig']: row["Lig. +5s"] = r['ligacoes']
                     prev_rows.append(row)
@@ -1249,7 +1254,7 @@ def pagina_lancamento(ma):
                 pode_importar = all(r['op'] is not None and r['status'] != 'ambiguo' for r in resultados_imp if r['valor'] > 0)
                 if not pode_importar:
                     st.warning("Alguns operadores não foram identificados. Corrija manualmente os campos abaixo.")
-                if st.button("✅ Confirmar Importação", use_container_width=True, key=f"imp_confirmar_{eq}_{ma}"):
+                if st.button("Confirmar Importação", use_container_width=True, key=f"imp_confirmar_{eq}_{ma}"):
                     for r in resultados_imp:
                         if r['op'] and r['status'] != 'ambiguo' and r['valor'] > 0:
                             st.session_state[f"op_{eq}_{ma}_{r['op']['_id']}"] = r['valor']
@@ -2200,7 +2205,7 @@ def pagina_meetcall(ma):
     st.markdown("### Valores por Operador")
 
     # Importar Excel Meet Call
-    with st.expander("📥 Importar via Excel", expanded=False):
+    with st.expander("Importar via Excel", expanded=False):
         arq_imp_mc = st.file_uploader("Planilha Excel (.xlsx)", type=["xlsx"], key=f"imp_mc_{ma}")
         if arq_imp_mc:
             arq_imp_mc.seek(0)
@@ -2210,12 +2215,12 @@ def pagina_meetcall(ma):
             elif res_mc:
                 prev_mc = []
                 for r in res_mc:
-                    icone = "✅ "+r['op']['nome'] if r['op'] and r['status']!='ambiguo' else ("⚠️ Ambíguo" if r['status']=='ambiguo' else "❌ Não encontrado")
+                    icone = ""+r['op']['nome'] if r['op'] and r['status']!='ambiguo' else (" Ambíguo" if r['status']=='ambiguo' else " Não encontrado")
                     row = {"Excel":r['nome_excel'],"Sistema":icone,"Valor":fmt_brl(r['valor'])}
                     if r['col_lig']: row["Lig. +5s"]=r['ligacoes']
                     prev_mc.append(row)
                 st.dataframe(pd.DataFrame(prev_mc),use_container_width=True,hide_index=True)
-                if st.button("✅ Confirmar Importação",use_container_width=True,key=f"imp_mc_confirmar_{ma}"):
+                if st.button("Confirmar Importação",use_container_width=True,key=f"imp_mc_confirmar_{ma}"):
                     for r in res_mc:
                         if r['op'] and r['status']!='ambiguo' and r['valor']>0:
                             st.session_state[f"mc_op_{ma}_{r['op']['_id']}"]=r['valor']
