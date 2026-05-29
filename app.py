@@ -2037,6 +2037,25 @@ def main():
         try: corrigir_ids_operadores()
         except: pass
         st.session_state.ids_corrigidos=True
+    # Limpar duplicatas meetcall uma vez
+    if 'meetcall_limpo' not in st.session_state:
+        try:
+            db = get_db()
+            for nome in OPERADORES_MEETCALL:
+                # Remover duplicatas na equipe metcool
+                ops_dup = list(db.operadores.find({"equipeId":"metcool","nome":nome}).sort("criadoEm",1))
+                if len(ops_dup) > 1:
+                    for op_dup in ops_dup[1:]:
+                        db.operadores.delete_one({"_id":op_dup["_id"]})
+                # Remover duplicatas na equipe luciano
+                ops_dup2 = list(db.operadores.find({"equipeId":"luciano","nome":nome}).sort("criadoEm",1))
+                if len(ops_dup2) > 1:
+                    for op_dup2 in ops_dup2[1:]:
+                        db.operadores.delete_one({"_id":op_dup2["_id"]})
+            buscar_operadores.clear()
+        except: pass
+        st.session_state.meetcall_limpo = True
+
     # Migrar meetcall só uma vez por sessão
     if 'meetcall_migrado' not in st.session_state:
         try:
