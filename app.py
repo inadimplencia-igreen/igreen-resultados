@@ -363,7 +363,7 @@ def corrigir_ids_operadores():
                 db.operadores.insert_one({"_id":idc,"equipeId":eq,"nome":nome,"pleno":op.get("pleno",False),"criadoEm":op.get("criadoEm",datetime.now())})
             db.operadores.delete_one({"_id":op["_id"]})
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def buscar_operadores(eq): return list(get_db().operadores.find({"equipeId":eq}).sort("nome",1))
 
 def salvar_operador(eq, nome, pleno=False):
@@ -381,7 +381,7 @@ def salvar_meta_operador(ma, eq, oid, v):
     did = f"meta_op__{ma}__{eq}__{oid}"
     get_db().metas.update_one({"_id":did},{"$set":{"_id":did,"mesAno":ma,"equipeId":eq,"opId":oid,"valor":v}},upsert=True)
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=120)
 def buscar_metas_equipe(ma, eq):
     return {d["opId"]:d.get("valor",0) for d in get_db().metas.find({"mesAno":ma,"equipeId":eq}) if "opId" in d}
 
@@ -406,7 +406,7 @@ def criar_lancamento(ma, eq, data_ref, label, agentes, total, sem_int, dt, td, r
     ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
     get_db().lancamentos.insert_one({"_id":f"lanc__{ma}__{eq}__{ts}","mesAno":ma,"equipeId":eq,"dataRef":data_ref,"label":label,"agentes":agentes,"totalEquipe":total,"semInteracao":sem_int,"diasTrabalhados":dt,"totalDias":td,"recGeral":rec_geral,"criadoEm":datetime.now()})
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=60)
 def buscar_lancamentos(ma, eq):
     novos = list(get_db().lancamentos.find({"mesAno":ma,"equipeId":eq}).sort("criadoEm",-1))
     antigos = []
@@ -1230,6 +1230,7 @@ def pagina_lancamento(ma):
 
     # Importar Excel
     mostrar_imp = st.checkbox("Importar via Excel", key=f"chk_imp_{eq}_{ma}")
+    arq_imp = None
     if mostrar_imp:
         arq_imp = st.file_uploader("Planilha Excel (.xlsx)", type=["xlsx"], key=f"imp_{eq}_{ma}")
     if arq_imp:
@@ -2207,6 +2208,7 @@ def pagina_meetcall(ma):
 
     # Importar Excel Meet Call
     mostrar_imp_mc = st.checkbox("Importar via Excel", key=f"chk_imp_mc_{ma}")
+    arq_imp_mc = None
     if mostrar_imp_mc:
         arq_imp_mc = st.file_uploader("Planilha Excel (.xlsx)", type=["xlsx"], key=f"imp_mc_{ma}")
         if arq_imp_mc:
@@ -2272,12 +2274,8 @@ def main():
         return
     # Só corrige IDs após login, com proteção
     if "ids_corrigidos" not in st.session_state:
-        try: corrigir_ids_operadores()
-        except: pass
         st.session_state.ids_corrigidos=True
     # Limpar duplicatas meetcall uma vez
-    # Limpar duplicatas sempre até resolver
-    st.session_state.pop('meetcall_limpo', None)
     if 'meetcall_limpo' not in st.session_state:
         try:
             db = get_db()
