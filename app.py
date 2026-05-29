@@ -1139,8 +1139,17 @@ def processar_base_unica(arquivo, eq, ma):
             if dc.empty or len(dc.columns)<2: continue
             # Busca identificador: CPF exato, Identificador exato, ou variações
             cc=next((c for c in dc.columns if norm(str(c)) in ["CPF","IDENTIFICADOR","IDENTIFICACAO","IDENTIF"]),None)
-            if not cc: cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","IDENTIF","IDENTIC","ID_C","MATRICUL","CONTRATO","CODIGO"])),dc.columns[0])
-            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM","CALL","DATE"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
+            if not cc: cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","IDENTIF","IDENTIC","ID_C","MATRICUL","CONTRATO","CODIGO"])),None)
+            # Validar que coluna tem valores numéricos (CPF/identificador)
+            if not cc:
+                for c in dc.columns:
+                    try:
+                        sample=dc[c].dropna().astype(str).head(10)
+                        nums=sum(1 for s in sample if s.replace(".","").replace("-","").replace("/","").isdigit() and len(s.replace(".","").replace("-","").replace("/",""))>=8)
+                        if nums>=3: cc=c; break
+                    except: pass
+            if not cc: continue  # Se não achou coluna válida, pula essa aba
+            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM","CALL"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
             dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
             dd=dd[dd["uc_cpf"].str.len()>=3]
             if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
