@@ -1170,7 +1170,6 @@ def pagina_quadro(ma):
     header_page("Quadro de Resultados", ma.replace("-"," ").upper())
     # Tabela resumo para diretor
     if is_dir:
-        resumo_rows=[]
         tot_rec=tot_ci=tot_si=tot_meta=tot_proj=0
         for eq_r in ["luciano","deborah","tamires"]:
             try:
@@ -1188,14 +1187,39 @@ def pagina_quadro(ma):
                         for l in lancs_r[1:]:
                             if l.get("recGeral",0)>0: rg_r=float(l["recGeral"]); break
                 si_r=max(0,rg_r-tc_r); proj_r=calc_projecao(rg_r,dt_r,td_r)
+                pct_r=(rg_r/mg_r*100) if mg_r>0 else 0
+                cv_r=cor_pct(pct_r)
                 tot_rec+=rg_r; tot_ci+=tc_r; tot_si+=si_r; tot_meta+=mg_r; tot_proj+=proj_r
-                resumo_rows.append({"Gestor":EQUIPES[eq_r]["nome"],"Recebido Geral":fmt_brl(rg_r),"Com Interação":fmt_brl(tc_r),"Sem Interação":fmt_brl(si_r),"Meta":fmt_brl(mg_r),"Projeção":fmt_brl(proj_r)})
+                st.markdown(
+                    f"<div style='background:#ffffff;border:1px solid #c8e0c8;border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:3px solid #2e7d32'>"
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px'>"
+                    f"<div style='font-size:14px;font-weight:700;color:#1a2e1a'>Equipe {EQUIPES[eq_r]['nome']}</div>"
+                    f"<div style='text-align:right'><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>% META</div>"
+                    f"<div style='color:{cv_r};font-size:20px;font-weight:800'>{pct_r:.1f}%</div></div></div>"
+                    f"<div style='display:flex;gap:20px;flex-wrap:wrap'>"
+                    f"<div><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>RECEBIDO GERAL</div><div style='color:#2e7d32;font-weight:700;font-size:14px'>{fmt_brl(rg_r)}</div></div>"
+                    f"<div><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>COM INTERAÇÃO</div><div style='color:#1a2e1a;font-weight:600;font-size:13px'>{fmt_brl(tc_r)}</div></div>"
+                    f"<div><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>SEM INTERAÇÃO</div><div style='color:#1a2e1a;font-weight:600;font-size:13px'>{fmt_brl(si_r)}</div></div>"
+                    f"<div><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>META</div><div style='color:#1a2e1a;font-weight:600;font-size:13px'>{fmt_brl(mg_r)}</div></div>"
+                    f"<div><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#1a2e1a;font-weight:600;font-size:13px'>{fmt_brl(proj_r)}</div></div>"
+                    f"</div></div>", unsafe_allow_html=True)
             except: pass
-        if resumo_rows:
-            resumo_rows.append({"Gestor":"TOTAL GERAL","Recebido Geral":fmt_brl(tot_rec),"Com Interação":fmt_brl(tot_ci),"Sem Interação":fmt_brl(tot_si),"Meta":fmt_brl(tot_meta),"Projeção":fmt_brl(tot_proj)})
-            df_res=pd.DataFrame(resumo_rows); df_res.index=range(1,len(df_res)+1)
-            st.dataframe(df_res,use_container_width=True,hide_index=True)
-            st.markdown("---")
+        # Total geral
+        pct_t=(tot_rec/tot_meta*100) if tot_meta>0 else 0
+        st.markdown(
+            f"<div style='background:#1a3a1a;border:2px solid #2e7d32;border-radius:12px;padding:16px 20px;margin-bottom:8px'>"
+            f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px'>"
+            f"<div style='font-size:14px;font-weight:700;color:#ffffff'>TOTAL GERAL</div>"
+            f"<div style='text-align:right'><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>% META</div>"
+            f"<div style='color:{cor_pct(pct_t)};font-size:20px;font-weight:800'>{pct_t:.1f}%</div></div></div>"
+            f"<div style='display:flex;gap:20px;flex-wrap:wrap'>"
+            f"<div><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>RECEBIDO GERAL</div><div style='color:#00c853;font-weight:700;font-size:14px'>{fmt_brl(tot_rec)}</div></div>"
+            f"<div><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>COM INTERAÇÃO</div><div style='color:#ffffff;font-weight:600;font-size:13px'>{fmt_brl(tot_ci)}</div></div>"
+            f"<div><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>SEM INTERAÇÃO</div><div style='color:#8ab89a;font-weight:600;font-size:13px'>{fmt_brl(tot_si)}</div></div>"
+            f"<div><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-weight:600;font-size:13px'>{fmt_brl(tot_meta)}</div></div>"
+            f"<div><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-weight:600;font-size:13px'>{fmt_brl(tot_proj)}</div></div>"
+            f"</div></div>", unsafe_allow_html=True)
+        st.markdown("---")
     for eq in eqs:
         try:
             ops=buscar_operadores(eq); lancs=buscar_lancamentos(ma,eq)
@@ -1261,7 +1285,8 @@ def pagina_quadro(ma):
                         v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
                         meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
                         proj_op=calc_projecao(v,dt,td) if v>0 else 0
-                        rows.append({"Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if v>0 else "—","_v":v})
+                        lig_op=int(ul.get("agentes",{}).get(op["_id"],{}).get("ligacoes",0) if isinstance(ul.get("agentes",{}).get(op["_id"]),dict) else 0)
+                        rows.append({"Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if v>0 else "—","Lig. +5s":lig_op if lig_op>0 else "—","_v":v})
                     df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
                     df.index=range(1,len(df)+1)
                     st.dataframe(df,use_container_width=True,height=min(400,(len(df)+1)*38+40))
