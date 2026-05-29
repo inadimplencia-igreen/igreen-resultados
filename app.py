@@ -333,10 +333,14 @@ def migrar_meetcall_para_luciano():
             oid_luc = f"luc-{oid_luc}"[:40]
             if not db.operadores.find_one({"_id":oid_luc}):
                 db.operadores.insert_one({"_id":oid_luc,"equipeId":"luciano","nome":nome,"pleno":False,"meetcall":True,"criadoEm":datetime.now()})
-            # Cadastrar também na equipe metcool
+            # Cadastrar na equipe metcool — remover duplicatas primeiro
             oid_mc = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
             oid_mc = re.sub(r'-+','-',oid_mc).strip('-')
             oid_mc = f"mc-{oid_mc}"[:40]
+            # Remover duplicatas com mesmo nome na metcool
+            existentes = list(db.operadores.find({"equipeId":"metcool","nome":nome}))
+            if len(existentes) > 1:
+                for ex in existentes[1:]: db.operadores.delete_one({"_id":ex["_id"]})
             if not db.operadores.find_one({"_id":oid_mc}):
                 db.operadores.insert_one({"_id":oid_mc,"equipeId":"metcool","nome":nome,"pleno":False,"meetcall":True,"criadoEm":datetime.now()})
     except: pass
