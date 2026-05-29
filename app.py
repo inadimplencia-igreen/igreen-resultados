@@ -24,11 +24,8 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
-/* ── Esconde label título e item vazio do radio ── */
-[data-testid="stSidebar"] .stRadio > label { display: none !important; }
-[data-testid="stSidebar"] .stRadio [data-baseweb="radio"]:has(div:empty) { display: none !important; }
-[data-testid="stSidebar"] .stRadio div[data-testid="stMarkdownContainer"]:empty { display: none !important; }
-[data-testid="stSidebar"] .stRadio label:first-of-type:has(p:empty) { display: none !important; }
+/* ── Esconde label título do radio ── */
+[data-testid="stSidebar"] .stRadio > div > label { display: none !important; }
 
 /* ── SIDEBAR NAV — cards padronizados ── */
 [data-testid="stSidebar"] .stRadio > div {
@@ -888,7 +885,7 @@ def render_sidebar():
         else:
             pags=['Quadro de Resultados','Lançamento','Meet Call','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
 
-        pag=st.radio('Menu',pags,label_visibility='hidden')
+        pag=st.radio('Menu',pags,label_visibility='collapsed')
 
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
