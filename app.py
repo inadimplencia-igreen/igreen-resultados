@@ -24,15 +24,7 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
-/* ── Botões menu invisíveis (só HTML visual aparece) ── */
-[data-testid="stSidebar"] .stButton > button {
-    position: absolute !important;
-    opacity: 0 !important;
-    height: 38px !important;
-    margin-top: -40px !important;
-    z-index: 10 !important;
-    cursor: pointer !important;
-}
+
 
 /* ── SIDEBAR NAV — cards padronizados ── */
 [data-testid="stSidebar"] .stRadio > div {
