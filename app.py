@@ -24,8 +24,11 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
-/* ── Esconde apenas o label título do radio ── */
+/* ── Esconde label título e item vazio do radio ── */
 [data-testid="stSidebar"] .stRadio > label { display: none !important; }
+[data-testid="stSidebar"] .stRadio [data-baseweb="radio"]:has(div:empty) { display: none !important; }
+[data-testid="stSidebar"] .stRadio div[data-testid="stMarkdownContainer"]:empty { display: none !important; }
+[data-testid="stSidebar"] .stRadio label:first-of-type:has(p:empty) { display: none !important; }
 
 /* ── SIDEBAR NAV — cards padronizados ── */
 [data-testid="stSidebar"] .stRadio > div {
@@ -885,7 +888,7 @@ def render_sidebar():
         else:
             pags=['Quadro de Resultados','Lançamento','Meet Call','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
 
-        pag=st.radio('',pags,label_visibility='collapsed')
+        pag=st.radio('Menu',pags,label_visibility='hidden')
 
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
@@ -1171,6 +1174,7 @@ def pagina_quadro(ma):
     # Tabela resumo para diretor
     if is_dir:
         tot_rec=tot_ci=tot_si=tot_meta=tot_proj=0
+        equipes_data=[]
         for eq_r in ["luciano","deborah","tamires"]:
             try:
                 lancs_r=buscar_lancamentos(ma,eq_r)
@@ -1188,37 +1192,48 @@ def pagina_quadro(ma):
                             if l.get("recGeral",0)>0: rg_r=float(l["recGeral"]); break
                 si_r=max(0,rg_r-tc_r); proj_r=calc_projecao(rg_r,dt_r,td_r)
                 pct_r=(rg_r/mg_r*100) if mg_r>0 else 0
-                cv_r=cor_pct(pct_r)
                 tot_rec+=rg_r; tot_ci+=tc_r; tot_si+=si_r; tot_meta+=mg_r; tot_proj+=proj_r
-                st.markdown(
-                    f"<div style='background:#ffffff;border:1px solid #c8e0c8;border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:3px solid #2e7d32'>"
-                    f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px'>"
-                    f"<div style='font-size:14px;font-weight:700;color:#1a2e1a'>Equipe {EQUIPES[eq_r]['nome']}</div>"
-                    f"<div style='text-align:right'><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>% META</div>"
-                    f"<div style='color:{cv_r};font-size:20px;font-weight:800'>{pct_r:.1f}%</div></div></div>"
-                    f"<div style='display:flex;gap:20px;flex-wrap:wrap'>"
-                    f"<div><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>RECEBIDO GERAL</div><div style='color:#2e7d32;font-weight:700;font-size:14px'>{fmt_brl(rg_r)}</div></div>"
-                    f"<div><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>COM INTERAÇÃO</div><div style='color:#1a2e1a;font-weight:600;font-size:13px'>{fmt_brl(tc_r)}</div></div>"
-                    f"<div><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>SEM INTERAÇÃO</div><div style='color:#1a2e1a;font-weight:600;font-size:13px'>{fmt_brl(si_r)}</div></div>"
-                    f"<div><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>META</div><div style='color:#1a2e1a;font-weight:600;font-size:13px'>{fmt_brl(mg_r)}</div></div>"
-                    f"<div><div style='color:#5a8a5a;font-size:9px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#1a2e1a;font-weight:600;font-size:13px'>{fmt_brl(proj_r)}</div></div>"
-                    f"</div></div>", unsafe_allow_html=True)
+                equipes_data.append({"nome":EQUIPES[eq_r]["nome"],"rg":rg_r,"ci":tc_r,"si":si_r,"meta":mg_r,"proj":proj_r,"pct":pct_r})
             except: pass
-        # Total geral
-        pct_t=(tot_rec/tot_meta*100) if tot_meta>0 else 0
-        st.markdown(
-            f"<div style='background:#1a3a1a;border:2px solid #2e7d32;border-radius:12px;padding:16px 20px;margin-bottom:8px'>"
-            f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px'>"
-            f"<div style='font-size:14px;font-weight:700;color:#ffffff'>TOTAL GERAL</div>"
-            f"<div style='text-align:right'><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>% META</div>"
-            f"<div style='color:{cor_pct(pct_t)};font-size:20px;font-weight:800'>{pct_t:.1f}%</div></div></div>"
-            f"<div style='display:flex;gap:20px;flex-wrap:wrap'>"
-            f"<div><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>RECEBIDO GERAL</div><div style='color:#00c853;font-weight:700;font-size:14px'>{fmt_brl(tot_rec)}</div></div>"
-            f"<div><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>COM INTERAÇÃO</div><div style='color:#ffffff;font-weight:600;font-size:13px'>{fmt_brl(tot_ci)}</div></div>"
-            f"<div><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>SEM INTERAÇÃO</div><div style='color:#8ab89a;font-weight:600;font-size:13px'>{fmt_brl(tot_si)}</div></div>"
-            f"<div><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-weight:600;font-size:13px'>{fmt_brl(tot_meta)}</div></div>"
-            f"<div><div style='color:#5a9a70;font-size:9px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-weight:600;font-size:13px'>{fmt_brl(tot_proj)}</div></div>"
-            f"</div></div>", unsafe_allow_html=True)
+        if equipes_data:
+            pct_t=(tot_rec/tot_meta*100) if tot_meta>0 else 0
+            cv_t=cor_pct(pct_t)
+            linhas=""
+            for ed in equipes_data:
+                cv_e=cor_pct(ed["pct"])
+                row=(
+                    "<div style='display:flex;justify-content:space-between;align-items:center;"
+                    "padding:10px 16px;border-bottom:1px solid #1e3a1e;flex-wrap:wrap;gap:6px'>"
+                    f"<div style='color:#ffffff;font-weight:600;font-size:13px;min-width:120px'>Equipe {ed['nome']}</div>"
+                    "<div style='display:flex;gap:16px;flex-wrap:wrap;flex:1'>"
+                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>RECEBIDO</div><div style='color:#00c853;font-weight:700;font-size:12px'>{fmt_brl(ed['rg'])}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>COM INTER.</div><div style='color:#e8f5e9;font-size:12px'>{fmt_brl(ed['ci'])}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>SEM INTER.</div><div style='color:#8ab89a;font-size:12px'>{fmt_brl(ed['si'])}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-size:12px'>{fmt_brl(ed['meta'])}</div></div>"
+                    f"<div><div style='color:#3a6a4a;font-size:8px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:12px'>{fmt_brl(ed['proj'])}</div></div>"
+                    "</div>"
+                    f"<div style='color:{cv_e};font-size:16px;font-weight:800'>{ed['pct']:.1f}%</div>"
+                    "</div>"
+                )
+                linhas+=row
+            total_row=(
+                "<div style='padding:14px 16px;background:#051005;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px'>"
+                "<div style='color:#ffffff;font-weight:800;font-size:14px'>TOTAL GERAL</div>"
+                "<div style='display:flex;gap:16px;flex-wrap:wrap;flex:1'>"
+                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>RECEBIDO</div><div style='color:#00c853;font-weight:800;font-size:15px'>{fmt_brl(tot_rec)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>COM INTER.</div><div style='color:#ffffff;font-weight:700;font-size:14px'>{fmt_brl(tot_ci)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>SEM INTER.</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(tot_si)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(tot_meta)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(tot_proj)}</div></div>"
+                "</div>"
+                f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>% META</div><div style='color:{cv_t};font-size:22px;font-weight:800'>{pct_t:.1f}%</div></div>"
+                "</div>"
+            )
+            st.markdown(
+                "<div style='background:linear-gradient(135deg,#0a1f0a,#0d2a0d);border:1px solid #1e3a1e;"
+                "border-radius:14px;margin-bottom:16px;overflow:hidden;border-left:3px solid #00c853'>"
+                +linhas+total_row+"</div>",
+                unsafe_allow_html=True)
         st.markdown("---")
     for eq in eqs:
         try:
