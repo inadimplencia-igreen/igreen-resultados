@@ -1296,8 +1296,16 @@ def pagina_quadro(ma):
             f"</div></div>", unsafe_allow_html=True)
         k=f"show_ops_{eq}"
         if k not in st.session_state: st.session_state[k]=False
-        if st.button(f"{'Ocultar' if st.session_state[k] else 'Exibir'} Operadores — {EQUIPES[eq]['nome']}",key=f"btn_ops_{eq}"):
-            st.session_state[k]=not st.session_state[k]; st.rerun()
+        col_b1,col_b2=st.columns([1,1]) if eq=="luciano" else (st.columns(1)[0],None)
+        with col_b1:
+            if st.button(f"{'Ocultar' if st.session_state[k] else 'Exibir'} Operadores — {EQUIPES[eq]['nome']}",key=f"btn_ops_{eq}",use_container_width=True):
+                st.session_state[k]=not st.session_state[k]; st.rerun()
+        if eq=="luciano" and col_b2 is not None:
+            k_mc=f"show_meetcall_{eq}"
+            if k_mc not in st.session_state: st.session_state[k_mc]=False
+            with col_b2:
+                if st.button(f"{'Ocultar' if st.session_state[k_mc] else 'Exibir'} Equipe Meet Call",key=f"btn_mc_{eq}",use_container_width=True):
+                    st.session_state[k_mc]=not st.session_state[k_mc]; st.rerun()
         show=st.session_state[k]
         if show and ops:
             if eq=="luciano":
@@ -1357,6 +1365,21 @@ def pagina_quadro(ma):
                         df_forn=pd.DataFrame(forn_rows); df_forn.index=range(1,len(df_forn)+1)
                         st.dataframe(df_forn,use_container_width=True,hide_index=False)
             except: pass
+        # Exibir Meet Call separado
+        if eq=="luciano" and st.session_state.get(f"show_meetcall_{eq}",False):
+            ops_mc_show=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
+            if ops_mc_show:
+                st.markdown("<p style='color:#1565c0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px'>EQUIPE MEET CALL</p>",unsafe_allow_html=True)
+                rows_mc=[]
+                for op in ops_mc_show:
+                    v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
+                    meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
+                    proj_op=calc_projecao(v,dt,td) if v>0 else 0
+                    lig_op=int(ul.get("agentes",{}).get(op["_id"],{}).get("ligacoes",0) if isinstance(ul.get("agentes",{}).get(op["_id"]),dict) else 0)
+                    rows_mc.append({"Operador":op["nome"],"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if v>0 else "—","Lig. +5s":lig_op if lig_op>0 else "—","_v":v})
+                df_mc=pd.DataFrame(rows_mc).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
+                df_mc.index=range(1,len(df_mc)+1)
+                st.dataframe(df_mc,use_container_width=True,height=min(400,(len(df_mc)+1)*38+40))
         st.markdown("---")
 
 # ── MONITORIAS ─────────────────────────────────
