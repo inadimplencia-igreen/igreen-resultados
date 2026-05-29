@@ -26,6 +26,16 @@ st.markdown("""
 
 
 
+/* ── Esconde card vazio do radio ── */
+[data-testid="stSidebar"] .stRadio > div > div:first-child > label:first-child {
+    display: none !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
 /* ── SIDEBAR NAV — cards padronizados ── */
 [data-testid="stSidebar"] .stRadio > div {
     gap: 3px !important;
@@ -890,7 +900,7 @@ def render_sidebar():
             pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         else:
             pags=['Quadro de Resultados','Lançamento','Meet Call','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
-        pag=st.radio('a',pags,label_visibility='collapsed')
+        pag=st.radio('',pags,label_visibility='collapsed')
 
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
 
