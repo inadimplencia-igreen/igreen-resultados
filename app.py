@@ -1093,7 +1093,7 @@ def processar_base_unica(arquivo, eq, ma):
     for c in df.columns:
         cn=norm(str(c))
         # CPF: apenas coluna com nome exato CPF ou variações sem UC sozinho
-        if not col_cpf and (cn in ["CPF","NUMERO CPF","NUM CPF","NUMCPF","NR CPF","NRCPF","CPF CLIENTE","CPF_CLIENTE","IDENTIFICADOR","IDENTIFICACAO","IDENTIF","ID_CLIENTE","IDCLIENTE"] or cn.startswith("IDENTIF") or cn.startswith("CPF")): col_cpf=c
+        if not col_cpf and "CLIENTE" not in cn and "NOME" not in cn and (cn in ["CPF","NUMERO CPF","NUM CPF","NUMCPF","NR CPF","NRCPF","CPF_CLIENTE","IDENTIFICADOR","IDENTIFICACAO","IDENTIF","ID_CLIENTE","IDCLIENTE"] or cn.startswith("IDENTIF") or cn.startswith("CPF")): col_cpf=c
         if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
         if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG","DATA PAG","DATA PAGAMENTO"]): col_dpag=c
         if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC","DATA VENC","DATA VENCIMENTO","VENCIMENTO"]): col_dvenc=c
@@ -1137,21 +1137,27 @@ def processar_base_unica(arquivo, eq, ma):
         try:
             dc=pd.read_excel(xls,sheet_name=aba,header=0)
             if dc.empty or len(dc.columns)<2: continue
-            # Busca identificador: CPF exato, Identificador exato, ou variações
-            cc=next((c for c in dc.columns if norm(str(c)) in ["CPF","IDENTIFICADOR","IDENTIFICACAO","IDENTIF"]),None)
-            if not cc: cc=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["CPF","IDENTIF","IDENTIC","ID_C","MATRICUL","CONTRATO","CODIGO"])),None)
-            # Validar que coluna tem valores numéricos (CPF/identificador)
+            # Pegar coluna com CPF/identificador numérico — detectar por conteúdo
+            cc=None
+            # 1. Nome exato CPF ou Identificador
+            for c in dc.columns:
+                if norm(str(c)) in ["CPF","IDENTIFICADOR","IDENTIF","IDENTIFICACAO"]: cc=c; break
+            # 2. Detecção por conteúdo numérico (8-14 dígitos)
             if not cc:
+                best_col=None; best_score=0
                 for c in dc.columns:
                     try:
-                        sample=dc[c].dropna().astype(str).head(10)
-                        nums=sum(1 for s in sample if s.replace(".","").replace("-","").replace("/","").isdigit() and len(s.replace(".","").replace("-","").replace("/",""))>=8)
-                        if nums>=3: cc=c; break
+                        sample=dc[c].dropna().astype(str).head(20)
+                        score=sum(1 for s in sample if s.replace(".","").replace("-","").replace("/","").isdigit() and 8<=len(s.replace(".","").replace("-","").replace("/",""))<=14)
+                        if score>best_score: best_score=score; best_col=c
                     except: pass
-            if not cc: continue  # Se não achou coluna válida, pula essa aba
-            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM","CALL"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
+                if best_col and best_score>=3: cc=best_col
+            if not cc: cc=dc.columns[0]
+            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
             dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
-            dd=dd[dd["uc_cpf"].str.len()>=3]
+            dd=dd[dd["uc_cpf"].str.len()>=8]
+            dd=dd[~dd["uc_cpf"].str.match(r"^0+$")]  # Remove CPFs só com zeros
+            dd=dd[dd["uc_cpf"]!="nan"]  # Remove nan
             if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
         except: pass
 
