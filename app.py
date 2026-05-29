@@ -1451,13 +1451,13 @@ def pagina_quadro(ma):
             # Seção Meet Call dentro do card
             + ((
                 f"<div style='border-top:1px solid #1e3a1e;margin-top:12px;padding-top:10px'>"
-                f"<div style='color:#3a6a4a;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px'>Meet Call</div>"
-                f"<div style='display:flex;gap:16px;flex-wrap:wrap'>"
-                f"<div><div style='color:#3a6a4a;font-size:7px;text-transform:uppercase'>RECEBIDO GERAL</div><div style='color:#00c853;font-weight:700;font-size:11px'>{fmt_brl(rg_mc)}</div></div>"
-                f"<div><div style='color:#3a6a4a;font-size:7px;text-transform:uppercase'>COM INTERAÇÃO</div><div style='color:#e8f5e9;font-size:11px'>{fmt_brl(ci_mc)}</div></div>"
-                f"<div><div style='color:#3a6a4a;font-size:7px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-size:11px'>{fmt_brl(mg_mc)}</div></div>"
-                f"<div><div style='color:#3a6a4a;font-size:7px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:11px'>{fmt_brl(proj_mc)}</div></div>"
-                f"<div><div style='color:#3a6a4a;font-size:7px;text-transform:uppercase'>% META</div><div style='color:{cv_mc};font-size:11px;font-weight:700'>{pct_mc:.1f}%</div></div>"
+                f"<div style='color:#5a9a70;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Meet Call</div>"
+                f"<div style='display:flex;gap:24px;flex-wrap:wrap'>"
+                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1px'>RECEBIDO GERAL</div><div style='color:#00c853;font-weight:700;font-size:14px'>{fmt_brl(rg_mc)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1px'>COM INTERAÇÃO</div><div style='color:#e8f5e9;font-size:14px'>{fmt_brl(ci_mc)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1px'>META</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(mg_mc)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1px'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(proj_mc)}</div></div>"
+                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1px'>% META</div><div style='color:{cv_mc};font-size:14px;font-weight:700'>{pct_mc:.1f}%</div></div>"
                 f"</div></div>"
             ) if eq=='luciano' and 'rg_mc' in dir() else '') +
             f"</div>", unsafe_allow_html=True)
