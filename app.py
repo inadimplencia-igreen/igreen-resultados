@@ -665,6 +665,103 @@ def seletor_equipe(default=None, key_suffix=""):
         return eq_opts[eq_labels.index(sel)]
     return u["equipe"]
 
+def importar_excel_operadores(arquivo, ops):
+    """Importa planilha Excel e faz matching inteligente com operadores."""
+    import unicodedata
+    def norm_nome(s):
+        s = unicodedata.normalize('NFKD', str(s).strip()).encode('ascii','ignore').decode().upper()
+        return re.sub(r'\s+', ' ', s).strip()
+    def limpar_valor(v):
+        s = str(v).strip().replace('R$','').replace(' ','').replace('.','').replace(',','.').strip()
+        try: return float(s)
+        except: return 0.0
+
+    try: df = pd.read_excel(arquivo, header=0)
+    except Exception as e: return None, f"Erro ao ler arquivo: {e}"
+
+    # Detectar coluna de nome
+    col_nome = None
+    for c in df.columns:
+        cn = norm_nome(str(c))
+        if any(x in cn for x in ['OPERADOR','NOME','AGENTE','COLABORADOR','ATENDENTE']):
+            col_nome = c; break
+    if not col_nome:
+        # Tentar primeira coluna de texto
+        for c in df.columns:
+            if df[c].dtype == object:
+                col_nome = c; break
+    if not col_nome: return None, "Coluna de nome não encontrada"
+
+    # Detectar coluna de valor
+    col_val = None
+    for c in df.columns:
+        if c == col_nome: continue
+        cn = norm_nome(str(c))
+        if any(x in cn for x in ['VALOR','RECEBIDO','PAGO','RECEBIMENTO','RECEBI']):
+            col_val = c; break
+    if not col_val:
+        # Tentar primeira coluna numérica
+        for c in df.columns:
+            if c == col_nome: continue
+            try:
+                vals = df[c].apply(limpar_valor)
+                if vals.sum() > 0: col_val = c; break
+            except: pass
+    if not col_val: return None, "Coluna de valor não encontrada"
+
+    # Detectar coluna de ligações (opcional)
+    col_lig = None
+    for c in df.columns:
+        if c in [col_nome, col_val]: continue
+        cn = norm_nome(str(c))
+        if any(x in cn for x in ['LIGAC','LIG','CALL','ATEND']):
+            col_lig = c; break
+
+    # Matching inteligente
+    ops_norm = {norm_nome(op['nome']): op for op in ops}
+    resultados = []
+    for _, row in df.iterrows():
+        nome_excel = str(row[col_nome]).strip()
+        if not nome_excel or nome_excel.lower() in ['nan','none','']: continue
+        valor = limpar_valor(row[col_val])
+        ligacoes = int(limpar_valor(row[col_lig])) if col_lig and col_lig in row else 0
+
+        nome_norm = norm_nome(nome_excel)
+        primeiro_nome = nome_norm.split()[0] if nome_norm.split() else ''
+
+        # 1ª tentativa: match exato
+        match = ops_norm.get(nome_norm)
+        status = 'exato'
+
+        if not match:
+            # 2ª tentativa: match por primeiro nome
+            matches_pn = [op for n, op in ops_norm.items() if n.startswith(primeiro_nome + ' ') or n == primeiro_nome]
+            if len(matches_pn) == 1:
+                match = matches_pn[0]; status = 'primeiro_nome'
+            elif len(matches_pn) > 1:
+                # Ambíguo — tentar primeiro+segundo nome
+                partes = nome_norm.split()
+                if len(partes) >= 2:
+                    dois_nomes = ' '.join(partes[:2])
+                    matches_2n = [op for n, op in ops_norm.items() if n.startswith(dois_nomes)]
+                    if len(matches_2n) == 1:
+                        match = matches_2n[0]; status = 'dois_nomes'
+                    else:
+                        status = 'ambiguo'
+                else:
+                    status = 'ambiguo'
+
+        resultados.append({
+            'nome_excel': nome_excel,
+            'op': match,
+            'valor': valor,
+            'ligacoes': ligacoes,
+            'status': status,
+            'col_lig': col_lig is not None
+        })
+
+    return resultados, None
+
 def get_val_op(ag, oid, onome):
     for k,v in ag.items():
         if isinstance(v,dict) and v.get("nome","").strip().lower()==onome.strip().lower():
@@ -1125,6 +1222,42 @@ def pagina_lancamento(ma):
         rec_geral_manual=rec_auto
     st.markdown("---")
     st.markdown("### Valores por Operador")
+
+    # Importar Excel
+    with st.expander("📥 Importar via Excel", expanded=False):
+        arq_imp = st.file_uploader("Planilha Excel (.xlsx)", type=["xlsx"], key=f"imp_{eq}_{ma}")
+        if arq_imp:
+            arq_imp.seek(0)
+            resultados_imp, erro_imp = importar_excel_operadores(arq_imp, ops)
+            if erro_imp:
+                st.error(erro_imp)
+            elif resultados_imp:
+                st.markdown("**Prévia do lançamento:**")
+                prev_rows = []
+                for r in resultados_imp:
+                    if r['status'] == 'ambiguo':
+                        icone = "⚠️ Ambíguo"
+                    elif r['op'] is None:
+                        icone = "❌ Não encontrado"
+                    else:
+                        icone = "✅ " + r['op']['nome']
+                    row = {"Excel": r['nome_excel'], "Sistema": icone, "Valor": fmt_brl(r['valor'])}
+                    if r['col_lig']: row["Lig. +5s"] = r['ligacoes']
+                    prev_rows.append(row)
+                st.dataframe(pd.DataFrame(prev_rows), use_container_width=True, hide_index=True)
+
+                pode_importar = all(r['op'] is not None and r['status'] != 'ambiguo' for r in resultados_imp if r['valor'] > 0)
+                if not pode_importar:
+                    st.warning("Alguns operadores não foram identificados. Corrija manualmente os campos abaixo.")
+                if st.button("✅ Confirmar Importação", use_container_width=True, key=f"imp_confirmar_{eq}_{ma}"):
+                    for r in resultados_imp:
+                        if r['op'] and r['status'] != 'ambiguo' and r['valor'] > 0:
+                            st.session_state[f"op_{eq}_{ma}_{r['op']['_id']}"] = r['valor']
+                            if r['col_lig']:
+                                st.session_state[f"lig_{eq}_{ma}_{r['op']['_id']}"] = r['ligacoes']
+                    st.success("Valores importados! Revise e salve.")
+                    st.rerun()
+
     vi={}; lig_vi={}
     ops_igreen=[op for op in ops if op["nome"] not in OPERADORES_MEETCALL]
     ops_mc=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
@@ -2065,6 +2198,29 @@ def pagina_meetcall(ma):
 
     st.markdown("---")
     st.markdown("### Valores por Operador")
+
+    # Importar Excel Meet Call
+    with st.expander("📥 Importar via Excel", expanded=False):
+        arq_imp_mc = st.file_uploader("Planilha Excel (.xlsx)", type=["xlsx"], key=f"imp_mc_{ma}")
+        if arq_imp_mc:
+            arq_imp_mc.seek(0)
+            res_mc, err_mc = importar_excel_operadores(arq_imp_mc, ops_mc)
+            if err_mc:
+                st.error(err_mc)
+            elif res_mc:
+                prev_mc = []
+                for r in res_mc:
+                    icone = "✅ "+r['op']['nome'] if r['op'] and r['status']!='ambiguo' else ("⚠️ Ambíguo" if r['status']=='ambiguo' else "❌ Não encontrado")
+                    row = {"Excel":r['nome_excel'],"Sistema":icone,"Valor":fmt_brl(r['valor'])}
+                    if r['col_lig']: row["Lig. +5s"]=r['ligacoes']
+                    prev_mc.append(row)
+                st.dataframe(pd.DataFrame(prev_mc),use_container_width=True,hide_index=True)
+                if st.button("✅ Confirmar Importação",use_container_width=True,key=f"imp_mc_confirmar_{ma}"):
+                    for r in res_mc:
+                        if r['op'] and r['status']!='ambiguo' and r['valor']>0:
+                            st.session_state[f"mc_op_{ma}_{r['op']['_id']}"]=r['valor']
+                    st.success("Valores importados!"); st.rerun()
+
     vi_mc={}
     for op in ops_mc:
         meta=float(ms_mc.get(op["_id"],0))
