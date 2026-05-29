@@ -35,6 +35,9 @@ st.markdown("""
     border: none !important;
     box-shadow: none !important;
 }
+[data-testid="stSidebar"] .stRadio > div > div:first-child {
+    display: none !important;
+}
 
 /* ── SIDEBAR NAV — cards padronizados ── */
 [data-testid="stSidebar"] .stRadio > div {
