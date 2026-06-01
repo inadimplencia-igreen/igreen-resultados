@@ -1137,6 +1137,8 @@ def processar_base_unica(arquivo, eq, ma):
             if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
         except: pass
 
+    import streamlit as _st
+    _st.info(f'DEBUG: {len(contatos)} abas contato | elig antes classif: {len(df)}')
     if contatos:
         pc=pd.concat(contatos,ignore_index=True).groupby("uc_cpf",as_index=False)["data_contato"].min()
         df["primeiro_contato"]=df["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"])))
