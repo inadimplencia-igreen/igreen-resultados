@@ -24,10 +24,6 @@ st.markdown("""
     border-right: 1px solid #d0e8d0 !important;
 }
 
-
-
-
-
 /* ── Esconde label Menu do radio ── */
 [data-testid="stSidebar"] .stRadio > div > p { display: none !important; }
 
@@ -198,14 +194,12 @@ hr { border: none !important; border-top: 1px solid #e0e8e0 !important; margin: 
 details summary svg { display: none !important; }
 
 /* ── HIDE STREAMLIT CHROME ── */
-/* Esconder keyboard_double e outros ícones Streamlit */
 [data-testid="stSidebarCollapseButton"] { display: none !important; }
 [data-testid="collapsedControl"] { display: none !important; }
 button[data-testid="baseButton-header"] { display: none !important; }
 .st-emotion-cache-1egp75k { display: none !important; }
 [data-testid="stSidebarContent"] > div:first-child > div:first-child { display: none !important; }
 button[kind="header"] { display: none !important; }
-[data-testid="collapsedControl"] { display: none !important; }
 #MainMenu { visibility: hidden !important; }
 header[data-testid="stHeader"] { display: none !important; }
 footer { display: none !important; }
@@ -217,7 +211,6 @@ div[data-testid="stStatusWidget"] { display: none !important; }
 /* ── SIDEBAR SEMPRE VISÍVEL ── */
 [data-testid="stSidebar"] { display: flex !important; visibility: visible !important; opacity: 1 !important; width: 260px !important; min-width: 260px !important; transform: none !important; }
 [data-testid="stSidebarCollapsedControl"] { display: none !important; }
-[data-testid="collapsedControl"] { display: none !important; }
 section[data-testid="stSidebar"] { display: flex !important; }
 
 /* ── LAYOUT ── */
@@ -230,7 +223,6 @@ div[data-testid="stVerticalBlock"] label { color: #3a5a3a !important; font-size:
 """, unsafe_allow_html=True)
 
 def _get_usuarios():
-    """Lê senhas dos Secrets — com fallback seguro."""
     def _s(key, fallback):
         try: return st.secrets["usuarios"][key]
         except: return fallback
@@ -282,7 +274,6 @@ OPERADORES_PADRAO = {
     "metcool":[("Leilson Gomes",False),("Hannah Vitoria",False),("Kesia Lima",False),("Renata Ribeiro",False),("Thayna Guerreiro Ferreira",False),("Kimberlyn da Silva",False),("Vitor Eder",False),("Laiza Teixeira",False),("Glaucio Fernandes",False),("Thais de Fatima",False),("Mayara Leal",False),("Ivone Coutinho",False),("Aline Cristine",False),("Anderson Soares da Silva",False),("Michelle Pereira",False),("Maria Ferreira",False),("Mariana Matias",False),("Jessica Faria Albertino Miranda Vieira",False),("Lorrane Moura",False),("Jennifer Edjane",False),("Haissa Batista",False),("Bruna de Barros Santanna",False)],
 }
 FORNECEDORAS_TODAS = ["COTESA/MOVE","ULTRA","VANTAGE","FARO","BOM FUTURO","SUNCLICK","ATUA","GEDISA","SUNNE","SOLATIO","EDP","FIT","GV","COMERC"]
-
 FORNECEDORAS_POR_GESTOR = {
     "luciano": ["COMERC"],
     "tamires": ["VANTAGE","BOM FUTURO","COTESA/MOVE","SUNCLICK","FARO","ULTRA","GEDISA"],
@@ -290,7 +281,6 @@ FORNECEDORAS_POR_GESTOR = {
     "metcool": ["COMERC"],
 }
 OPERADORES_MEETCALL = ['Leilson Gomes', 'Hannah Vitoria', 'Kesia Lima', 'Renata Ribeiro', 'Thayna Guerreiro Ferreira', 'Kimberlyn da Silva', 'Vitor Eder', 'Laiza Teixeira', 'Glaucio Fernandes', 'Thais de Fatima', 'Mayara Leal', 'Ivone Coutinho', 'Aline Cristine', 'Anderson Soares da Silva', 'Michelle Pereira', 'Maria Ferreira', 'Mariana Matias', 'Jessica Faria Albertino Miranda Vieira', 'Lorrane Moura', 'Jennifer Edjane', 'Haissa Batista', 'Bruna de Barros Santanna']
-
 CORES_FORN = {"COTESA/MOVE":"#1b5e20","ULTRA":"#0d47a1","VANTAGE":"#e65100","FARO":"#b71c1c","BOM FUTURO":"#4a148c","SUNCLICK":"#004d40","ATUA":"#37474f","GEDISA":"#006064","SUNNE":"#f57f17","SOLATIO":"#4527a0","EDP":"#0277bd","FIT":"#2e7d32","GV":"#558b2f","COMERC":"#37474f"}
 
 # ── MONGODB ────────────────────────────────────
@@ -328,21 +318,17 @@ def salvar_erros_criticos(e):
     get_db().configuracoes.update_one({"_id":"erros_criticos_monitoria"},{"$set":{"_id":"erros_criticos_monitoria","erros":e,"atualizadoEm":datetime.now()}},upsert=True)
 
 def migrar_meetcall_para_luciano():
-    """Insere operadores Meet Call nas equipes luciano E metcool se não existirem."""
     try:
         db = get_db()
         for nome in OPERADORES_MEETCALL:
-            # Cadastrar na equipe luciano
             oid_luc = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
             oid_luc = re.sub(r'-+','-',oid_luc).strip('-')
             oid_luc = f"luc-{oid_luc}"[:40]
             if not db.operadores.find_one({"_id":oid_luc}):
                 db.operadores.insert_one({"_id":oid_luc,"equipeId":"luciano","nome":nome,"pleno":False,"meetcall":True,"criadoEm":datetime.now()})
-            # Cadastrar na equipe metcool — remover duplicatas primeiro
             oid_mc = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
             oid_mc = re.sub(r'-+','-',oid_mc).strip('-')
             oid_mc = f"mc-{oid_mc}"[:40]
-            # Remover duplicatas com mesmo nome na metcool
             existentes = list(db.operadores.find({"equipeId":"metcool","nome":nome}))
             if len(existentes) > 1:
                 for ex in existentes[1:]: db.operadores.delete_one({"_id":ex["_id"]})
@@ -393,7 +379,6 @@ def buscar_meta_gestora(ma, eq):
     return get_db().metas.find_one({"_id":f"meta_gest__{ma}__{eq}"}) or {"metaGestora":0,"targetPct":125}
 
 def salvar_lancamento_meetcall(ma, total_ligacoes, rec_geral):
-    """Salva lançamento geral da Meet Call."""
     get_db().metas.update_one(
         {"_id":f"meetcall__{ma}"},
         {"$set":{"_id":f"meetcall__{ma}","mesAno":ma,"totalLigacoes":total_ligacoes,"recGeral":rec_geral,"atualizadoEm":datetime.now()}},
@@ -441,7 +426,6 @@ def salvar_processamento(ma, eq, df, usuario_nome=""):
 def buscar_ultimo_processamento(ma, eq):
     doc = get_db().processamentos.find_one({"mesAno":ma,"equipeId":eq},sort=[("criadoEm",-1)])
     if not doc: return {}
-    # Sempre recalcula valorElegivel dos registros para garantir precisão
     if doc.get("registros"):
         try:
             df = pd.DataFrame(doc["registros"])
@@ -474,30 +458,24 @@ def buscar_processamentos(ma=None, eq=None):
 def listar_meses_processados(): return sorted(get_db().processamentos.distinct("mesAno"),reverse=True)
 
 def salvar_senha_usuario(uid, nova_senha):
-    """Salva senha do usuário no MongoDB — nunca no código."""
     get_db().usuarios_senhas.update_one(
         {"_id": uid},
         {"$set": {"_id": uid, "senha": nova_senha, "atualizadoEm": datetime.now()}},
         upsert=True)
 
 def buscar_senha_usuario(uid):
-    """Busca senha: primeiro no banco, depois no USUARIOS (já tem fallback)."""
     try:
         doc = get_db().usuarios_senhas.find_one({"_id": uid})
         if doc and doc.get("senha"):
             return doc["senha"]
     except: pass
-    # Fallback: usa senha do dicionário USUARIOS (já carregado)
     u = USUARIOS.get(uid)
     if u: return u.get("senha")
     return None
 
 def salvar_historico_processamento(mes_ano, equipe_id, usuario_nome, df):
-    """Salva histórico permanente de cada processamento — nunca apaga."""
-    import time
     ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
     doc_id = f"hist_proc__{mes_ano}__{equipe_id}__{ts}"
-    # Calcula métricas
     df_num = df.copy()
     df_num["valor"] = pd.to_numeric(df_num.get("valor", pd.Series(dtype=float)), errors="coerce").fillna(0)
     elig = df_num[df_num["elegibilidade"]=="Elegível"] if "elegibilidade" in df_num.columns else df_num
@@ -516,23 +494,17 @@ def salvar_historico_processamento(mes_ano, equipe_id, usuario_nome, df):
     })
 
 def buscar_historico_geral(mes_ano=None, equipe_id=None):
-    """Busca histórico completo — combina historico_processamentos + processamentos antigos."""
     filtro = {}
     if mes_ano: filtro["mesAno"] = mes_ano
     if equipe_id: filtro["equipeId"] = equipe_id
-
-    # Histórico novo (permanente)
     novos = list(get_db().historico_processamentos.find(filtro).sort("criadoEm", -1))
     ids_ja_vistos = set(f"{h['mesAno']}__{h['equipeId']}" for h in novos)
-
-    # Processamentos antigos que ainda não estão no histórico
     procs = list(get_db().processamentos.find(filtro).sort("atualizadoEm", -1))
     antigos = []
     for p in procs:
         chave = f"{p['mesAno']}__{p['equipeId']}"
         if chave in ids_ja_vistos:
             continue
-        # Calcula valor elegível dos registros
         val = 0.0; boletos = 0; forns = []
         try:
             df = pd.DataFrame(p.get("registros", []))
@@ -554,7 +526,6 @@ def buscar_historico_geral(mes_ano=None, equipe_id=None):
             "valorElegivel": val,
             "criadoEm": p.get("atualizadoEm", datetime.now()),
         })
-
     todos = novos + antigos
     todos.sort(key=lambda x: x.get("criadoEm", datetime.now()), reverse=True)
     return todos
@@ -595,7 +566,6 @@ def status_pct(p):
     return "Abaixo"
 
 def calc_pontos(media):
-    # Regra: <=70=0, <=80=300, <=90=500, <=95=700, <=99=1000, 100=1100
     import math
     m=math.floor(media+0.5)
     if m<=70: return 0
@@ -656,10 +626,8 @@ def header_page(titulo, sub=""):
 
 def seletor_equipe(default=None, key_suffix=""):
     u=st.session_state.usuario
-    # Gestor e diretor sempre veem só a própria equipe
     if u["role"] in ["gestor","diretor"]:
         return u["equipe"]
-    # Admin pode trocar de equipe
     if u["role"]=="admin":
         eq_opts=list(EQUIPES.keys())
         eq_labels=[f"Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
@@ -671,21 +639,17 @@ def seletor_equipe(default=None, key_suffix=""):
     return u["equipe"]
 
 def importar_excel_operadores(arquivo, ops):
-    """Importa planilha Excel e faz matching inteligente com operadores."""
     import unicodedata
     def norm_nome(s):
         s = unicodedata.normalize('NFKD', str(s).strip()).encode('ascii','ignore').decode().upper()
         return re.sub(r'\s+', ' ', s).strip()
     def limpar_valor(v):
-        # Tratar formato brasileiro: 1.234.567,89 -> 1234567.89
         s = str(v).strip()
-        # Se for float/int do Excel, já está correto
         try:
             f = float(v)
             if f > 0: return f
         except: pass
         s = s.replace('R$','').replace(' ','').strip()
-        # Formato brasileiro: tem vírgula como decimal
         if ',' in s:
             s = s.replace('.','').replace(',','.')
         else:
@@ -696,20 +660,17 @@ def importar_excel_operadores(arquivo, ops):
     try: df = pd.read_excel(arquivo, header=0)
     except Exception as e: return None, f"Erro ao ler arquivo: {e}"
 
-    # Detectar coluna de nome
     col_nome = None
     for c in df.columns:
         cn = norm_nome(str(c))
         if any(x in cn for x in ['OPERADOR','NOME','AGENTE','COLABORADOR','ATENDENTE']):
             col_nome = c; break
     if not col_nome:
-        # Tentar primeira coluna de texto
         for c in df.columns:
             if df[c].dtype == object:
                 col_nome = c; break
     if not col_nome: return None, "Coluna de nome não encontrada"
 
-    # Detectar coluna de valor
     col_val = None
     for c in df.columns:
         if c == col_nome: continue
@@ -717,7 +678,6 @@ def importar_excel_operadores(arquivo, ops):
         if any(x in cn for x in ['VALOR','RECEBIDO','PAGO','RECEBIMENTO','RECEBI']):
             col_val = c; break
     if not col_val:
-        # Tentar primeira coluna numérica
         for c in df.columns:
             if c == col_nome: continue
             try:
@@ -726,7 +686,6 @@ def importar_excel_operadores(arquivo, ops):
             except: pass
     if not col_val: return None, "Coluna de valor não encontrada"
 
-    # Detectar coluna de ligações (opcional)
     col_lig = None
     for c in df.columns:
         if c in [col_nome, col_val]: continue
@@ -734,7 +693,6 @@ def importar_excel_operadores(arquivo, ops):
         if any(x in cn for x in ['LIGAC','LIG','CALL','ATEND']):
             col_lig = c; break
 
-    # Matching inteligente
     ops_norm = {norm_nome(op['nome']): op for op in ops}
     resultados = []
     for _, row in df.iterrows():
@@ -742,21 +700,15 @@ def importar_excel_operadores(arquivo, ops):
         if not nome_excel or nome_excel.lower() in ['nan','none','']: continue
         valor = limpar_valor(row[col_val])
         ligacoes = int(limpar_valor(row[col_lig])) if col_lig and col_lig in row else 0
-
         nome_norm = norm_nome(nome_excel)
         primeiro_nome = nome_norm.split()[0] if nome_norm.split() else ''
-
-        # 1ª tentativa: match exato
         match = ops_norm.get(nome_norm)
         status = 'exato'
-
         if not match:
-            # 2ª tentativa: match por primeiro nome
             matches_pn = [op for n, op in ops_norm.items() if n.startswith(primeiro_nome + ' ') or n == primeiro_nome]
             if len(matches_pn) == 1:
                 match = matches_pn[0]; status = 'primeiro_nome'
             elif len(matches_pn) > 1:
-                # Ambíguo — tentar primeiro+segundo nome
                 partes = nome_norm.split()
                 if len(partes) >= 2:
                     dois_nomes = ' '.join(partes[:2])
@@ -767,15 +719,7 @@ def importar_excel_operadores(arquivo, ops):
                         status = 'ambiguo'
                 else:
                     status = 'ambiguo'
-
-        resultados.append({
-            'nome_excel': nome_excel,
-            'op': match,
-            'valor': valor,
-            'ligacoes': ligacoes,
-            'status': status,
-            'col_lig': col_lig is not None
-        })
+        resultados.append({'nome_excel': nome_excel,'op': match,'valor': valor,'ligacoes': ligacoes,'status': status,'col_lig': col_lig is not None})
 
     return resultados, None
 
@@ -788,10 +732,19 @@ def get_val_op(ag, oid, onome):
         return float(v.get("valorRecebido",0) if isinstance(v,dict) else v)
     return 0.0
 
+# ── CORREÇÃO PRINCIPAL: normalizar_cpf com zfill(11) ──
 def normalizar_cpf(s):
     s=str(s).strip()
-    try: s=str(int(float(s)))
-    except: s=s.replace(".","").replace("-","").replace("/","").replace(" ","")
+    # Converte notação científica e float do Excel (ex: 1.23457E+10, 12345678909.0)
+    try:
+        f=float(s)
+        if f>0: s=str(int(round(f)))
+    except: pass
+    # Remove formatação
+    s=s.replace(".","").replace("-","").replace("/","").replace(" ","")
+    # Garante 11 dígitos com zeros à esquerda (CPF pode ter zero inicial)
+    if s.isdigit() and len(s)<=11:
+        s=s.zfill(11)
     return s
 
 def gerar_pdf_monitoria(onome, prot, obs, crits, erros, nota, media, n_mon, ma):
@@ -912,23 +865,9 @@ def _mini_criterios():
 DARK_CSS = """
 .stApp { background-color: #0d1117 !important; --text-color: #e6edf3; --text-muted: #8b949e; --bg-card: #161b22; --border-color: #30363d; }
 [data-testid="stSidebar"] { background: #161b22 !important; border-right: 1px solid #30363d !important; }
-[data-testid="stSidebar"] .stRadio label {
-    color: #e6edf3 !important;
-    background: #21262d !important;
-    border: 1px solid #30363d !important;
-    font-weight: 500 !important;
-}
-[data-testid="stSidebar"] .stRadio label:hover {
-    background: #2d333b !important;
-    color: #ffffff !important;
-    border-color: #3fb950 !important;
-}
-[data-testid="stSidebar"] .stRadio label[data-checked="true"] {
-    background: #238636 !important;
-    color: #ffffff !important;
-    border-color: #3fb950 !important;
-    font-weight: 600 !important;
-}
+[data-testid="stSidebar"] .stRadio label { color: #e6edf3 !important; background: #21262d !important; border: 1px solid #30363d !important; font-weight: 500 !important; }
+[data-testid="stSidebar"] .stRadio label:hover { background: #2d333b !important; color: #ffffff !important; border-color: #3fb950 !important; }
+[data-testid="stSidebar"] .stRadio label[data-checked="true"] { background: #238636 !important; color: #ffffff !important; border-color: #3fb950 !important; font-weight: 600 !important; }
 [data-testid="stMetric"] { background: #161b22 !important; border: 1px solid #30363d !important; border-top: 2px solid #3fb950 !important; }
 [data-testid="stMetricValue"] { color: #e6edf3 !important; font-size: 16px !important; white-space: nowrap !important; overflow: visible !important; }
 [data-testid="stMetricLabel"] { color: #7ee787 !important; }
@@ -958,26 +897,12 @@ hr { border-top: 1px solid #30363d !important; }
 .streamlit-expanderContent { background: #0d1117 !important; border: 1px solid #30363d !important; }
 div[data-testid="stVerticalBlock"] label { color: #8b949e !important; }
 .block-container { background: #0d1117 !important; }
-/* Override textos inline hardcoded */
-[data-testid="stMarkdownContainer"] p { color: #c9d1d9 !important; }
-[data-testid="stMarkdownContainer"] div { color: #c9d1d9 !important; }
-div[style*="color:#1a3a1a"] { color: #e6edf3 !important; }
-div[style*="color:#2e7d32"] { color: #7ee787 !important; }
-div[style*="color:#5a8a5a"] { color: #8b949e !important; }
-div[style*="color:#1a2e1a"] { color: #e6edf3 !important; }
-div[style*="color:#3a5a3a"] { color: #c9d1d9 !important; }
-div[style*="color:#2d4a2d"] { color: #c9d1d9 !important; }
-div[style*="background:#ffffff"] { background: #161b22 !important; border-color: #30363d !important; }
-div[style*="background:#f0f7f0"] { background: #0d1117 !important; }
 """
-
 
 def render_sidebar():
     u=st.session_state.usuario
     role_label='Administrador' if u['role']=='admin' else 'Diretoria' if u['role']=='diretor' else 'Gestor'
-
     with st.sidebar:
-        # LOGO
         st.markdown(
             f"<div style='padding:16px 12px 8px'>"
             f"<div style='display:flex;align-items:center;gap:10px;margin-bottom:16px'>"
@@ -987,8 +912,6 @@ def render_sidebar():
             f"<span style='color:#1a2e1a;font-weight:700;font-size:15px'> Performance</span></div>"
             f"</div></div>",
             unsafe_allow_html=True)
-
-        # USUÁRIO
         st.markdown(
             f"<div style='margin:0 8px 12px;background:#f0f7f0;border:1px solid #c8e0c8;"
             f"border-radius:8px;padding:10px 12px'>"
@@ -996,8 +919,6 @@ def render_sidebar():
             f"<div style='color:#5a8a5a;font-size:11px'>{role_label}</div>"
             f"</div>",
             unsafe_allow_html=True)
-
-        # PERÍODO
         anos=get_anos_disponiveis()
         ano=st.selectbox('Ano',anos,label_visibility='collapsed')
         meses=get_todos_meses_ano(int(ano))
@@ -1005,8 +926,6 @@ def render_sidebar():
         mes_sel=st.selectbox('Mês',mes_labels,index=datetime.now().month-1,label_visibility='collapsed')
         mes_ano=f'{mes_sel}-{ano}'
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
-
-        # MENU
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
         elif u['role']=='admin':
@@ -1014,18 +933,10 @@ def render_sidebar():
         else:
             pags=['Quadro de Resultados','Lançamento','Meet Call','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         pag=st.radio('Menu',pags,label_visibility='collapsed',index=0)
-
-        st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
-
-
-
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
         if st.button('Sair',use_container_width=True,key='btn_sair'):
             del st.session_state.usuario; st.rerun()
-
-
     return mes_ano,pag
-
 
 # ── OPERADORES ─────────────────────────────────
 def pagina_operadores():
@@ -1074,7 +985,6 @@ def processar_base_unica(arquivo, eq, ma):
     except Exception as e: return None,[f"Erro: {e}"],[]
     abas_norm=[norm(a) for a in xls.sheet_names]; abas_orig=xls.sheet_names
 
-    # Busca aba de pagamentos
     aba_pagos=None
     for i,a in enumerate(abas_norm):
         if any(p in a for p in ["PAGO","PAGAM","RECEB","BASE","BAIXA","PAGT","RESULT"]):
@@ -1088,18 +998,14 @@ def processar_base_unica(arquivo, eq, ma):
     df=pd.read_excel(xls,sheet_name=aba_pagos,header=0).reset_index(drop=True)
     df["_row_id"]=df.index
 
-    # Mapeamento de colunas por nome
     col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
     for c in df.columns:
         cn=norm(str(c))
-        # CPF: apenas coluna com nome exato CPF ou variações sem UC sozinho
         if not col_cpf and ("CPF" in cn or "IDENTIFICADOR" in cn or "IDENTIF" in cn) and "CLIENTE" not in cn and "NOME" not in cn: col_cpf=c
         if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
         if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG","DATA PAG","DATA PAGAMENTO"]): col_dpag=c
         if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC","DATA VENC","DATA VENCIMENTO","VENCIMENTO"]): col_dvenc=c
         if not col_forn and any(x in cn for x in ["FORNEC","DISTRIB","EMPRESA","CONCESS","FORNECEDOR","FORNECEDORA","FORN"]): col_forn=c
-
-
 
     mapa={}
     if col_cpf:  mapa[col_cpf]="uc_cpf"
@@ -1132,13 +1038,11 @@ def processar_base_unica(arquivo, eq, ma):
             cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
             dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
             dd=dd[dd["uc_cpf"].str.len()>=8]
-            dd=dd[~dd["uc_cpf"].str.match(r"^0+$")]  # Remove CPFs só com zeros
-            dd=dd[dd["uc_cpf"]!="nan"]  # Remove nan
+            dd=dd[~dd["uc_cpf"].str.match(r"^0+$")]
+            dd=dd[dd["uc_cpf"]!="nan"]
             if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
         except: pass
 
-    import streamlit as _st
-    _st.info(f'DEBUG: {len(contatos)} abas contato | elig antes classif: {len(df)}')
     if contatos:
         pc=pd.concat(contatos,ignore_index=True).groupby("uc_cpf",as_index=False)["data_contato"].min()
         df["primeiro_contato"]=df["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"])))
@@ -1222,10 +1126,8 @@ def pagina_lancamento(ma):
         eh_fech=st.checkbox("Fechamento do Mês",key=f"fech_{eq}_{ma}")
     with c2: dt=st.number_input("Dias Trabalhados *",min_value=0,max_value=31,value=0,key=f"dt_{eq}_{ma}")
     with c3: td=st.number_input("Total Dias do Mês *",min_value=0,max_value=31,value=0,key=f"td_{eq}_{ma}")
-    # Recebido Geral manual
     up_atual=buscar_ultimo_processamento(ma,eq)
     rec_auto=float(up_atual.get("valorElegivel",0)) if up_atual else 0
-    # Buscar recGeral anterior se não tem processamento
     rec_anterior=rec_auto
     if rec_anterior==0:
         lancs_ant=buscar_lancamentos(ma,eq)
@@ -1239,8 +1141,6 @@ def pagina_lancamento(ma):
         rec_geral_manual=rec_anterior
     st.markdown("---")
     st.markdown("### Valores por Operador")
-
-    # Importar Excel
     mostrar_imp = st.checkbox("Importar via Excel", key=f"chk_imp_{eq}_{ma}")
     arq_imp = None
     if mostrar_imp:
@@ -1264,7 +1164,6 @@ def pagina_lancamento(ma):
                     if r['col_lig']: row["Lig. +5s"] = r['ligacoes']
                     prev_rows.append(row)
                 st.dataframe(pd.DataFrame(prev_rows), use_container_width=True, hide_index=True)
-
                 pode_importar = all(r['op'] is not None and r['status'] != 'ambiguo' for r in resultados_imp if r['valor'] > 0)
                 if not pode_importar:
                     st.warning("Alguns operadores não foram identificados. Corrija manualmente os campos abaixo.")
@@ -1276,7 +1175,6 @@ def pagina_lancamento(ma):
                                 st.session_state[f"lig_{eq}_{ma}_{r['op']['_id']}"] = r['ligacoes']
                     st.success("Valores importados! Revise e salve.")
                     st.rerun()
-
     vi={}; lig_vi={}
     ops_igreen=[op for op in ops if op["nome"] not in OPERADORES_MEETCALL]
     ops_mc=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
@@ -1334,7 +1232,6 @@ def pagina_quadro(ma):
     eqs_vis=["luciano","deborah","tamires"]
     eqs=list(EQUIPES.keys()) if is_adm else eqs_vis if is_dir else [u["equipe"]]
     header_page("Quadro de Resultados", ma.replace("-"," ").upper())
-    # Tabela resumo para diretor
     if is_dir:
         tot_rec=tot_ci=tot_si=tot_meta=tot_proj=0
         equipes_data=[]
@@ -1410,13 +1307,10 @@ def pagina_quadro(ma):
         dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
         up=buscar_ultimo_processamento(ma,eq)
         rec_geral=float(up.get("valorElegivel",0)) if up else 0
-        # Se não tem processamento, busca recGeral do lançamento (manual ou anterior)
         if rec_geral==0:
-            # Tenta lançamento atual
             if ul.get("recGeral",0)>0:
                 rec_geral=float(ul["recGeral"])
             else:
-                # Busca em lançamentos anteriores
                 for l in lancs[1:]:
                     if l.get("recGeral",0)>0:
                         rec_geral=float(l["recGeral"]); break
@@ -1424,7 +1318,6 @@ def pagina_quadro(ma):
         proj=calc_projecao(rec_geral, dt, td)
         pct=(rec_geral/mg*100) if mg>0 else 0
         cv=cor_pct(pct)
-        # Calcular dados Meet Call antes do card
         rg_mc=ci_mc=mg_mc=si_mc=proj_mc=pct_mc=0.0; cv_mc="#e03c3c"; dt_mc=dt; td_mc=td
         if eq=="luciano":
             try:
@@ -1460,7 +1353,6 @@ def pagina_quadro(ma):
             f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>DIAS</div>"
             f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{dt}/{td}</div></div>"
             f"</div>"
-            # Seção Meet Call dentro do card
             + ((
                 f"<div style='border-top:1px solid #1e3a1e;margin-top:12px;padding-top:10px'>"
                 f"<div style='color:#5a9a70;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Meet Call</div>"
@@ -1488,7 +1380,6 @@ def pagina_quadro(ma):
         show=st.session_state[k]
         if show and ops:
             if eq=="luciano":
-                # Separar iGreen e MeetCall
                 ops_ig=[op for op in ops if op["nome"] not in OPERADORES_MEETCALL]
                 ops_mc=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
                 for grp_nome, grp_ops in [("Operadores iGreen", ops_ig),("Operadores Meet Call", ops_mc)]:
@@ -1515,7 +1406,6 @@ def pagina_quadro(ma):
                 df.index=range(1,len(df)+1)
                 st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
         if eq=="luciano":
-            # Para Luciano: mostrar iGreen vs Meet Call
             if ops:
                 total_igreen=0; total_meetcall=0
                 for op in ops:
@@ -1544,8 +1434,6 @@ def pagina_quadro(ma):
                         df_forn=pd.DataFrame(forn_rows); df_forn.index=range(1,len(df_forn)+1)
                         st.dataframe(df_forn,use_container_width=True,hide_index=False)
             except: pass
-
-        # Exibir Meet Call separado
         if eq=="luciano" and st.session_state.get(f"show_meetcall_{eq}",False):
             ops_mc_show=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
             if ops_mc_show:
@@ -1571,7 +1459,6 @@ def pagina_monitorias(ma):
     if not ops: st.warning("Cadastre operadores primeiro."); return
     if "mon_op_sel" not in st.session_state: st.session_state.mon_op_sel=None
     if "mon_modo" not in st.session_state: st.session_state.mon_modo=None
-
     if st.session_state.mon_op_sel is None:
         ultimo=st.session_state.pop("mon_ultimo_salvo",None)
         if ultimo:
@@ -1615,7 +1502,6 @@ def pagina_monitorias(ma):
                         if st.button("Histórico",key=f"hist_{op['_id']}",use_container_width=True):
                             st.session_state.mon_op_sel=op; st.session_state.mon_modo="historico"; st.rerun()
         return
-
     op=st.session_state.mon_op_sel
     media_op,n_op=calc_media_operador(op["_id"],ma)
     if st.button("← Voltar"): st.session_state.mon_op_sel=None; st.session_state.mon_modo=None; st.rerun()
@@ -1639,11 +1525,9 @@ def pagina_monitorias(ma):
         else:
             st.markdown("<p style='color:#e53935;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>ITENS DE QUALIDADE — MARQUE O QUE NÃO FOI FEITO</p>",unsafe_allow_html=True)
             for crit in get_criterios():
-                # Cabeçalho do critério com pontuação
                 c1,c2=st.columns([8,1])
                 with c1: nao_passou=st.checkbox(f"{crit['nome']}",key=f"cr_{crit['id']}",value=False)
                 with c2: st.markdown(f"<div style='padding-top:6px;color:#e53935;font-size:12px;font-weight:600;text-align:right'>−{crit['peso']} pts</div>",unsafe_allow_html=True)
-                # Itens detalhados do critério
                 if crit.get('itens'):
                     for it in crit['itens']:
                         cor_it = "#f87171" if "obrigatório" in it.lower() or "!" in it else "#34d399"
@@ -1660,7 +1544,6 @@ def pagina_monitorias(ma):
             f"<div style='color:#5a8a5a;font-size:11px'>Pontos perdidos: {pontos_perdidos}</div></div>"
             f"<div style='color:{cn};font-size:36px;font-weight:800'>{round(nota)}</div>"
             f"</div>",unsafe_allow_html=True)
-        # Estado: salva e aguarda download antes de fechar
         sk_salvo=f"mon_salvo_{op['_id']}_{semana}_{ma}"
         if not st.session_state.get(sk_salvo):
             if st.button("Salvar Monitoria",use_container_width=True,key="btn_salvar_mon"):
@@ -1682,7 +1565,6 @@ def pagina_monitorias(ma):
                 f"<div style='color:#e8f5e9;font-size:13px'>Nota: <strong style='color:{cn2}'>{salvo['nota']:.0f}%</strong> | "
                 f"Média: <strong>{salvo['media']:.1f}%</strong> | Pontos: <strong>{salvo['pontos']}</strong></div>"
                 f"</div>",unsafe_allow_html=True)
-            # Botão baixar PDF
             st.markdown(
                 f'<a href="data:text/html;base64,{salvo["b64"]}" '
                 f'download="Monitoria_{salvo["nome"].replace(" ","_")}_{salvo["prot"]}.html" '
@@ -1701,7 +1583,6 @@ def pagina_monitorias(ma):
         monts2=[m for m in buscar_monitorias_equipe(eq,ma) if m["opId"]==op["_id"]]
         if not monts2: st.info(f"Nenhuma monitoria para {op['nome']} em {ma.replace('-',' ')}.")
         else:
-            # Ordenar por semana
             ordem_semanas={s:i for i,s in enumerate(SEMANAS_MONITORIA)}
             monts2=sorted(monts2,key=lambda x:ordem_semanas.get(x.get("semana_mon",""),99))
             for m in monts2:
@@ -1712,7 +1593,6 @@ def pagina_monitorias(ma):
                         passou=c.get("passou",True); cc="#2e7d32" if passou else "#c62828"
                         st.markdown(f"<div style='display:flex;justify-content:space-between;padding:6px 12px;background:#f0f7f0;border-radius:6px;margin-bottom:4px;border-left:3px solid {cc}'><span style='color:#1a2e1a;font-size:12px'>{c.get('num','')} {c.get('nome','')}</span><span style='color:{cc};font-weight:600;font-size:12px'>{'Passou' if passou else 'Não passou'}</span></div>",unsafe_allow_html=True)
                     if m.get("observacao"): st.markdown(f"<div style='padding:8px 12px;background:#f0f7f0;border-radius:6px;border-left:3px solid #5a8a5a;color:#2d4a2d;font-size:12px'><strong>Obs:</strong> {m['observacao']}</div>",unsafe_allow_html=True)
-                    # Botão baixar PDF
                     mm2,nm2=calc_media_operador(op["_id"],ma)
                     hp=gerar_pdf_monitoria(op["nome"],m.get("protocolo",""),m.get("observacao",""),m.get("criterios",[]),m.get("errosCriticos",[]),nm,mm2,nm2,ma)
                     b64h=base64.b64encode(hp.encode()).decode()
@@ -1961,7 +1841,6 @@ def pagina_inadimplencia(ma):
     is_dir=u["role"]=="diretor"; is_adm=u["role"]=="admin"
     header_page("Análise de Inadimplência","Taxa de recuperação por faixa e fornecedora")
     FAIXAS=["D30","D31-60","D61-90","D90+"]
-
     c1,c2,c3=st.columns(3)
     with c1:
         md=listar_meses_inadimplencia() or [ma]
@@ -1969,33 +1848,27 @@ def pagina_inadimplencia(ma):
         ms=st.selectbox("Mês",md,key="inad_mes")
     with c3:
         eq=seletor_equipe(u.get("equipe") or "tamires",key_suffix="_inad") if (is_adm or is_dir) else u["equipe"]
-    # Fornecedoras do gestor logado (ou todas para admin/diretor)
     if is_dir or is_adm:
         forns_disp = ["Todas"] + FORNECEDORAS_TODAS
     else:
         forns_disp = ["Todas"] + FORNECEDORAS_POR_GESTOR.get(eq or u.get("equipe",""), FORNECEDORAS_TODAS)
     with c2:
         fs=st.selectbox("Fornecedora", forns_disp, key="inad_forn")
-
     st.markdown("---")
     doc=buscar_inadimplencia(ms,eq or "tamires")
     dados=doc.get("dados",{}) if doc else {}
-
     with st.expander("Subir planilha de inadimplência",expanded=not bool(dados)):
-        st.markdown("<p style='color:#555;font-size:13px'>Suba a planilha com as abas por fornecedora. Quando as colunas forem mapeadas, os dados preenchem automaticamente.</p>",unsafe_allow_html=True)
+        st.markdown("<p style='color:#555;font-size:13px'>Suba a planilha com as abas por fornecedora.</p>",unsafe_allow_html=True)
         arq_i=st.file_uploader("Planilha de inadimplência (.xlsx)",type=["xlsx"],key="arq_inad")
         if arq_i and st.button("Processar planilha",key="btn_proc_inad"):
-            st.info("Estrutura da planilha ainda sendo mapeada. Use a edição manual por enquanto e envie a planilha para conectarmos as colunas.")
-
+            st.info("Estrutura da planilha ainda sendo mapeada. Use a edição manual por enquanto.")
     st.markdown("---")
     edit=st.checkbox("Editar manualmente",key="edit_inad")
-    # Fornecedoras visíveis para este usuário
     if is_dir or is_adm:
         forns_usuario = FORNECEDORAS_TODAS
     else:
         forns_usuario = FORNECEDORAS_POR_GESTOR.get(u.get('equipe',''), FORNECEDORAS_TODAS)
     lista = forns_usuario if fs=='Todas' else [fs]
-
     st.markdown("""<style>
     .it{width:100%;border-collapse:collapse;font-size:11px}
     .it th{background:#1b5e20;color:#fff;padding:6px 8px;text-align:center;border:1px solid #145214;white-space:nowrap}
@@ -2004,9 +1877,7 @@ def pagina_inadimplencia(ma):
     .it td.tdn{text-align:left;font-weight:600;background:#f1f8f1}
     .it td.tdp{color:#e53935;font-weight:600}.it td.tdf{color:#1565c0;font-weight:500}
     .it tr.trt td{background:#e8f5e9;font-weight:700}
-    .it tr.trm td{background:#f9fbe7;font-size:10px;color:#555}
     </style>""",unsafe_allow_html=True)
-
     html='<div style="overflow-x:auto"><table class="it"><thead>'
     html+='<tr><th class="thl" rowspan="2">Fornecedoras</th>'
     for f in FAIXAS: html+=f'<th colspan="4">{f}</th>'
@@ -2014,7 +1885,6 @@ def pagina_inadimplencia(ma):
     for _ in FAIXAS: html+='<th class="ths">Pagos R$</th><th class="ths">Vencidos R$</th><th class="ths">%Faixa</th><th class="ths">%Inad</th>'
     html+='<th class="ths">Pagos R$</th><th class="ths">Vencidos R$</th><th class="ths">%Inad Geral</th>'
     html+='</tr></thead><tbody>'
-
     tots={f:{"p":0,"v":0} for f in FAIXAS}; tots["T"]={"p":0,"v":0}
     for forn in lista:
         cor=CORES_FORN.get(forn,"#333"); fd=dados.get(forn,{})
@@ -2028,7 +1898,6 @@ def pagina_inadimplencia(ma):
         tots["T"]["p"]+=tp; tots["T"]["v"]+=tv
         pg=(tv/(tp+tv)*100) if (tp+tv)>0 else 0
         html+=f'<td>{fmt_brl_td(tp)}</td><td>{fmt_brl_td(tv)}</td><td class="tdp">{pg:.1f}%</td></tr>'
-
     html+='<tr class="trt"><td class="tdn">TOTAL</td>'
     for f in FAIXAS:
         tp2=tots[f]["p"]; tv2=tots[f]["v"]; pf2=(tp2/(tp2+tv2)*100) if (tp2+tv2)>0 else 0; pi2=(tv2/(tp2+tv2)*100) if (tp2+tv2)>0 else 0
@@ -2037,8 +1906,6 @@ def pagina_inadimplencia(ma):
     html+=f'<td>{fmt_brl_td(tpt)}</td><td>{fmt_brl_td(tvt)}</td><td class="tdp">{pgt:.1f}%</td></tr>'
     html+='</tbody></table></div>'
     st.markdown(html,unsafe_allow_html=True)
-
-    # Rodapé
     st.markdown("<div style='height:12px'></div>",unsafe_allow_html=True)
     cols_r=st.columns(4)
     for idx,f in enumerate(FAIXAS):
@@ -2051,7 +1918,6 @@ def pagina_inadimplencia(ma):
                     <div><div style="font-size:9px;color:#555;text-transform:uppercase">%Faixa</div><div style="font-size:14px;font-weight:700;color:#1565c0">{pf2:.1f}%</div></div>
                     <div><div style="font-size:9px;color:#555;text-transform:uppercase">%Inad</div><div style="font-size:14px;font-weight:700;color:#e53935">{pi2:.1f}%</div></div>
                 </div></div>""",unsafe_allow_html=True)
-
     if edit:
         st.markdown("---")
         st.markdown("### Edição Manual")
@@ -2070,7 +1936,6 @@ def pagina_inadimplencia(ma):
             st.markdown("---")
         if st.button("Salvar Dados de Inadimplência",use_container_width=True):
             salvar_inadimplencia(ms,eq or "tamires",nd); st.success("Dados salvos!"); st.rerun()
-
     st.markdown("---")
     if st.button("Exportar Excel"):
         rows=[{"Fornecedora":f,**{f"{faixa} Pagos":float(dados.get(f,{}).get(faixa,{}).get("pagos",0)) for faixa in FAIXAS},**{f"{faixa} Vencidos":float(dados.get(f,{}).get(faixa,{}).get("vencidos",0)) for faixa in FAIXAS}} for f in lista]
@@ -2117,7 +1982,6 @@ def pagina_minha_conta():
     u=st.session_state.usuario
     header_page('Minha Conta', u['nome'])
     t1,t2,t3=st.tabs(['🔒  Senha','👥  Operadores','📋  Critérios'])
-
     with t1:
         st.markdown('<p style="color:#5a9a70;font-size:13px;margin-bottom:20px">Altere sua senha de acesso</p>',unsafe_allow_html=True)
         sa =st.text_input('Senha atual',    type='password',placeholder='senha atual',   key='mc_sa')
@@ -2134,7 +1998,6 @@ def pagina_minha_conta():
             elif len(sn)<8: st.error('Mínimo 8 caracteres.')
             elif sn!=sc2: st.error('Confirmação não confere.')
             else: salvar_senha_usuario(uid,sn); st.success('Senha alterada com sucesso!')
-
     with t2:
         eq=u.get('equipe')
         if not eq:
@@ -2165,7 +2028,6 @@ def pagina_minha_conta():
                     with c4:
                         if st.button('Excluir',key=f'mc_d_{op["_id"]}',use_container_width=True):
                             excluir_operador(op['_id']); st.rerun()
-
     with t3:
         crits=get_criterios()
         st.markdown('**Critérios de avaliação das monitorias**')
@@ -2189,19 +2051,14 @@ def pagina_meetcall(ma):
     if u.get("equipe") != "luciano" and u["role"] not in ["admin","diretor"]:
         st.warning("Acesso restrito."); return
     header_page("Meet Call","Lançamento da equipe Meet Call")
-
-    # Buscar operadores da metcool
     ops_mc=buscar_operadores("metcool")
     if not ops_mc:
         st.warning("Nenhum operador cadastrado na Meet Call. Aguarde o sistema carregar.")
         return
-
     ms_mc=buscar_metas_equipe(ma,"metcool")
-
     if st.session_state.get("mc_ultimo_salvo"):
         st.success(st.session_state.mc_ultimo_salvo)
         st.session_state.mc_ultimo_salvo=""
-
     st.markdown("### Configuração")
     c1,c2,c3=st.columns([2,1,1])
     with c1:
@@ -2210,15 +2067,11 @@ def pagina_meetcall(ma):
         eh_fech=st.checkbox("Fechamento do Mês",key=f"mc_fech_{ma}")
     with c2: dt_mc=st.number_input("Dias Trabalhados *",min_value=0,max_value=31,value=0,key=f"mc_dt_{ma}")
     with c3: td_mc=st.number_input("Total Dias do Mês *",min_value=0,max_value=31,value=0,key=f"mc_td_{ma}")
-
     st.markdown("---")
     st.markdown("### Total de Ligações")
     total_lig=st.number_input("Total Ligações acima de 5s",min_value=0,step=1,value=0,key=f"mc_lig_{ma}")
-
     st.markdown("---")
     st.markdown("### Valores por Operador")
-
-    # Importar Excel Meet Call
     mostrar_imp_mc = st.checkbox("Importar via Excel", key=f"chk_imp_mc_{ma}")
     arq_imp_mc = None
     if mostrar_imp_mc:
@@ -2241,7 +2094,6 @@ def pagina_meetcall(ma):
                         if r['op'] and r['status']!='ambiguo' and r['valor']>0:
                             st.session_state[f"mc_op_{ma}_{r['op']['_id']}"]=r['valor']
                     st.success("Valores importados!"); st.rerun()
-
     vi_mc={}
     for op in ops_mc:
         meta=float(ms_mc.get(op["_id"],0))
@@ -2249,11 +2101,9 @@ def pagina_meetcall(ma):
         with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a;font-weight:500'>{op['nome']}</div>",unsafe_allow_html=True)
         with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
         with c3: vi_mc[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"mc_op_{ma}_{op['_id']}")
-
     tc_mc=sum(vi_mc.values())
     st.markdown("---")
     st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin-bottom:16px'><span style='color:#5a9a70;font-size:11px'>TOTAL COM INTERAÇÃO</span><br><span style='color:#2daf5c;font-size:20px;font-weight:700'>{fmt_brl(tc_mc)}</span></div>",unsafe_allow_html=True)
-
     if st.button("Salvar Lançamento Meet Call",use_container_width=True,key="mc_salvar"):
         if dt_mc==0: st.error("Dias Trabalhados é obrigatório.")
         elif td_mc==0: st.error("Total de Dias do Mês é obrigatório.")
@@ -2265,8 +2115,6 @@ def pagina_meetcall(ma):
             salvar_lancamento_meetcall(ma,total_lig,tc_mc)
             st.session_state.mc_ultimo_salvo=f"Lançamento salvo! Total: {fmt_brl(tc_mc)}"
             st.rerun()
-
-    # Histórico lançamentos
     lancs_mc=buscar_lancamentos(ma,"metcool")
     if lancs_mc:
         st.markdown("---")
@@ -2280,24 +2128,19 @@ def pagina_meetcall(ma):
 
 # ── MAIN ───────────────────────────────────────
 def main():
-    # Mostra login ANTES de qualquer conexão com o banco
     if "usuario" not in st.session_state:
         tela_login()
         return
-    # Só corrige IDs após login, com proteção
     if "ids_corrigidos" not in st.session_state:
         st.session_state.ids_corrigidos=True
-    # Limpar duplicatas meetcall uma vez
     if 'meetcall_limpo' not in st.session_state:
         try:
             db = get_db()
             for nome in OPERADORES_MEETCALL:
-                # Remover duplicatas na equipe metcool
                 ops_dup = list(db.operadores.find({"equipeId":"metcool","nome":nome}).sort("criadoEm",1))
                 if len(ops_dup) > 1:
                     for op_dup in ops_dup[1:]:
                         db.operadores.delete_one({"_id":op_dup["_id"]})
-                # Remover duplicatas na equipe luciano
                 ops_dup2 = list(db.operadores.find({"equipeId":"luciano","nome":nome}).sort("criadoEm",1))
                 if len(ops_dup2) > 1:
                     for op_dup2 in ops_dup2[1:]:
@@ -2305,8 +2148,6 @@ def main():
             buscar_operadores.clear()
         except: pass
         st.session_state.meetcall_limpo = True
-
-    # Migrar meetcall só uma vez por sessão
     if 'meetcall_migrado' not in st.session_state:
         try:
             migrar_meetcall_para_luciano()
@@ -2315,7 +2156,6 @@ def main():
         st.session_state.meetcall_migrado=True
     ma,pag=render_sidebar()
     u=st.session_state.usuario
-    # Limpa área principal antes de renderizar nova tela
     area = st.empty()
     with area.container():
         if u["role"]=="diretor":
