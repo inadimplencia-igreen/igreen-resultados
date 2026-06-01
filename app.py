@@ -288,10 +288,11 @@ CORES_FORN = {"COTESA/MOVE":"#1b5e20","ULTRA":"#0d47a1","VANTAGE":"#e65100","FAR
 def get_db():
     client = MongoClient(
         st.secrets["mongo"]["uri"],
-        serverSelectionTimeoutMS=10000,
-        connectTimeoutMS=10000,
-        socketTimeoutMS=10000,
-        maxPoolSize=5,
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=5000,
+        socketTimeoutMS=15000,
+        maxPoolSize=20,
+        minPoolSize=2,
         retryWrites=True,
         w="majority"
     )
@@ -349,7 +350,7 @@ def corrigir_ids_operadores():
                 db.operadores.insert_one({"_id":idc,"equipeId":eq,"nome":nome,"pleno":op.get("pleno",False),"criadoEm":op.get("criadoEm",datetime.now())})
             db.operadores.delete_one({"_id":op["_id"]})
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=3600)
 def buscar_operadores(eq): return list(get_db().operadores.find({"equipeId":eq}).sort("nome",1))
 
 def salvar_operador(eq, nome, pleno=False):
@@ -367,7 +368,7 @@ def salvar_meta_operador(ma, eq, oid, v):
     did = f"meta_op__{ma}__{eq}__{oid}"
     get_db().metas.update_one({"_id":did},{"$set":{"_id":did,"mesAno":ma,"equipeId":eq,"opId":oid,"valor":v}},upsert=True)
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=300)
 def buscar_metas_equipe(ma, eq):
     return {d["opId"]:d.get("valor",0) for d in get_db().metas.find({"mesAno":ma,"equipeId":eq}) if "opId" in d}
 
@@ -391,7 +392,7 @@ def criar_lancamento(ma, eq, data_ref, label, agentes, total, sem_int, dt, td, r
     ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
     get_db().lancamentos.insert_one({"_id":f"lanc__{ma}__{eq}__{ts}","mesAno":ma,"equipeId":eq,"dataRef":data_ref,"label":label,"agentes":agentes,"totalEquipe":total,"semInteracao":sem_int,"diasTrabalhados":dt,"totalDias":td,"recGeral":rec_geral,"criadoEm":datetime.now()})
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def buscar_lancamentos(ma, eq):
     novos = list(get_db().lancamentos.find({"mesAno":ma,"equipeId":eq}).sort("criadoEm",-1))
     antigos = []
