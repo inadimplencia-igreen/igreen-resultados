@@ -2286,5 +2286,6 @@ def main():
             elif "Metas"         in pag: pagina_metas(ma)
             elif "Minha Conta"   in pag: pagina_minha_conta()
 
+# deploy: 2026-06-05-v2
 if __name__=="__main__":
     main()
