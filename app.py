@@ -1273,6 +1273,9 @@ def pagina_lancamento(ma):
             ag={op["_id"]:{"valorRecebido":vi.get(op["_id"],0),"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops if op["nome"] not in OPERADORES_MEETCALL}
             tc_real=sum(float(v.get("valorRecebido",0)) for v in ag.values())
             criar_lancamento(ma,eq,str(data_sel),label,ag,tc_real,0,dt,td,rec_geral_manual)
+            # Limpar caches para atualizar quadro instantaneamente
+            buscar_lancamentos.clear()
+            buscar_metas_equipe.clear()
             st.session_state.ultimo_salvo=f"✅ Lançamento de {label} salvo com sucesso! Total: {fmt_brl(tc_real)}"
             st.rerun()
     st.markdown("---")
@@ -1293,8 +1296,26 @@ def pagina_quadro(ma):
     eqs_vis=["luciano","deborah","tamires"]
     # Para admin e diretor: mostrar Luciano, Déborah, Tamires + Meet Call separado
     eqs_base=["luciano","deborah","tamires","metcool"]
-    if is_adm: eqs=eqs_base
-    elif is_dir: eqs=eqs_base
+    if is_adm or is_dir:
+        # Ordenar por % meta (maior primeiro)
+        def _pct_eq(eq_id):
+            try:
+                lancs_tmp=buscar_lancamentos(ma,eq_id)
+                if not lancs_tmp: return 0
+                mg_tmp=float(buscar_meta_gestora(ma,eq_id).get("metaGestora",0))
+                if mg_tmp==0: return 0
+                up_tmp=buscar_ultimo_processamento(ma,eq_id)
+                rg_tmp=float(up_tmp.get("valorElegivel",0)) if up_tmp else 0
+                if rg_tmp==0:
+                    ul_tmp=lancs_tmp[0]
+                    rg_tmp=float(ul_tmp.get("recGeral",0))
+                if eq_id=="metcool":
+                    mc_tmp=buscar_lancamento_meetcall(ma)
+                    rg_mc_tmp=float(mc_tmp.get("recGeralTotal",mc_tmp.get("recGeral",0)))
+                    if rg_mc_tmp>0: rg_tmp=rg_mc_tmp
+                return (rg_tmp/mg_tmp*100) if mg_tmp>0 else 0
+            except: return 0
+        eqs=sorted(eqs_base, key=_pct_eq, reverse=True)
     elif u.get("equipe")=="metcool": eqs=["metcool"]
     else: eqs=[u["equipe"]]
     header_page("Quadro de Resultados", ma.replace("-"," ").upper())
@@ -1331,6 +1352,7 @@ def pagina_quadro(ma):
                 nome_eq = "Meet Call" if eq_r=="metcool" else EQUIPES[eq_r]["nome"]
                 equipes_data.append({"nome":nome_eq,"rg":rg_r,"ci":tc_r,"si":si_r,"meta":mg_r,"proj":proj_r,"pct":pct_r})
             except: pass
+        equipes_data.sort(key=lambda x: x["pct"], reverse=True)
         if equipes_data:
             pct_t=(tot_rec/tot_meta*100) if tot_meta>0 else 0
             cv_t=cor_pct(pct_t)
@@ -2203,6 +2225,7 @@ def pagina_meetcall(ma):
             ag_mc={op["_id"]:{"valorRecebido":vi_mc[op["_id"]],"nome":op["nome"]} for op in ops_mc}
             criar_lancamento(ma,"metcool",str(data_sel),label,ag_mc,tc_mc,0,dt_mc,td_mc)
             salvar_lancamento_meetcall(ma,0,tc_mc,rg_total)
+            buscar_lancamentos.clear()
             st.session_state.mc_ultimo_salvo=f"✅ Lançamento de {label} salvo com sucesso! Total: {fmt_brl(tc_mc)}"
             st.rerun()
 
