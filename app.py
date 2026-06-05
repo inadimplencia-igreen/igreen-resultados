@@ -1390,7 +1390,6 @@ def pagina_quadro(ma):
                 nome_eq = "Meet Call" if eq_r=="metcool" else EQUIPES[eq_r]["nome"]
                 equipes_data.append({"nome":nome_eq,"rg":rg_r,"ci":tc_r,"si":si_r,"meta":mg_r,"proj":proj_r,"pct":pct_r})
             except: pass
-        equipes_data.sort(key=lambda x: x["pct"], reverse=True)
         if equipes_data:
             pct_t=(tot_rec/tot_meta*100) if tot_meta>0 else 0
             cv_t=cor_pct(pct_t)
