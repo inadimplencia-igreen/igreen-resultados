@@ -1443,30 +1443,24 @@ def pagina_quadro(ma):
             f"</div>", unsafe_allow_html=True)
         k=f"show_ops_{eq}"
         if k not in st.session_state: st.session_state[k]=False
-        col_b1,col_b2=st.columns([1,1]) if eq=="luciano" else (st.columns(1)[0],None)
-        with col_b1:
-            nome_eq_btn = "Meet Call" if eq=="metcool" else EQUIPES[eq]['nome']
-            if st.button(f"{'Ocultar' if st.session_state[k] else 'Exibir'} Operadores — {nome_eq_btn}",key=f"btn_ops_{eq}",use_container_width=True):
-                st.session_state[k]=not st.session_state[k]; st.rerun()
+        nome_eq_btn = "Meet Call" if eq=="metcool" else EQUIPES[eq]['nome']
+        if st.button(f"{'Ocultar' if st.session_state[k] else 'Exibir'} Operadores — {nome_eq_btn}",key=f"btn_ops_{eq}",use_container_width=True):
+            st.session_state[k]=not st.session_state[k]; st.rerun()
 
         show=st.session_state[k]
         if show and ops:
             if eq=="luciano":
                 ops_ig=[op for op in ops if op["nome"] not in OPERADORES_MEETCALL]
-                ops_mc=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
-                for grp_nome, grp_ops in [("Operadores iGreen", ops_ig),("Operadores Meet Call", ops_mc)]:
-                    if not grp_ops: continue
-                    st.markdown(f"<p style='color:#2e7d32;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px'>{grp_nome}</p>",unsafe_allow_html=True)
-                    rows=[]
-                    for op in grp_ops:
-                        v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
-                        meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
-                        proj_op=calc_projecao(v,dt,td) if v>0 else 0
-                        lig_op=int(ul.get("agentes",{}).get(op["_id"],{}).get("ligacoes",0) if isinstance(ul.get("agentes",{}).get(op["_id"]),dict) else 0)
-                        rows.append({"Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if v>0 else "—","Lig. +5s":lig_op if lig_op>0 else "—","_v":v})
-                    df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
-                    df.index=range(1,len(df)+1)
-                    st.dataframe(df,use_container_width=True,height=min(400,(len(df)+1)*38+40))
+                rows=[]
+                for op in ops_ig:
+                    v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
+                    meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
+                    proj_op=calc_projecao(v,dt,td) if v>0 else 0
+                    lig_op=int(ul.get("agentes",{}).get(op["_id"],{}).get("ligacoes",0) if isinstance(ul.get("agentes",{}).get(op["_id"]),dict) else 0)
+                    rows.append({"Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if v>0 else "—","Lig. +5s":lig_op if lig_op>0 else "—","_v":v})
+                df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
+                df.index=range(1,len(df)+1)
+                st.dataframe(df,use_container_width=True,height=min(400,(len(df)+1)*38+40))
             else:
                 rows=[]
                 for op in ops:
