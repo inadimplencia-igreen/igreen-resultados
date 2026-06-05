@@ -1141,7 +1141,9 @@ def pagina_metas(ma):
         eq=eq_opts[eq_labels.index(eq_sel)]
     else:
         eq=seletor_equipe(u.get("equipe") or "luciano")
-    ops=buscar_operadores(eq)
+    ops_todos=buscar_operadores(eq)
+    # Luciano: exclui Meet Call das metas
+    ops = [op for op in ops_todos if op["nome"] not in OPERADORES_MEETCALL] if eq=="luciano" else ops_todos
     if not ops: st.warning("Cadastre operadores primeiro."); return
     st.markdown("### Meta da Gestora")
     mg_doc=buscar_meta_gestora(ma,eq)
@@ -1152,25 +1154,16 @@ def pagina_metas(ma):
     st.markdown("---")
     st.markdown("### Metas por Operador")
     ms=buscar_metas_equipe(ma,eq); mn={}
-    ops_igreen=[op for op in ops if op["nome"] not in OPERADORES_MEETCALL]
-    ops_mc=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
-    if ops_igreen:
-        st.markdown("<p style='color:#2e7d32;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px'>Operadores iGreen</p>",unsafe_allow_html=True)
-        for op in ops_igreen:
-            c1,c2=st.columns([3,2])
-            with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a'>{'[P] ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
-            with c2: mn[op["_id"]]=st.number_input("m",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",value=float(ms.get(op["_id"],0)),key=f"mg_{ma}_{op['_id']}")
-    if ops_mc:
-        st.markdown("<p style='color:#1565c0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:12px 0 4px'>Operadores Meet Call</p>",unsafe_allow_html=True)
-        for op in ops_mc:
-            c1,c2=st.columns([3,2])
-            with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a'>{op['nome']}</div>",unsafe_allow_html=True)
-            with c2: mn[op["_id"]]=st.number_input("m",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",value=float(ms.get(op["_id"],0)),key=f"mg_{ma}_{op['_id']}")
+    for op in ops:
+        c1,c2=st.columns([3,2])
+        with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a'>{'[P] ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
+        with c2: mn[op["_id"]]=st.number_input("m",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",value=float(ms.get(op["_id"],0)),key=f"mg_{ma}_{op['_id']}")
     st.markdown("---")
     if st.button("Salvar Metas",use_container_width=True):
         for oid,v in mn.items(): salvar_meta_operador(ma,eq,oid,v)
         salvar_meta_gestora(ma,eq,mg_val,tpct)
-        st.success("Metas salvas!"); st.rerun()
+        buscar_metas_equipe.clear()
+        st.success(f"✅ Metas da Equipe {EQUIPES.get(eq,{}).get('nome',eq)} salvas com sucesso!"); st.rerun()
 
 # ── LANÇAMENTO ─────────────────────────────────
 def pagina_lancamento(ma):
@@ -2050,7 +2043,7 @@ def pagina_minha_conta():
             elif sa!=sc: st.error('Senha atual incorreta.')
             elif len(sn)<8: st.error('Mínimo 8 caracteres.')
             elif sn!=sc2: st.error('Confirmação não confere.')
-            else: salvar_senha_usuario(uid,sn); st.success('Senha alterada com sucesso!')
+            else: salvar_senha_usuario(uid,sn); buscar_senha_usuario.clear(); st.success('✅ Senha alterada com sucesso!')
     with t2:
         # Diretor pode editar operadores de qualquer equipe
         if u["role"]=="diretor":
@@ -2071,7 +2064,10 @@ def pagina_minha_conta():
             with c3:
                 st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
                 if st.button('Adicionar',use_container_width=True,key='mc_op_add'):
-                    if nn.strip(): salvar_operador(eq,nn.strip(),np); st.success(f'{nn} adicionado!'); st.rerun()
+                    if nn.strip():
+                        salvar_operador(eq,nn.strip(),np)
+                        buscar_operadores.clear()
+                        st.success(f"✅ {nn} adicionado com sucesso!"); st.rerun()
                     else: st.error('Digite o nome.')
                 st.markdown('</div>',unsafe_allow_html=True)
             st.markdown('---')
@@ -2084,7 +2080,9 @@ def pagina_minha_conta():
                     with c2: npl=st.checkbox('Pleno',value=op.get('pleno',False),key=f'mc_pl_{op["_id"]}')
                     with c3:
                         if st.button('Salvar',key=f'mc_s_{op["_id"]}',use_container_width=True):
-                            atualizar_operador(op['_id'],ne,npl); st.success('Salvo!'); st.rerun()
+                            atualizar_operador(op['_id'],ne,npl)
+                            buscar_operadores.clear()
+                            st.success(f"✅ {ne} atualizado com sucesso!"); st.rerun()
                     with c4:
                         if st.button('Excluir',key=f'mc_d_{op["_id"]}',use_container_width=True):
                             excluir_operador(op['_id']); st.rerun()
@@ -2201,7 +2199,7 @@ def pagina_meetcall(ma):
             ag_mc={op["_id"]:{"valorRecebido":vi_mc[op["_id"]],"nome":op["nome"]} for op in ops_mc}
             criar_lancamento(ma,"metcool",str(data_sel),label,ag_mc,tc_mc,0,dt_mc,td_mc)
             salvar_lancamento_meetcall(ma,0,tc_mc,rg_total)
-            st.session_state.mc_ultimo_salvo=f"Lançamento salvo! Total: {fmt_brl(tc_mc)}"
+            st.session_state.mc_ultimo_salvo=f"✅ Lançamento de {label} salvo com sucesso! Total: {fmt_brl(tc_mc)}"
             st.rerun()
 
     # Histórico
