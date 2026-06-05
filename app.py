@@ -1195,8 +1195,7 @@ def pagina_lancamento(ma):
                 rec_anterior=float(l["recGeral"]); break
     usar_rec_manual=st.checkbox("Inserir Recebido Geral manualmente",key=f"rec_manual_chk_{eq}_{ma}")
     if usar_rec_manual:
-        rec_str=st.text_input("Recebido Geral (R$)",value=fmt_brl(rec_anterior) if rec_anterior else "",placeholder="R$ 0,00",key=f"rec_geral_manual_{eq}_{ma}")
-        rec_geral_manual=parse_brl(rec_str)
+        rec_geral_manual=st.number_input("Recebido Geral (R$)",min_value=0.0,step=100.0,format="%.2f",value=float(rec_anterior or 0),key=f"rec_geral_manual_{eq}_{ma}")
     else:
         rec_geral_manual=rec_anterior
     st.markdown("---")
@@ -1251,9 +1250,7 @@ def pagina_lancamento(ma):
             c1,c2,c3=st.columns([3,2,2])
             with c1: st.markdown(f"<div style='padding-top:10px;color:var(--text-color,#1a3a1a);font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
             with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px;font-weight:500'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
-            with c3:
-                vi_str = st.text_input("v",value="",placeholder="R$ 0,00",label_visibility="collapsed",key=f"op_{eq}_{ma}_{op['_id']}")
-                vi[op["_id"]] = parse_brl(vi_str)
+            with c3: vi[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"op_{eq}_{ma}_{op['_id']}")
             lig_vi[op["_id"]]=st.number_input("Lig. acima 5s",label_visibility="visible",min_value=0,step=1,value=0,key=f"lig_{eq}_{ma}_{op['_id']}")
     tc=sum(vi.values())
     st.markdown("---")
