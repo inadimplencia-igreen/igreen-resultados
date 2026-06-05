@@ -1134,7 +1134,13 @@ def processar_base_unica(arquivo, eq, ma):
 def pagina_metas(ma):
     u=st.session_state.usuario
     header_page("Metas",ma.replace("-"," "))
-    eq=seletor_equipe(u.get("equipe") or "luciano")
+    if u["role"]=="diretor":
+        eq_opts=list(EQUIPES.keys())
+        eq_labels=[f"Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
+        eq_sel=st.selectbox("Selecionar equipe:",eq_labels,key="dir_eq_metas")
+        eq=eq_opts[eq_labels.index(eq_sel)]
+    else:
+        eq=seletor_equipe(u.get("equipe") or "luciano")
     ops=buscar_operadores(eq)
     if not ops: st.warning("Cadastre operadores primeiro."); return
     st.markdown("### Meta da Gestora")
@@ -2046,11 +2052,18 @@ def pagina_minha_conta():
             elif sn!=sc2: st.error('Confirmação não confere.')
             else: salvar_senha_usuario(uid,sn); st.success('Senha alterada com sucesso!')
     with t2:
-        eq=u.get('equipe')
+        # Diretor pode editar operadores de qualquer equipe
+        if u["role"]=="diretor":
+            eq_opts=list(EQUIPES.keys())
+            eq_labels=[f"Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
+            eq_sel=st.selectbox("Selecionar equipe:",eq_labels,key="dir_eq_ops")
+            eq=eq_opts[eq_labels.index(eq_sel)]
+        else:
+            eq=u.get('equipe')
         if not eq:
             st.info('Gestão de operadores disponível apenas para gestores.')
         else:
-            st.markdown(f'**Equipe {EQUIPES[eq]["nome"]}**')
+            st.markdown(f'**Equipe {EQUIPES.get(eq,{}).get("nome",eq)}**')
             st.markdown('---')
             c1,c2,c3=st.columns([3,1,1])
             with c1: nn=st.text_input('Nome completo',placeholder='Nome do operador',key='mc_op_novo')
