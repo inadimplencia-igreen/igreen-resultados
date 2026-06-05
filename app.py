@@ -1037,99 +1037,154 @@ def pagina_operadores():
             if st.button("Excluir",key=f"d_{op['_id']}"): excluir_operador(op["_id"]); st.rerun()
 
 
-def processar_base_unica(arquivo, eq, ma):
+def ler_arquivo(arquivo, sheet_name=None):
+    """Lê Excel ou CSV automaticamente."""
+    import unicodedata
+    nome = arquivo.name.lower()
+    if nome.endswith('.csv'):
+        # Tenta separadores comuns
+        for sep in [',',';','|','	']:
+            try:
+                arquivo.seek(0)
+                df = pd.read_csv(arquivo, sep=sep, header=0, low_memory=False)
+                if len(df.columns) > 1:
+                    return df
+            except: pass
+        arquivo.seek(0)
+        return pd.read_csv(arquivo, header=0, low_memory=False)
+    else:
+        if sheet_name:
+            return pd.read_excel(arquivo, sheet_name=sheet_name, header=0)
+        return pd.read_excel(arquivo, header=0)
+
+def mapear_colunas_pagos(df):
+    """Mapeia colunas da base de pagos para nomes padrão."""
     import unicodedata
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
-    try: xls=pd.ExcelFile(arquivo)
-    except Exception as e: return None,[f"Erro: {e}"],[]
-    abas_norm=[norm(a) for a in xls.sheet_names]; abas_orig=xls.sheet_names
-
-    aba_pagos=None
-    for i,a in enumerate(abas_norm):
-        if any(p in a for p in ["PAGO","PAGAM","RECEB","BASE","BAIXA","PAGT","RESULT"]):
-            aba_pagos=abas_orig[i]; break
-    if not aba_pagos:
-        for i,a in enumerate(abas_norm):
-            if not any(x in a for x in ["CHAT","LIG","DISPAR","CONTATO"]):
-                aba_pagos=abas_orig[i]; break
-    if not aba_pagos: aba_pagos=abas_orig[0]
-
-    df=pd.read_excel(xls,sheet_name=aba_pagos,header=0).reset_index(drop=True)
-    df["_row_id"]=df.index
-
     col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
     for c in df.columns:
         cn=norm(str(c))
-        if not col_cpf and ("CPF" in cn or "IDENTIFICADOR" in cn or "IDENTIF" in cn) and "CLIENTE" not in cn and "NOME" not in cn: col_cpf=c
-        if not col_val  and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
-        if not col_dpag and any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI","DATA DE PAG","DATAPAG","DATA PAG","DATA PAGAMENTO"]): col_dpag=c
-        if not col_dvenc and any(x in cn for x in ["VENC","DATA DE VENC","DT_VENC","DATAVENC","DATA VENC","DATA VENCIMENTO","VENCIMENTO"]): col_dvenc=c
+        if not col_cpf and any(x==cn for x in ["CPF","IDENTIFICADOR","IDENTIF","IDENTIFICACAO","NUMINSTALACAO","IDCLIENTE"]): col_cpf=c
+        if not col_cpf and any(x in cn for x in ["CPF","IDENTIF"]) and "CLIENTE" not in cn and "NOME" not in cn: col_cpf=c
+        if not col_val and any(x in cn for x in ["VALORAPAGAR","VALORPAGAR","VALOR_APAGAR","VALOR_PAGAR"]): col_val=c
+        if not col_val and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
+        if not col_dpag and any(x in cn for x in ["DTPAGAMENTO","DT_PAGAMENTO","DATAPAGAMENTO","DATA_PAGAMENTO","PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI"]): col_dpag=c
+        if not col_dvenc and any(x in cn for x in ["DTVENCIMENTO","DT_VENCIMENTO","DATAVENCIMENTO","DATA_VENCIMENTO","VENC","VENCIMENTO"]): col_dvenc=c
         if not col_forn and any(x in cn for x in ["FORNEC","DISTRIB","EMPRESA","CONCESS","FORNECEDOR","FORNECEDORA","FORN"]): col_forn=c
-
     mapa={}
     if col_cpf:  mapa[col_cpf]="uc_cpf"
     if col_val:  mapa[col_val]="valor"
     if col_dpag: mapa[col_dpag]="data_pagamento"
     if col_dvenc: mapa[col_dvenc]="data_vencimento"
     if col_forn: mapa[col_forn]="fornecedora"
-    df=df.rename(columns=mapa)
+    return df.rename(columns=mapa)
 
-    if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
-    if "data_pagamento" in df.columns: df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],dayfirst=True,errors="coerce").dt.normalize()
-    if "data_vencimento" in df.columns: df["data_vencimento"]=pd.to_datetime(df["data_vencimento"],dayfirst=True,errors="coerce").dt.normalize()
-    if "valor" in df.columns:
-        def cv(v):
-            s=str(v).strip().replace("R$","").replace(" ","")
-            try: return float(s)
-            except:
-                try: return float(s.replace(".","").replace(",","."))
-                except: return 0.0
-        df["valor"]=df["valor"].apply(cv)
+def processar_contatos(dc):
+    """Extrai CPF e data de contato de um dataframe."""
+    import unicodedata
+    def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
+    cc=next((c for c in dc.columns if norm(str(c)) in ["CPF","IDENTIFICADOR","IDENTIF","IDENTIFICACAO"]),dc.columns[0])
+    cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
+    dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
+    dd=dd[dd["uc_cpf"].str.len()>=8]
+    dd=dd[~dd["uc_cpf"].str.match(r"^0+$")]
+    dd=dd[dd["uc_cpf"]!="nan"]
+    return dd
 
-    contatos=[]; abas_lidas=[]
-    for busca,nome in [("CHAT","CHAT"),("LIG","LIGAÇÕES"),("DISPAR","DISPAROS")]:
-        aba=next((abas_orig[i] for i,a in enumerate(abas_norm) if busca in a),None)
-        if not aba: continue
-        try:
-            dc=pd.read_excel(xls,sheet_name=aba,header=0)
-            if dc.empty or len(dc.columns)<2: continue
-            cc=next((c for c in dc.columns if norm(str(c)) in ["CPF","IDENTIFICADOR","IDENTIF","IDENTIFICACAO"]),dc.columns[0])
-            cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
-            dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
-            dd=dd[dd["uc_cpf"].str.len()>=8]
-            dd=dd[~dd["uc_cpf"].str.match(r"^0+$")]
-            dd=dd[dd["uc_cpf"]!="nan"]
-            if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
-        except: pass
-
+def finalizar_processamento(df, contatos, abas_lidas, eq, ma):
+    """Aplica elegibilidade e retorna df final."""
     if contatos:
         pc=pd.concat(contatos,ignore_index=True).groupby("uc_cpf",as_index=False)["data_contato"].min()
         df["primeiro_contato"]=df["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"])))
     else: df["primeiro_contato"]=pd.NaT
-
     df=df.drop(columns=["_row_id"],errors="ignore").reset_index(drop=True)
     df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],errors="coerce").dt.normalize()
     df["primeiro_contato"]=pd.to_datetime(df["primeiro_contato"],errors="coerce").dt.normalize()
     df["diferenca_dias"]=(df["data_pagamento"]-df["primeiro_contato"]).dt.days
-
     def classif(row):
         if pd.isna(row.get("primeiro_contato")): return "ND"
         d=row.get("diferenca_dias")
         if pd.isna(d): return "ND"
         return "Elegível" if int(d)>=0 else "Não Elegível"
-
     df["elegibilidade"]=df.apply(classif,axis=1)
     if "data_vencimento" in df.columns: df["dias_vencidos"]=(df["data_pagamento"]-df["data_vencimento"]).dt.days
     else: df["dias_vencidos"]=None
     df["aging"]=df["dias_vencidos"].apply(aging_faixa)
-
     for col in ["data_vencimento","data_pagamento","primeiro_contato"]:
         if col in df.columns:
             try: df[col]=pd.to_datetime(df[col],errors="coerce").dt.strftime("%Y-%m-%d").where(pd.to_datetime(df[col],errors="coerce").notna(),other=None)
             except: pass
-
     df["equipe"]=eq; df["mes_ano"]=ma
-    return df,[],abas_lidas
+    return df
+
+def processar_base_unica(arquivo, eq, ma):
+    import unicodedata
+    def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
+
+    nome_arq = arquivo.name.lower()
+    is_csv = nome_arq.endswith('.csv')
+
+    if is_csv:
+        # CSV — base de pagos direto
+        try:
+            df = ler_arquivo(arquivo)
+        except Exception as e: return None,[f"Erro ao ler CSV: {e}"],[]
+        df = mapear_colunas_pagos(df)
+        df["_row_id"]=df.index
+        if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
+        if "data_pagamento" in df.columns: df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],dayfirst=True,errors="coerce").dt.normalize()
+        if "data_vencimento" in df.columns: df["data_vencimento"]=pd.to_datetime(df["data_vencimento"],dayfirst=True,errors="coerce").dt.normalize()
+        if "valor" in df.columns:
+            def cv(v):
+                s=str(v).strip().replace("R$","").replace(" ","")
+                try: return float(s)
+                except:
+                    try: return float(s.replace(".","").replace(",","."))
+                    except: return 0.0
+            df["valor"]=df["valor"].apply(cv)
+        # CSV não tem abas de contato — retorna sem interação
+        df = finalizar_processamento(df, [], [], eq, ma)
+        return df, [], ["(sem interação — use upload separado)"]
+    else:
+        # Excel — lógica original com abas
+        try: xls=pd.ExcelFile(arquivo)
+        except Exception as e: return None,[f"Erro: {e}"],[]
+        abas_norm=[norm(a) for a in xls.sheet_names]; abas_orig=xls.sheet_names
+        aba_pagos=None
+        for i,a in enumerate(abas_norm):
+            if any(p in a for p in ["PAGO","PAGAM","RECEB","BASE","BAIXA","PAGT","RESULT"]):
+                aba_pagos=abas_orig[i]; break
+        if not aba_pagos:
+            for i,a in enumerate(abas_norm):
+                if not any(x in a for x in ["CHAT","LIG","DISPAR","CONTATO"]):
+                    aba_pagos=abas_orig[i]; break
+        if not aba_pagos: aba_pagos=abas_orig[0]
+        df=pd.read_excel(xls,sheet_name=aba_pagos,header=0).reset_index(drop=True)
+        df["_row_id"]=df.index
+        df = mapear_colunas_pagos(df)
+        if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
+        if "data_pagamento" in df.columns: df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],dayfirst=True,errors="coerce").dt.normalize()
+        if "data_vencimento" in df.columns: df["data_vencimento"]=pd.to_datetime(df["data_vencimento"],dayfirst=True,errors="coerce").dt.normalize()
+        if "valor" in df.columns:
+            def cv(v):
+                s=str(v).strip().replace("R$","").replace(" ","")
+                try: return float(s)
+                except:
+                    try: return float(s.replace(".","").replace(",","."))
+                    except: return 0.0
+            df["valor"]=df["valor"].apply(cv)
+        contatos=[]; abas_lidas=[]
+        for busca,nome in [("CHAT","CHAT"),("LIG","LIGAÇÕES"),("DISPAR","DISPAROS")]:
+            aba=next((abas_orig[i] for i,a in enumerate(abas_norm) if busca in a),None)
+            if not aba: continue
+            try:
+                dc=pd.read_excel(xls,sheet_name=aba,header=0)
+                if dc.empty or len(dc.columns)<2: continue
+                dd=processar_contatos(dc)
+                if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
+            except: pass
+        df = finalizar_processamento(df, contatos, abas_lidas, eq, ma)
+        return df,[],abas_lidas
 
 def pagina_metas(ma):
     u=st.session_state.usuario
@@ -1803,10 +1858,24 @@ def pagina_upload(ma):
     with col_up:
         st.markdown('<p style="color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">PROCESSAR BASE</p>',unsafe_allow_html=True)
         st.markdown('<div style="background:#0d1a0d;border:1px solid #1e3a1e;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:12px;color:#5a9a70;line-height:1.8">'
-            'Suba um <strong style="color:#e8f5e9">.xlsx</strong> com as abas:<br>'
-            '<strong>PAGOS</strong> | <strong>CHAT</strong> | <strong>LIGACOES</strong> | <strong>DISPAROS</strong>'
+            'Aceita <strong style="color:#e8f5e9">.xlsx</strong> ou <strong style="color:#e8f5e9">.csv</strong><br>'
+            '<strong>Opção 1:</strong> Excel único com abas PAGOS | CHAT | LIGACOES | DISPAROS<br>'
+            '<strong>Opção 2:</strong> CSV/Excel de Pagos + arquivo separado de Interações'
             '</div>',unsafe_allow_html=True)
-        arq=st.file_uploader('Planilha (.xlsx)',type=['xlsx'],label_visibility='collapsed',key='base_unica')
+
+        modo_upload=st.radio("Modo de upload:",["📄 Arquivo único","📂 Dois arquivos (Pagos + Interações)"],horizontal=True,key="modo_upload")
+        
+        if modo_upload=="📄 Arquivo único":
+            arq=st.file_uploader('Base (.xlsx ou .csv)',type=['xlsx','csv'],label_visibility='collapsed',key='base_unica')
+            arq_interacoes=None
+        else:
+            col_a,col_b=st.columns(2)
+            with col_a:
+                st.markdown("<p style='color:#5a9a70;font-size:11px;margin-bottom:4px'>BASE DE PAGOS (.xlsx ou .csv)</p>",unsafe_allow_html=True)
+                arq=st.file_uploader('Pagos',type=['xlsx','csv'],label_visibility='collapsed',key='base_pagos')
+            with col_b:
+                st.markdown("<p style='color:#5a9a70;font-size:11px;margin-bottom:4px'>BASE DE INTERAÇÕES (.xlsx ou .csv)</p>",unsafe_allow_html=True)
+                arq_interacoes=st.file_uploader('Interações',type=['xlsx','csv'],label_visibility='collapsed',key='base_interacoes')
         if arq:
             try:
                 xls=pd.ExcelFile(arq)
@@ -1815,10 +1884,38 @@ def pagina_upload(ma):
                 st.markdown(f'<div style="background:#0a1a0a;border:1px solid #1e3a1e;border-radius:6px;padding:8px 12px;margin:8px 0;color:#5a9a70;font-size:12px"><strong style="color:#e8f5e9">{arq.name}</strong><br>Abas: {ah}</div>',unsafe_allow_html=True)
             except: pass
         if st.button('PROCESSAR',use_container_width=True):
-            if not arq: st.error('Selecione a planilha antes de processar!'); return
+            if not arq: st.error('Selecione a base de pagos antes de processar!'); return
             arq.seek(0)
             with st.spinner('Processando...'):
                 df_res,erros,abas=processar_base_unica(arq,eq,ma)
+                # Se tiver arquivo de interações separado, processar e cruzar
+                if arq_interacoes is not None and df_res is not None:
+                    try:
+                        arq_interacoes.seek(0)
+                        df_int=ler_arquivo(arq_interacoes)
+                        dd_int=processar_contatos(df_int)
+                        if not dd_int.empty:
+                            pc=dd_int.groupby("uc_cpf",as_index=False)["data_contato"].min()
+                            df_res["primeiro_contato"]=pd.to_datetime(
+                                df_res["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"]))),
+                                errors="coerce").dt.normalize()
+                            df_res["diferenca_dias"]=(
+                                pd.to_datetime(df_res["data_pagamento"],errors="coerce").dt.normalize()-
+                                df_res["primeiro_contato"]).dt.days
+                            def classif2(row):
+                                if pd.isna(row.get("primeiro_contato")): return "ND"
+                                d=row.get("diferenca_dias")
+                                if pd.isna(d): return "ND"
+                                return "Elegível" if int(d)>=0 else "Não Elegível"
+                            df_res["elegibilidade"]=df_res.apply(classif2,axis=1)
+                            abas=["Interações"]
+                            # Formatar datas
+                            for col in ["data_pagamento","primeiro_contato"]:
+                                if col in df_res.columns:
+                                    try: df_res[col]=pd.to_datetime(df_res[col],errors="coerce").dt.strftime("%Y-%m-%d").where(pd.to_datetime(df_res[col],errors="coerce").notna(),other=None)
+                                    except: pass
+                    except Exception as e:
+                        st.warning(f"Erro ao processar interações: {e}")
             for e in erros: st.error(e)
             if df_res is not None and not df_res.empty:
                 st.session_state['df_proc_temp']=df_res
