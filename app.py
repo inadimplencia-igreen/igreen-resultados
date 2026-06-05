@@ -547,35 +547,37 @@ def buscar_historico_geral(mes_ano=None, equipe_id=None):
     filtro = {}
     if mes_ano: filtro["mesAno"] = mes_ano
     if equipe_id: filtro["equipeId"] = equipe_id
-    novos = list(get_db().historico_processamentos.find(filtro).sort("criadoEm", -1))
+
+    # Buscar histórico permanente (leve)
+    try:
+        novos = list(get_db().historico_processamentos.find(filtro))
+    except: novos = []
     ids_ja_vistos = set(f"{h['mesAno']}__{h['equipeId']}" for h in novos)
-    procs = list(get_db().processamentos.find(filtro).sort("atualizadoEm", -1))
+
+    # Buscar processamentos SEM registros (só metadados)
     antigos = []
-    for p in procs:
-        chave = f"{p['mesAno']}__{p['equipeId']}"
-        if chave in ids_ja_vistos:
-            continue
-        val = 0.0; boletos = 0; forns = []
-        try:
-            df = pd.DataFrame(p.get("registros", []))
-            if not df.empty:
-                df["valor"] = pd.to_numeric(df.get("valor", pd.Series(dtype=float)), errors="coerce").fillna(0)
-                elig = df[df["elegibilidade"]=="Elegível"] if "elegibilidade" in df.columns else df
-                val = float(elig["valor"].sum())
-                boletos = len(elig)
-                forns = sorted(df["fornecedora"].dropna().unique().tolist()) if "fornecedora" in df.columns else []
-        except: pass
-        antigos.append({
-            "_id": p["_id"],
-            "mesAno": p["mesAno"],
-            "equipeId": p["equipeId"],
-            "usuarioNome": p.get("usuarioNome", EQUIPES.get(p["equipeId"],{}).get("nome","—")),
-            "fornecedoras": forns,
-            "totalBoletos": boletos,
-            "boletosElegiveis": boletos,
-            "valorElegivel": val,
-            "criadoEm": p.get("atualizadoEm", datetime.now()),
-        })
+    try:
+        procs = list(get_db().processamentos.find(
+            filtro,
+            {"_id":1,"mesAno":1,"equipeId":1,"usuarioNome":1,"atualizadoEm":1,
+             "valorElegivel":1,"boletosElegiveis":1,"fornecedoras":1}
+        ))
+        for p in procs:
+            chave = f"{p['mesAno']}__{p['equipeId']}"
+            if chave in ids_ja_vistos: continue
+            antigos.append({
+                "_id": p["_id"],
+                "mesAno": p.get("mesAno",""),
+                "equipeId": p.get("equipeId",""),
+                "usuarioNome": p.get("usuarioNome", EQUIPES.get(p.get("equipeId",""),{}).get("nome","—")),
+                "fornecedoras": p.get("fornecedoras",[]),
+                "totalBoletos": p.get("boletosElegiveis",0),
+                "boletosElegiveis": p.get("boletosElegiveis",0),
+                "valorElegivel": float(p.get("valorElegivel",0)),
+                "criadoEm": p.get("atualizadoEm", datetime.now()),
+            })
+    except: pass
+
     todos = novos + antigos
     todos.sort(key=lambda x: x.get("criadoEm", datetime.now()), reverse=True)
     return todos
@@ -1317,32 +1319,52 @@ def pagina_lancamento(ma):
         tc_manual=st.number_input("Valor Total com Interação (R$)",min_value=0.0,step=100.0,format="%.2f",value=tc,key=f"tc_manual_{eq}_{ma}")
         tc=tc_manual
     st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin-bottom:16px'><span style='color:#5a9a70;font-size:11px'>TOTAL COM INTERAÇÃO</span><br><span style='color:#2daf5c;font-size:20px;font-weight:700'>{fmt_brl(tc)}</span></div>",unsafe_allow_html=True)
-    if st.button("Salvar Lançamento",use_container_width=True,key=f"btn_{eq}_{ma}"):
+    ja_salvando=st.session_state.get(f"salvando_{eq}_{ma}",False)
+    if st.button("Salvar Lançamento",use_container_width=True,key=f"btn_{eq}_{ma}",disabled=ja_salvando):
         errs=[]
         if dt==0: errs.append("Dias Trabalhados é obrigatório.")
         if td==0: errs.append("Total de Dias do Mês é obrigatório.")
         if errs:
             for e in errs: st.error(e)
         else:
+            st.session_state[f"salvando_{eq}_{ma}"]=True
             label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
             ag={op["_id"]:{"valorRecebido":vi.get(op["_id"],0),"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops if op["nome"] not in OPERADORES_MEETCALL}
             tc_real=sum(float(v.get("valorRecebido",0)) for v in ag.values())
             criar_lancamento(ma,eq,str(data_sel),label,ag,tc_real,0,dt,td,rec_geral_manual)
-            # Limpar caches para atualizar quadro instantaneamente
             buscar_lancamentos.clear()
             buscar_metas_equipe.clear()
+            st.session_state[f"salvando_{eq}_{ma}"]=False
             st.session_state.ultimo_salvo=f"✅ Lançamento de {label} salvo com sucesso! Total: {fmt_brl(tc_real)}"
             st.rerun()
     st.markdown("---")
     lancs=buscar_lancamentos(ma,eq)
     if lancs:
+        # Detectar duplicatas por label
+        from collections import Counter
+        labels_count=Counter(l.get("label","") for l in lancs)
+        duplicatas={label for label,cnt in labels_count.items() if cnt>1}
+
         st.markdown("<p style='color:#81c784;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Lançamentos do mês</p>",unsafe_allow_html=True)
+
+        if duplicatas:
+            st.warning(f"⚠️ Encontrados lançamentos duplicados: {', '.join(duplicatas)}. Exclua os repetidos abaixo.")
+
         for lanc in reversed(lancs):
             soma=sum(float(v.get("valorRecebido",0) if isinstance(v,dict) else v) for v in lanc.get("agentes",{}).values())
-            with st.expander(f"{lanc.get('label','')} — {fmt_brl(soma)}"):
+            label_lanc=lanc.get("label","")
+            is_dup = label_lanc in duplicatas
+            cor_borda = "border-left:3px solid #e53935" if is_dup else ""
+            titulo = f"⚠️ DUPLICADO — {label_lanc} — {fmt_brl(soma)}" if is_dup else f"{label_lanc} — {fmt_brl(soma)}"
+            with st.expander(titulo):
+                if is_dup:
+                    st.error("Este lançamento está duplicado! Exclua se não for o correto.")
                 rows=[{"Operador":op["nome"],"Valor":fmt_brl(get_val_op(lanc.get("agentes",{}),op["_id"],op["nome"]))} for op in ops]
                 st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
-                if st.button("Excluir",key=f"del_{lanc['_id']}"): excluir_lancamento(lanc["_id"]); st.rerun()
+                if st.button("🗑️ Excluir",key=f"del_{lanc['_id']}",type="primary" if is_dup else "secondary"):
+                    excluir_lancamento(lanc["_id"])
+                    buscar_lancamentos.clear()
+                    st.rerun()
 
 # ── QUADRO DE RESULTADOS ───────────────────────
 def pagina_quadro(ma):
@@ -1939,10 +1961,16 @@ def pagina_upload(ma):
             st.markdown('---')
             col1,col2=st.columns(2)
             with col1:
-                if st.button('Salvar Resultado',use_container_width=True,key='btn_salvar_proc'):
+                # Verificar se já existe processamento salvo
+                proc_existente = buscar_ultimo_processamento(ma, eq)
+                label_btn = '🔄 Substituir Resultado' if proc_existente else 'Salvar Resultado'
+                if st.button(label_btn, use_container_width=True, key='btn_salvar_proc',
+                             disabled=st.session_state.get('salvando_proc', False)):
+                    st.session_state['salvando_proc'] = True
                     salvar_processamento(ma,eq,df_res,st.session_state.usuario.get('nome',''))
                     st.session_state['df_proc_temp']=None
-                    st.success('Resultado salvo!')
+                    st.session_state['salvando_proc'] = False
+                    st.success('✅ Resultado salvo com sucesso!')
                     st.rerun()
             with col2:
                 if st.button('Descartar',use_container_width=True,key='btn_desc'):
@@ -2298,7 +2326,8 @@ def pagina_meetcall(ma):
     c3.metric("Sem Interação",fmt_brl(sem_mc))
     st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin:12px 0 16px'><span style='color:#5a9a70;font-size:11px'>META: {fmt_brl(mg_mc)} | % META: {pct_mc:.1f}%</span></div>",unsafe_allow_html=True)
 
-    if st.button("Salvar Lançamento Meet Call",use_container_width=True,key="mc_salvar"):
+    ja_salvando_mc = st.session_state.get("salvando_mc", False)
+    if st.button("Salvar Lançamento Meet Call",use_container_width=True,key="mc_salvar", disabled=ja_salvando_mc):
         errs=[]
         if dt_mc==0: errs.append("Dias Trabalhados é obrigatório.")
         if td_mc==0: errs.append("Total de Dias é obrigatório.")
@@ -2306,11 +2335,13 @@ def pagina_meetcall(ma):
         if errs:
             for e in errs: st.error(e)
         else:
+            st.session_state["salvando_mc"] = True
             label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
             ag_mc={op["_id"]:{"valorRecebido":vi_mc[op["_id"]],"nome":op["nome"]} for op in ops_mc}
             criar_lancamento(ma,"metcool",str(data_sel),label,ag_mc,tc_mc,0,dt_mc,td_mc)
             salvar_lancamento_meetcall(ma,0,tc_mc,rg_total)
             buscar_lancamentos.clear()
+            st.session_state["salvando_mc"] = False
             st.session_state.mc_ultimo_salvo=f"✅ Lançamento de {label} salvo com sucesso! Total: {fmt_brl(tc_mc)}"
             st.rerun()
 
