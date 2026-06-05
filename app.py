@@ -222,6 +222,8 @@ div[data-testid="stVerticalBlock"] label { color: #3a5a3a !important; font-size:
 </style>
 """, unsafe_allow_html=True)
 
+LOGO_B64 = "data:image/webp;base64,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"
+
 def _get_usuarios():
     def _s(key, fallback):
         try: return st.secrets["usuarios"][key]
@@ -259,6 +261,21 @@ ERROS_CRITICOS_PADRAO = [
     {"id":"e3","nome":"Linguagem agressiva","desc":"Usar linguajar agressivo com o cliente"},
     {"id":"e4","nome":"Retenção de ligação","desc":"Segurar a ligação até dar o tempo legível para cota"},
     {"id":"e5","nome":"Contra-argumentação indevida","desc":"Cliente reclama do desconto e você oferta conta única"},
+]
+CRITERIOS_CHAT_PADRAO = [
+    {"id":"cc1","num":"1º","nome":"Abertura e Identificação","peso":10,"itens":["Saudação adequada","Identificação correta do operador e da empresa"],"obrigatorio":False},
+    {"id":"cc2","num":"2º","nome":"Comunicação e Postura","peso":15,"itens":["Clareza na comunicação","Tom respeitoso (sem pressão excessiva, ironia)","Ausência de gírias, vícios de linguagem ou informalidade excessiva","Não ameaçar ou constranger"],"obrigatorio":False},
+    {"id":"cc3","num":"3º","nome":"Negociação/Conformidade","peso":40,"itens":["Apresentação clara de propostas","Seguir script de Retenção (incluir benefícios e disponibilidade das faturas dentro do aplicativo)","Escrita correta"],"obrigatorio":True},
+    {"id":"cc4","num":"4º","nome":"Registro e Procedimentos","peso":20,"itens":["Registro correto no sistema","Classificação adequada do atendimento (tabulação)"],"obrigatorio":False},
+    {"id":"cc5","num":"5º","nome":"Encerramento","peso":15,"itens":["Esclarecimento do acordo fechado","Agradecimento e cordialidade","Encerramento de atendimento"],"obrigatorio":False},
+]
+ERROS_CRITICOS_CHAT_PADRAO = [
+    {"id":"ec1","nome":"Informação incorreta","desc":"Passou informação incorreta ao cliente"},
+    {"id":"ec2","nome":"Postura ríspida","desc":"Agiu de forma ríspida ou ameaçadora"},
+    {"id":"ec3","nome":"Linguagem agressiva","desc":"Linguagem agressiva por escrito"},
+    {"id":"ec4","nome":"Ignorou mensagem","desc":"Ignorou mensagem/deixou sem resposta (Encerramento sem conclusão)"},
+    {"id":"ec5","nome":"Desconto fora da regra","desc":"Ofereceu desconto fora da regra"},
+    {"id":"ec6","nome":"Boleto inválido","desc":"Enviou boleto inválido e finalizou sem verificar"},
 ]
 FAIXAS_PONTOS = [(0,70,0),(71,80,300),(81,90,500),(91,95,700),(96,99,1000),(100,100,1100)]
 SEMANAS_MONITORIA = [
@@ -307,6 +324,26 @@ def get_criterios():
 
 def salvar_criterios(c):
     get_db().configuracoes.update_one({"_id":"criterios_monitoria"},{"$set":{"_id":"criterios_monitoria","criterios":c,"atualizadoEm":datetime.now()}},upsert=True)
+
+def get_criterios_chat():
+    try:
+        doc = get_db().configuracoes.find_one({"_id":"criterios_chat_monitoria"})
+        if doc and doc.get("criterios"): return doc["criterios"]
+    except: pass
+    return CRITERIOS_CHAT_PADRAO
+
+def salvar_criterios_chat(c):
+    get_db().configuracoes.update_one({"_id":"criterios_chat_monitoria"},{"$set":{"_id":"criterios_chat_monitoria","criterios":c,"atualizadoEm":datetime.now()}},upsert=True)
+
+def get_erros_criticos_chat():
+    try:
+        doc = get_db().configuracoes.find_one({"_id":"erros_criticos_chat_monitoria"})
+        if doc and doc.get("erros"): return doc["erros"]
+    except: pass
+    return ERROS_CRITICOS_CHAT_PADRAO
+
+def salvar_erros_criticos_chat(e):
+    get_db().configuracoes.update_one({"_id":"erros_criticos_chat_monitoria"},{"$set":{"_id":"erros_criticos_chat_monitoria","erros":e,"atualizadoEm":datetime.now()}},upsert=True)
 
 def get_erros_criticos():
     try:
@@ -379,10 +416,10 @@ def salvar_meta_gestora(ma, eq, meta, tpct):
 def buscar_meta_gestora(ma, eq):
     return get_db().metas.find_one({"_id":f"meta_gest__{ma}__{eq}"}) or {"metaGestora":0,"targetPct":125}
 
-def salvar_lancamento_meetcall(ma, total_ligacoes, rec_geral):
+def salvar_lancamento_meetcall(ma, total_ligacoes, rec_geral, rec_geral_total=0):
     get_db().metas.update_one(
         {"_id":f"meetcall__{ma}"},
-        {"$set":{"_id":f"meetcall__{ma}","mesAno":ma,"totalLigacoes":total_ligacoes,"recGeral":rec_geral,"atualizadoEm":datetime.now()}},
+        {"$set":{"_id":f"meetcall__{ma}","mesAno":ma,"totalLigacoes":total_ligacoes,"recGeral":rec_geral,"recGeralTotal":rec_geral_total,"atualizadoEm":datetime.now()}},
         upsert=True)
 
 def buscar_lancamento_meetcall(ma):
@@ -406,9 +443,9 @@ def excluir_lancamento(did):
     if get_db().lancamentos.delete_one({"_id":did}).deleted_count == 0:
         get_db().resultados.delete_one({"_id":did})
 
-def salvar_monitoria(eq, oid, onome, prot, obs, crits, erros, nota, ma, semana=None):
+def salvar_monitoria(eq, oid, onome, prot, obs, crits, erros, nota, ma, semana=None, tipo="ligacao"):
     ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
-    get_db().monitorias.insert_one({"_id":f"mon__{eq}__{oid}__{ts}","equipeId":eq,"opId":oid,"opNome":onome,"protocolo":prot,"observacao":obs,"criterios":crits,"errosCriticos":erros,"nota":nota,"mesAno":ma,"semana_mon":semana,"criadoEm":datetime.now()})
+    get_db().monitorias.insert_one({"_id":f"mon__{eq}__{oid}__{ts}","equipeId":eq,"opId":oid,"opNome":onome,"protocolo":prot,"observacao":obs,"criterios":crits,"errosCriticos":erros,"nota":nota,"mesAno":ma,"semana_mon":semana,"tipo":tipo,"criadoEm":datetime.now()})
 
 def buscar_monitorias_operador(oid): return list(get_db().monitorias.find({"opId":oid}).sort("criadoEm",-1))
 
@@ -463,7 +500,9 @@ def salvar_senha_usuario(uid, nova_senha):
         {"_id": uid},
         {"$set": {"_id": uid, "senha": nova_senha, "atualizadoEm": datetime.now()}},
         upsert=True)
+    buscar_senha_usuario.clear()
 
+@st.cache_data(ttl=3600)
 def buscar_senha_usuario(uid):
     try:
         doc = get_db().usuarios_senhas.find_one({"_id": uid})
@@ -543,6 +582,18 @@ def fmt_brl(v):
     if v is None or v=="": return "R$ 0,00"
     try: return "R$ "+f"{float(v):_.2f}".replace(".",",").replace("_",".")
     except: return "R$ 0,00"
+
+def parse_brl(s):
+    """Converte string no formato R$ 1.234.567,89 para float."""
+    if s is None: return 0.0
+    s = str(s).strip().replace("R$","").replace(" ","").strip()
+    # Formato BR: ponto como milhar, vírgula como decimal
+    if "," in s:
+        s = s.replace(".","").replace(",",".")
+    else:
+        s = s.replace(".","")
+    try: return float(s)
+    except: return 0.0
 
 def fmt_brl_td(v):
     if not v or float(v)==0: return "—"
@@ -799,7 +850,7 @@ def tela_login():
     with c2:
         st.markdown("""<div style="background:#003318;border-radius:16px;padding:40px 32px;box-shadow:0 8px 32px rgba(0,0,0,0.3);border:1px solid #005a25">
         <div style="text-align:center;padding:0 0 28px">
-            <div style="width:64px;height:64px;background:linear-gradient(135deg,#1a6b35,#2daf5c);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:32px;color:white;margin-bottom:14px">G</div>
+            <img src="data:image/webp;base64,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" style="width:72px;height:72px;border-radius:16px;object-fit:cover;margin-bottom:14px;box-shadow:0 4px 16px rgba(0,0,0,0.2)"/>
             <div style="font-size:24px;font-weight:800;color:#ffffff;margin-bottom:4px">iGreen Performance</div>
             <div style="width:36px;height:2px;background:#00c853;margin:6px auto 10px"></div>
             <p style="color:#5a9a70;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin:0">Painel de Gestão de Inadimplência</p>
@@ -813,12 +864,7 @@ def tela_login():
             uid = usuario.lower().strip()
             u = USUARIOS.get(uid)
             if u:
-                senha_bd = None
-                try:
-                    doc = get_db().usuarios_senhas.find_one({"_id": uid})
-                    if doc and doc.get("senha"): senha_bd = doc["senha"]
-                except: pass
-                senha_correta = senha_bd if senha_bd else u.get("senha")
+                senha_correta = buscar_senha_usuario(uid) or u.get("senha")
                 if senha_correta and senha.strip() == senha_correta:
                     st.session_state.usuario={"id":uid,**u}; st.rerun()
                 else: st.error("Usuário ou senha incorretos.")
@@ -908,7 +954,7 @@ def render_sidebar():
             f"<div style='padding:16px 12px 8px'>"
             f"<div style='display:flex;align-items:center;gap:10px;margin-bottom:16px'>"
             f"<div style='width:34px;height:34px;background:#2e7d32;border-radius:8px;"
-            f"display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff'>G</div>"
+            f"display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff'><img src='data:image/webp;base64,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' style='width:28px;height:28px;border-radius:6px;object-fit:cover'/></div>"
             f"<div><span style='color:#2e7d32;font-weight:700;font-size:15px'>iGreen</span>"
             f"<span style='color:#1a2e1a;font-weight:700;font-size:15px'> Performance</span></div>"
             f"</div></div>",
@@ -931,6 +977,8 @@ def render_sidebar():
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
         elif u['role']=='admin':
             pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
+        elif u.get('equipe')=='metcool':
+            pags=['Meet Call','Análise dos Operadores','Monitorias','Minha Conta']
         else:
             pags=['Quadro de Resultados','Lançamento','Meet Call','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         pag=st.radio('Menu',pags,label_visibility='collapsed',index=0)
@@ -1137,7 +1185,8 @@ def pagina_lancamento(ma):
                 rec_anterior=float(l["recGeral"]); break
     usar_rec_manual=st.checkbox("Inserir Recebido Geral manualmente",key=f"rec_manual_chk_{eq}_{ma}")
     if usar_rec_manual:
-        rec_geral_manual=st.number_input("Recebido Geral (R$)",min_value=0.0,step=100.0,format="%.2f",value=float(rec_anterior or 0),key=f"rec_geral_manual_{eq}_{ma}")
+        rec_str=st.text_input("Recebido Geral (R$)",value=fmt_brl(rec_anterior) if rec_anterior else "",placeholder="R$ 0,00",key=f"rec_geral_manual_{eq}_{ma}")
+        rec_geral_manual=parse_brl(rec_str)
     else:
         rec_geral_manual=rec_anterior
     st.markdown("---")
@@ -1177,14 +1226,10 @@ def pagina_lancamento(ma):
                     st.success("Valores importados! Revise e salve.")
                     st.rerun()
     vi={}; lig_vi={}
+    # No lançamento do Luciano: mostrar APENAS operadores iGreen (sem Meet Call)
     ops_igreen=[op for op in ops if op["nome"] not in OPERADORES_MEETCALL]
-    ops_mc=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
     grupos=[]
-    if eq=="luciano":
-        if ops_igreen: grupos.append(("Operadores iGreen","#2e7d32",ops_igreen))
-        if ops_mc: grupos.append(("Operadores Meet Call","#1565c0",ops_mc))
-    else:
-        grupos.append(("",None,ops))
+    grupos.append(("",None,ops_igreen))
     for grupo_nome,grupo_cor,grupo_ops in grupos:
         if grupo_nome:
             st.markdown(f"<p style='color:{grupo_cor};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:12px 0 4px'>{grupo_nome}</p>",unsafe_allow_html=True)
@@ -1193,7 +1238,10 @@ def pagina_lancamento(ma):
             c1,c2,c3=st.columns([3,2,2])
             with c1: st.markdown(f"<div style='padding-top:10px;color:var(--text-color,#1a3a1a);font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
             with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px;font-weight:500'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
-            with c3: vi[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"op_{eq}_{ma}_{op['_id']}")
+            with c3:
+                val_atual = st.session_state.get(f"op_{eq}_{ma}_{op['_id']}", "")
+                vi_str = st.text_input("v",value=str(val_atual) if val_atual else "",placeholder="R$ 0,00",label_visibility="collapsed",key=f"op_{eq}_{ma}_{op['_id']}")
+                vi[op["_id"]] = parse_brl(vi_str)
             lig_vi[op["_id"]]=st.number_input("Lig. acima 5s",label_visibility="visible",min_value=0,step=1,value=0,key=f"lig_{eq}_{ma}_{op['_id']}")
     tc=sum(vi.values())
     st.markdown("---")
@@ -1231,7 +1279,11 @@ def pagina_quadro(ma):
     u=st.session_state.usuario
     is_dir=u["role"]=="diretor"; is_adm=u["role"]=="admin"
     eqs_vis=["luciano","deborah","tamires"]
-    eqs=list(EQUIPES.keys()) if is_adm else eqs_vis if is_dir else [u["equipe"]]
+    # Para admin e diretor: mostrar Luciano, Déborah, Tamires + Meet Call separado
+    eqs_base=["luciano","deborah","tamires"]
+    if is_adm: eqs=eqs_base
+    elif is_dir: eqs=eqs_base
+    else: eqs=[u["equipe"]]
     header_page("Quadro de Resultados", ma.replace("-"," ").upper())
     if is_dir:
         tot_rec=tot_ci=tot_si=tot_meta=tot_proj=0
@@ -1304,7 +1356,8 @@ def pagina_quadro(ma):
         if not lancs: continue
         ul=lancs[0]; mg_doc=buscar_meta_gestora(ma,eq); mops=buscar_metas_equipe(ma,eq)
         mg=float(mg_doc.get("metaGestora",0))
-        tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict))
+        # Com Interação Luciano = só operadores iGreen (excluir Meet Call)
+        tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict) and v.get("nome","") not in OPERADORES_MEETCALL)
         dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
         up=buscar_ultimo_processamento(ma,eq)
         rec_geral=float(up.get("valorElegivel",0)) if up else 0
@@ -1315,6 +1368,12 @@ def pagina_quadro(ma):
                 for l in lancs[1:]:
                     if l.get("recGeral",0)>0:
                         rec_geral=float(l["recGeral"]); break
+        # Se Luciano: subtrai Recebido Geral da Meet Call
+        if eq=="luciano":
+            mc_doc=buscar_lancamento_meetcall(ma)
+            rg_mc_total=float(mc_doc.get("recGeralTotal",mc_doc.get("recGeral",0)))
+            if rg_mc_total>0:
+                rec_geral=max(0, rec_geral - rg_mc_total)
         sem=max(0, rec_geral - tc)
         proj=calc_projecao(rec_geral, dt, td)
         pct=(rec_geral/mg*100) if mg>0 else 0
@@ -1451,6 +1510,50 @@ def pagina_quadro(ma):
                 st.dataframe(df_mc,use_container_width=True,height=min(400,(len(df_mc)+1)*38+40))
         st.markdown("---")
 
+    # ── CARD MEET CALL SEPARADO ──
+    if is_adm or is_dir or u.get("equipe")=="luciano":
+        try:
+            mc_doc=buscar_lancamento_meetcall(ma)
+            lancs_mc=buscar_lancamentos(ma,"metcool")
+            mg_mc=float(buscar_meta_gestora(ma,"metcool").get("metaGestora",0))
+            rg_mc=float(mc_doc.get("recGeralTotal",mc_doc.get("recGeral",0)))
+            ci_mc=0.0
+            dt_mc=td_mc=0
+            if lancs_mc:
+                ul_mc=lancs_mc[0]
+                ci_mc=float(ul_mc.get("totalEquipe",0))
+                dt_mc=int(ul_mc.get("diasTrabalhados",0))
+                td_mc=int(ul_mc.get("totalDias",22))
+            sem_mc=max(0,rg_mc-ci_mc)
+            proj_mc=calc_projecao(rg_mc,dt_mc,td_mc)
+            pct_mc=(rg_mc/mg_mc*100) if mg_mc>0 else 0
+            cv_mc=cor_pct(pct_mc)
+            if rg_mc>0 or mg_mc>0:
+                st.markdown(
+                    f"<div style='background:linear-gradient(135deg,#0a1f2a,#0d2a3d);border:1px solid #1e3a4e;"
+                    f"border-radius:14px;padding:20px 24px;margin-bottom:6px;border-left:3px solid #3b82f6'>"
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px'>"
+                    f"<div style='font-size:15px;font-weight:700;color:#ffffff'>Equipe Meet Call</div>"
+                    f"<div style='text-align:right'><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>% META</div>"
+                    f"<div style='color:{cv_mc};font-size:24px;font-weight:800'>{pct_mc:.1f}%</div></div></div>"
+                    f"<div style='display:flex;gap:28px;flex-wrap:wrap'>"
+                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>RECEBIDO GERAL</div>"
+                    f"<div style='color:#3b82f6;font-weight:700;font-size:16px'>{fmt_brl(rg_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>COM INTERAÇÃO</div>"
+                    f"<div style='color:#ffffff;font-weight:600;font-size:14px'>{fmt_brl(ci_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>SEM INTERAÇÃO</div>"
+                    f"<div style='color:#8ab8d4;font-weight:600;font-size:14px'>{fmt_brl(sem_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>META</div>"
+                    f"<div style='color:#8ab8d4;font-weight:600;font-size:14px'>{fmt_brl(mg_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>PROJEÇÃO</div>"
+                    f"<div style='color:#8ab8d4;font-weight:600;font-size:14px'>{fmt_brl(proj_mc)}</div></div>"
+                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>DIAS</div>"
+                    f"<div style='color:#8ab8d4;font-weight:600;font-size:14px'>{dt_mc}/{td_mc}</div></div>"
+                    f"</div></div>",
+                    unsafe_allow_html=True)
+                st.markdown("---")
+        except: pass
+
 # ── MONITORIAS ─────────────────────────────────
 def pagina_monitorias(ma):
     u=st.session_state.usuario
@@ -1511,23 +1614,29 @@ def pagina_monitorias(ma):
     t1,t2=st.tabs(["Nova Monitoria","Monitorias do Mês"])
     with t1:
         semana=st.selectbox("Qual monitoria é esta?",SEMANAS_MONITORIA,key="semana_sel")
-        prot=st.text_input("Protocolo da Ligação",placeholder="Ex: 20260520-001",key="prot_input")
+        tipo_mon=st.radio("Tipo de Monitoria",["📞 Ligação","💬 Chat"],horizontal=True,key="tipo_mon_sel")
+        tipo_key="ligacao" if "Ligação" in tipo_mon else "chat"
+        prot_label="Protocolo da Ligação" if tipo_key=="ligacao" else "ID/Protocolo do Chat"
+        prot=st.text_input(prot_label,placeholder="Ex: 20260520-001",key="prot_input")
         obs=st.text_area("Observações",placeholder="Anotações...",height=70,key="obs_input")
         st.markdown("---")
+        # Carregar critérios e erros conforme tipo
+        crits_usar = get_criterios() if tipo_key=="ligacao" else get_criterios_chat()
+        erros_usar = get_erros_criticos() if tipo_key=="ligacao" else get_erros_criticos_chat()
         erros_m=[]; c1,c2=st.columns(2)
-        for i,ec in enumerate(get_erros_criticos()):
+        for i,ec in enumerate(erros_usar):
             with (c1 if i%2==0 else c2):
-                if st.checkbox(f"{ec['nome']}",key=f"ec_{ec['id']}"): erros_m.append(ec)
+                if st.checkbox(f"{ec['nome']}",key=f"ec_{ec['id']}_{tipo_key}"): erros_m.append(ec)
         st.markdown("---")
         zerada=len(erros_m)>0; crits_r=[]; nota=0 if zerada else 100
         if zerada:
             st.error("MONITORIA ZERADA — Erro crítico marcado!")
-            for c in get_criterios(): crits_r.append({**c,"passou":False})
+            for c in crits_usar: crits_r.append({**c,"passou":False})
         else:
             st.markdown("<p style='color:#e53935;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>ITENS DE QUALIDADE — MARQUE O QUE NÃO FOI FEITO</p>",unsafe_allow_html=True)
-            for crit in get_criterios():
+            for crit in crits_usar:
                 c1,c2=st.columns([8,1])
-                with c1: nao_passou=st.checkbox(f"{crit['nome']}",key=f"cr_{crit['id']}",value=False)
+                with c1: nao_passou=st.checkbox(f"{crit['nome']}",key=f"cr_{crit['id']}_{tipo_key}",value=False)
                 with c2: st.markdown(f"<div style='padding-top:6px;color:#e53935;font-size:12px;font-weight:600;text-align:right'>−{crit['peso']} pts</div>",unsafe_allow_html=True)
                 if crit.get('itens'):
                     for it in crit['itens']:
@@ -1545,12 +1654,12 @@ def pagina_monitorias(ma):
             f"<div style='color:#5a8a5a;font-size:11px'>Pontos perdidos: {pontos_perdidos}</div></div>"
             f"<div style='color:{cn};font-size:36px;font-weight:800'>{round(nota)}</div>"
             f"</div>",unsafe_allow_html=True)
-        sk_salvo=f"mon_salvo_{op['_id']}_{semana}_{ma}"
+        sk_salvo=f"mon_salvo_{op['_id']}_{semana}_{ma}_{tipo_key}"
         if not st.session_state.get(sk_salvo):
             if st.button("Salvar Monitoria",use_container_width=True,key="btn_salvar_mon"):
-                if not prot.strip(): st.error("Preencha o protocolo da ligação!")
+                if not prot.strip(): st.error(f"Preencha o {prot_label}!")
                 else:
-                    salvar_monitoria(eq,op["_id"],op["nome"],prot,obs,crits_r,erros_m,nota,ma,semana=semana)
+                    salvar_monitoria(eq,op["_id"],op["nome"],prot,obs,crits_r,erros_m,nota,ma,semana=semana,tipo=tipo_key)
                     mm,nm=calc_media_operador(op["_id"],ma)
                     html=gerar_pdf_monitoria(op["nome"],prot,obs,crits_r,erros_m,nota,mm,nm,ma)
                     b64=base64.b64encode(html.encode()).decode()
@@ -2049,17 +2158,19 @@ def pagina_minha_conta():
 # ── MEET CALL ─────────────────────────────────
 def pagina_meetcall(ma):
     u=st.session_state.usuario
-    if u.get("equipe") != "luciano" and u["role"] not in ["admin","diretor"]:
+    if u.get("equipe") not in ["metcool","luciano"] and u["role"] not in ["admin","diretor"]:
         st.warning("Acesso restrito."); return
     header_page("Meet Call","Lançamento da equipe Meet Call")
     ops_mc=buscar_operadores("metcool")
     if not ops_mc:
-        st.warning("Nenhum operador cadastrado na Meet Call. Aguarde o sistema carregar.")
+        st.warning("Nenhum operador cadastrado na Meet Call.")
         return
     ms_mc=buscar_metas_equipe(ma,"metcool")
+    mg_mc=float(buscar_meta_gestora(ma,"metcool").get("metaGestora",0))
     if st.session_state.get("mc_ultimo_salvo"):
         st.success(st.session_state.mc_ultimo_salvo)
         st.session_state.mc_ultimo_salvo=""
+
     st.markdown("### Configuração")
     c1,c2,c3=st.columns([2,1,1])
     with c1:
@@ -2067,55 +2178,58 @@ def pagina_meetcall(ma):
         data_sel=st.date_input("Data *",value=hoje,key=f"mc_data_{ma}")
         eh_fech=st.checkbox("Fechamento do Mês",key=f"mc_fech_{ma}")
     with c2: dt_mc=st.number_input("Dias Trabalhados *",min_value=0,max_value=31,value=0,key=f"mc_dt_{ma}")
-    with c3: td_mc=st.number_input("Total Dias do Mês *",min_value=0,max_value=31,value=0,key=f"mc_td_{ma}")
+    with c3: td_mc=st.number_input("Total Dias *",min_value=0,max_value=31,value=0,key=f"mc_td_{ma}")
+
+    # Recebido Geral
+    mc_doc=buscar_lancamento_meetcall(ma)
+    rg_atual=float(mc_doc.get("recGeralTotal",mc_doc.get("recGeral",0)))
     st.markdown("---")
-    st.markdown("### Total de Ligações")
-    total_lig=st.number_input("Total Ligações acima de 5s",min_value=0,step=1,value=0,key=f"mc_lig_{ma}")
+    usar_rg_manual=st.checkbox("Inserir Recebido Geral manualmente",key=f"mc_rg_chk_{ma}")
+    if usar_rg_manual:
+        rg_str=st.text_input("Recebido Geral (R$)",value=fmt_brl(rg_atual) if rg_atual>0 else "",placeholder="R$ 0,00",key=f"mc_rg_manual_{ma}")
+        rg_total=parse_brl(rg_str)
+    else:
+        rg_total=rg_atual
+
     st.markdown("---")
     st.markdown("### Valores por Operador")
-    mostrar_imp_mc = st.checkbox("Importar via Excel", key=f"chk_imp_mc_{ma}")
-    arq_imp_mc = None
-    if mostrar_imp_mc:
-        arq_imp_mc = st.file_uploader("Planilha Excel (.xlsx)", type=["xlsx"], key=f"imp_mc_{ma}")
-        if arq_imp_mc:
-            arq_imp_mc.seek(0)
-            res_mc, err_mc = importar_excel_operadores(arq_imp_mc, ops_mc)
-            if err_mc:
-                st.error(err_mc)
-            elif res_mc:
-                prev_mc = []
-                for r in res_mc:
-                    icone = ""+r['op']['nome'] if r['op'] and r['status']!='ambiguo' else (" Ambíguo" if r['status']=='ambiguo' else " Não encontrado")
-                    row = {"Excel":r['nome_excel'],"Sistema":icone,"Valor":fmt_brl(r['valor'])}
-                    if r['col_lig']: row["Lig. +5s"]=r['ligacoes']
-                    prev_mc.append(row)
-                st.dataframe(pd.DataFrame(prev_mc),use_container_width=True,hide_index=True)
-                if st.button("Confirmar Importação",use_container_width=True,key=f"imp_mc_confirmar_{ma}"):
-                    for r in res_mc:
-                        if r['op'] and r['status']!='ambiguo' and r['valor']>0:
-                            st.session_state[f"mc_op_{ma}_{r['op']['_id']}"]=r['valor']
-                    st.success("Valores importados!"); st.rerun()
     vi_mc={}
     for op in ops_mc:
         meta=float(ms_mc.get(op["_id"],0))
         c1,c2,c3=st.columns([3,2,2])
         with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a;font-weight:500'>{op['nome']}</div>",unsafe_allow_html=True)
         with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
-        with c3: vi_mc[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"mc_op_{ma}_{op['_id']}")
+        with c3:
+            vi_str=st.text_input("v",value="",placeholder="R$ 0,00",label_visibility="collapsed",key=f"mc_op_{ma}_{op['_id']}")
+            vi_mc[op["_id"]]=parse_brl(vi_str)
+
     tc_mc=sum(vi_mc.values())
+    sem_mc=max(0,rg_total-tc_mc) if rg_total>0 else 0
+    pct_mc=(rg_total/mg_mc*100) if mg_mc>0 else 0
+
     st.markdown("---")
-    st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin-bottom:16px'><span style='color:#5a9a70;font-size:11px'>TOTAL COM INTERAÇÃO</span><br><span style='color:#2daf5c;font-size:20px;font-weight:700'>{fmt_brl(tc_mc)}</span></div>",unsafe_allow_html=True)
+    c1,c2,c3=st.columns(3)
+    c1.metric("Recebido Geral",fmt_brl(rg_total))
+    c2.metric("Com Interação",fmt_brl(tc_mc))
+    c3.metric("Sem Interação",fmt_brl(sem_mc))
+    st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin:12px 0 16px'><span style='color:#5a9a70;font-size:11px'>META: {fmt_brl(mg_mc)} | % META: {pct_mc:.1f}%</span></div>",unsafe_allow_html=True)
+
     if st.button("Salvar Lançamento Meet Call",use_container_width=True,key="mc_salvar"):
-        if dt_mc==0: st.error("Dias Trabalhados é obrigatório.")
-        elif td_mc==0: st.error("Total de Dias do Mês é obrigatório.")
-        elif tc_mc==0: st.error("Preencha pelo menos um valor.")
+        errs=[]
+        if dt_mc==0: errs.append("Dias Trabalhados é obrigatório.")
+        if td_mc==0: errs.append("Total de Dias é obrigatório.")
+        if tc_mc==0: errs.append("Preencha pelo menos um valor de operador.")
+        if errs:
+            for e in errs: st.error(e)
         else:
             label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
             ag_mc={op["_id"]:{"valorRecebido":vi_mc[op["_id"]],"nome":op["nome"]} for op in ops_mc}
             criar_lancamento(ma,"metcool",str(data_sel),label,ag_mc,tc_mc,0,dt_mc,td_mc)
-            salvar_lancamento_meetcall(ma,total_lig,tc_mc)
+            salvar_lancamento_meetcall(ma,0,tc_mc,rg_total)
             st.session_state.mc_ultimo_salvo=f"Lançamento salvo! Total: {fmt_brl(tc_mc)}"
             st.rerun()
+
+    # Histórico
     lancs_mc=buscar_lancamentos(ma,"metcool")
     if lancs_mc:
         st.markdown("---")
@@ -2135,26 +2249,21 @@ def main():
     if "ids_corrigidos" not in st.session_state:
         st.session_state.ids_corrigidos=True
     if 'meetcall_limpo' not in st.session_state:
+        st.session_state.meetcall_limpo = True
         try:
             db = get_db()
             for nome in OPERADORES_MEETCALL:
                 ops_dup = list(db.operadores.find({"equipeId":"metcool","nome":nome}).sort("criadoEm",1))
                 if len(ops_dup) > 1:
-                    for op_dup in ops_dup[1:]:
-                        db.operadores.delete_one({"_id":op_dup["_id"]})
+                    for op_dup in ops_dup[1:]: db.operadores.delete_one({"_id":op_dup["_id"]})
                 ops_dup2 = list(db.operadores.find({"equipeId":"luciano","nome":nome}).sort("criadoEm",1))
                 if len(ops_dup2) > 1:
-                    for op_dup2 in ops_dup2[1:]:
-                        db.operadores.delete_one({"_id":op_dup2["_id"]})
-            buscar_operadores.clear()
+                    for op_dup2 in ops_dup2[1:]: db.operadores.delete_one({"_id":op_dup2["_id"]})
         except: pass
-        st.session_state.meetcall_limpo = True
     if 'meetcall_migrado' not in st.session_state:
-        try:
-            migrar_meetcall_para_luciano()
-            buscar_operadores.clear()
-        except: pass
         st.session_state.meetcall_migrado=True
+        try: migrar_meetcall_para_luciano()
+        except: pass
     ma,pag=render_sidebar()
     u=st.session_state.usuario
     area = st.empty()
@@ -2176,6 +2285,11 @@ def main():
             elif "Upload"        in pag: pagina_upload(ma)
             elif "Inadimplência" in pag: pagina_inadimplencia(ma)
             elif "Metas"         in pag: pagina_metas(ma)
+            elif "Minha Conta"   in pag: pagina_minha_conta()
+        elif u.get("equipe")=="metcool":
+            if   "Meet Call"     in pag: pagina_meetcall(ma)
+            elif "Operadores"    in pag: pagina_analise_operadores(ma)
+            elif "Monitorias"    in pag: pagina_monitorias(ma)
             elif "Minha Conta"   in pag: pagina_minha_conta()
         else:
             if   "Quadro"        in pag: pagina_quadro(ma)
