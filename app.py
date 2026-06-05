@@ -388,7 +388,17 @@ def corrigir_ids_operadores():
             db.operadores.delete_one({"_id":op["_id"]})
 
 @st.cache_data(ttl=3600)
-def buscar_operadores(eq): return list(get_db().operadores.find({"equipeId":eq}).sort("nome",1))
+def buscar_operadores(eq):
+    ops = list(get_db().operadores.find({"equipeId":eq}).sort("nome",1))
+    # Deduplica por nome (evita operadores duplicados)
+    vistos = set()
+    unicos = []
+    for op in ops:
+        nome_norm = op.get("nome","").strip().lower()
+        if nome_norm not in vistos:
+            vistos.add(nome_norm)
+            unicos.append(op)
+    return unicos
 
 def salvar_operador(eq, nome, pleno=False):
     oid = re.sub(r'[^a-z0-9]','-',nome.lower().strip())
