@@ -1145,6 +1145,7 @@ def pagina_metas(ma):
     # Luciano: exclui Meet Call das metas
     ops = [op for op in ops_todos if op["nome"] not in OPERADORES_MEETCALL] if eq=="luciano" else ops_todos
     if not ops: st.warning("Cadastre operadores primeiro."); return
+    buscar_metas_equipe.clear()
     st.markdown("### Meta da Gestora")
     mg_doc=buscar_meta_gestora(ma,eq)
     c1,c2,c3=st.columns([2,1,1])
@@ -1163,7 +1164,10 @@ def pagina_metas(ma):
         for oid,v in mn.items(): salvar_meta_operador(ma,eq,oid,v)
         salvar_meta_gestora(ma,eq,mg_val,tpct)
         buscar_metas_equipe.clear()
-        st.success(f"✅ Metas da Equipe {EQUIPES.get(eq,{}).get('nome',eq)} salvas com sucesso!"); st.rerun()
+        st.session_state["meta_salva_msg"] = f"✅ Metas da Equipe {EQUIPES.get(eq,{}).get('nome',eq)} salvas com sucesso!"
+        st.rerun()
+    if st.session_state.get("meta_salva_msg"):
+        st.success(st.session_state.pop("meta_salva_msg"))
 
 # ── LANÇAMENTO ─────────────────────────────────
 def pagina_lancamento(ma):
