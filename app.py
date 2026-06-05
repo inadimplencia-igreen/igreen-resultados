@@ -984,7 +984,7 @@ def render_sidebar():
         mes_ano=f'{mes_sel}-{ano}'
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
         if u['role']=='diretor':
-            pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Minha Conta']
+            pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Metas','Minha Conta']
         elif u['role']=='admin':
             pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         elif u.get('equipe')=='metcool':
@@ -1134,7 +1134,7 @@ def processar_base_unica(arquivo, eq, ma):
 def pagina_metas(ma):
     u=st.session_state.usuario
     header_page("Metas",ma.replace("-"," "))
-    eq=seletor_equipe(u["equipe"])
+    eq=seletor_equipe(u.get("equipe") or "luciano")
     ops=buscar_operadores(eq)
     if not ops: st.warning("Cadastre operadores primeiro."); return
     st.markdown("### Meta da Gestora")
@@ -2236,6 +2236,7 @@ def main():
             elif "Operadores"    in pag: pagina_analise_operadores(ma)
             elif "Monitorias"    in pag: pagina_monitorias(ma)
             elif "Inadimplência" in pag: pagina_inadimplencia(ma)
+            elif "Metas"         in pag: pagina_metas(ma)
             elif "Minha Conta"   in pag: pagina_minha_conta()
         elif u["role"]=="admin":
             if   "Quadro"        in pag: pagina_quadro(ma)
