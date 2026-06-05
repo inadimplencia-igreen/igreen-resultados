@@ -1290,21 +1290,27 @@ def pagina_quadro(ma):
     is_dir=u["role"]=="diretor"; is_adm=u["role"]=="admin"
     eqs_vis=["luciano","deborah","tamires"]
     # Para admin e diretor: mostrar Luciano, Déborah, Tamires + Meet Call separado
-    eqs_base=["luciano","deborah","tamires"]
+    eqs_base=["luciano","deborah","tamires","metcool"]
     if is_adm: eqs=eqs_base
     elif is_dir: eqs=eqs_base
+    elif u.get("equipe")=="metcool": eqs=["metcool"]
     else: eqs=[u["equipe"]]
     header_page("Quadro de Resultados", ma.replace("-"," ").upper())
     if is_dir:
         tot_rec=tot_ci=tot_si=tot_meta=tot_proj=0
         equipes_data=[]
-        for eq_r in ["luciano","deborah","tamires"]:
+        for eq_r in ["luciano","deborah","tamires","metcool"]:
             try:
                 lancs_r=buscar_lancamentos(ma,eq_r)
                 if not lancs_r: continue
                 ul_r=lancs_r[0]
                 mg_r=float(buscar_meta_gestora(ma,eq_r).get("metaGestora",0))
-                tc_r=sum(float(v.get("valorRecebido",0)) for v in ul_r.get("agentes",{}).values() if isinstance(v,dict))
+                if eq_r=="metcool":
+                    tc_r=sum(float(v.get("valorRecebido",0)) for v in ul_r.get("agentes",{}).values() if isinstance(v,dict))
+                elif eq_r=="luciano":
+                    tc_r=sum(float(v.get("valorRecebido",0)) for v in ul_r.get("agentes",{}).values() if isinstance(v,dict) and v.get("nome","") not in OPERADORES_MEETCALL)
+                else:
+                    tc_r=sum(float(v.get("valorRecebido",0)) for v in ul_r.get("agentes",{}).values() if isinstance(v,dict))
                 dt_r=int(ul_r.get("diasTrabalhados",0)); td_r=int(ul_r.get("totalDias",22))
                 up_r=buscar_ultimo_processamento(ma,eq_r)
                 rg_r=float(up_r.get("valorElegivel",0)) if up_r else 0
@@ -1313,10 +1319,15 @@ def pagina_quadro(ma):
                     else:
                         for l in lancs_r[1:]:
                             if l.get("recGeral",0)>0: rg_r=float(l["recGeral"]); break
+                if eq_r=="metcool":
+                    mc_doc_r=buscar_lancamento_meetcall(ma)
+                    rg_mc_r=float(mc_doc_r.get("recGeralTotal",mc_doc_r.get("recGeral",0)))
+                    if rg_mc_r>0: rg_r=rg_mc_r
                 si_r=max(0,rg_r-tc_r); proj_r=calc_projecao(rg_r,dt_r,td_r)
                 pct_r=(rg_r/mg_r*100) if mg_r>0 else 0
                 tot_rec+=rg_r; tot_ci+=tc_r; tot_si+=si_r; tot_meta+=mg_r; tot_proj+=proj_r
-                equipes_data.append({"nome":EQUIPES[eq_r]["nome"],"rg":rg_r,"ci":tc_r,"si":si_r,"meta":mg_r,"proj":proj_r,"pct":pct_r})
+                nome_eq = "Meet Call" if eq_r=="metcool" else EQUIPES[eq_r]["nome"]
+                equipes_data.append({"nome":nome_eq,"rg":rg_r,"ci":tc_r,"si":si_r,"meta":mg_r,"proj":proj_r,"pct":pct_r})
             except: pass
         if equipes_data:
             pct_t=(tot_rec/tot_meta*100) if tot_meta>0 else 0
@@ -1366,8 +1377,13 @@ def pagina_quadro(ma):
         if not lancs: continue
         ul=lancs[0]; mg_doc=buscar_meta_gestora(ma,eq); mops=buscar_metas_equipe(ma,eq)
         mg=float(mg_doc.get("metaGestora",0))
-        # Com Interação Luciano = só operadores iGreen (excluir Meet Call)
-        tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict) and v.get("nome","") not in OPERADORES_MEETCALL)
+        # Com Interação: para Luciano exclui Meet Call; para metcool só Meet Call
+        if eq=="luciano":
+            tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict) and v.get("nome","") not in OPERADORES_MEETCALL)
+        elif eq=="metcool":
+            tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict))
+        else:
+            tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict))
         dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
         up=buscar_ultimo_processamento(ma,eq)
         rec_geral=float(up.get("valorElegivel",0)) if up else 0
@@ -1378,12 +1394,12 @@ def pagina_quadro(ma):
                 for l in lancs[1:]:
                     if l.get("recGeral",0)>0:
                         rec_geral=float(l["recGeral"]); break
-        # Se Luciano: subtrai Recebido Geral da Meet Call
-        if eq=="luciano":
+        # Para metcool: recGeral vem do lancamento_meetcall (recGeralTotal)
+        if eq=="metcool":
             mc_doc=buscar_lancamento_meetcall(ma)
-            rg_mc_total=float(mc_doc.get("recGeralTotal",mc_doc.get("recGeral",0)))
-            if rg_mc_total>0:
-                rec_geral=max(0, rec_geral - rg_mc_total)
+            rg_mc=float(mc_doc.get("recGeralTotal",mc_doc.get("recGeral",0)))
+            if rg_mc>0: rec_geral=rg_mc
+
         sem=max(0, rec_geral - tc)
         proj=calc_projecao(rec_geral, dt, td)
         pct=(rec_geral/mg*100) if mg>0 else 0
@@ -1423,30 +1439,16 @@ def pagina_quadro(ma):
             f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>DIAS</div>"
             f"<div style='color:#8ab89a;font-weight:600;font-size:14px'>{dt}/{td}</div></div>"
             f"</div>"
-            + ((
-                f"<div style='border-top:1px solid #1e3a1e;margin-top:12px;padding-top:10px'>"
-                f"<div style='color:#5a9a70;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>Meet Call</div>"
-                f"<div style='display:flex;gap:24px;flex-wrap:wrap'>"
-                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1px'>RECEBIDO GERAL</div><div style='color:#00c853;font-weight:700;font-size:14px'>{fmt_brl(rg_mc)}</div></div>"
-                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1px'>COM INTERAÇÃO</div><div style='color:#e8f5e9;font-size:14px'>{fmt_brl(ci_mc)}</div></div>"
-                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1px'>META</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(mg_mc)}</div></div>"
-                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1px'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(proj_mc)}</div></div>"
-                f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1px'>% META</div><div style='color:{cv_mc};font-size:14px;font-weight:700'>{pct_mc:.1f}%</div></div>"
-                f"</div></div>"
-            ) if eq=='luciano' and 'rg_mc' in dir() else '') +
+            +
             f"</div>", unsafe_allow_html=True)
         k=f"show_ops_{eq}"
         if k not in st.session_state: st.session_state[k]=False
         col_b1,col_b2=st.columns([1,1]) if eq=="luciano" else (st.columns(1)[0],None)
         with col_b1:
-            if st.button(f"{'Ocultar' if st.session_state[k] else 'Exibir'} Operadores — {EQUIPES[eq]['nome']}",key=f"btn_ops_{eq}",use_container_width=True):
+            nome_eq_btn = "Meet Call" if eq=="metcool" else EQUIPES[eq]['nome']
+            if st.button(f"{'Ocultar' if st.session_state[k] else 'Exibir'} Operadores — {nome_eq_btn}",key=f"btn_ops_{eq}",use_container_width=True):
                 st.session_state[k]=not st.session_state[k]; st.rerun()
-        if eq=="luciano" and col_b2 is not None:
-            k_mc=f"show_meetcall_{eq}"
-            if k_mc not in st.session_state: st.session_state[k_mc]=False
-            with col_b2:
-                if st.button(f"{'Ocultar' if st.session_state[k_mc] else 'Exibir'} Equipe Meet Call",key=f"btn_mc_{eq}",use_container_width=True):
-                    st.session_state[k_mc]=not st.session_state[k_mc]; st.rerun()
+
         show=st.session_state[k]
         if show and ops:
             if eq=="luciano":
@@ -1475,20 +1477,7 @@ def pagina_quadro(ma):
                 df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
                 df.index=range(1,len(df)+1)
                 st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
-        if eq=="luciano":
-            if ops:
-                total_igreen=0; total_meetcall=0
-                for op in ops:
-                    v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
-                    if op["nome"] in OPERADORES_MEETCALL: total_meetcall+=v
-                    else: total_igreen+=v
-                st.markdown("<p style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px'>POR EQUIPE</p>",unsafe_allow_html=True)
-                c1,c2=st.columns(2)
-                with c1:
-                    st.markdown(f"<div style='background:#0a1f0a;border:1px solid #1e3a1e;border-radius:10px;padding:14px 18px'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>OPERADORES IGREEN</div><div style='color:#00c853;font-size:18px;font-weight:700;margin-top:4px'>{fmt_brl(total_igreen)}</div></div>",unsafe_allow_html=True)
-                with c2:
-                    st.markdown(f"<div style='background:#0a1f0a;border:1px solid #1e3a1e;border-radius:10px;padding:14px 18px'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>OPERADORES MEET CALL</div><div style='color:#00c853;font-size:18px;font-weight:700;margin-top:4px'>{fmt_brl(total_meetcall)}</div></div>",unsafe_allow_html=True)
-        elif up and up.get("registros"):
+        if up and up.get("registros"):
             try:
                 df_proc=pd.DataFrame(up["registros"])
                 if "fornecedora" in df_proc.columns and "valor" in df_proc.columns:
@@ -1504,65 +1493,10 @@ def pagina_quadro(ma):
                         df_forn=pd.DataFrame(forn_rows); df_forn.index=range(1,len(df_forn)+1)
                         st.dataframe(df_forn,use_container_width=True,hide_index=False)
             except: pass
-        if eq=="luciano" and st.session_state.get(f"show_meetcall_{eq}",False):
-            ops_mc_show=[op for op in ops if op["nome"] in OPERADORES_MEETCALL]
-            if ops_mc_show:
-                st.markdown("<p style='color:#1565c0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px'>EQUIPE MEET CALL</p>",unsafe_allow_html=True)
-                rows_mc=[]
-                for op in ops_mc_show:
-                    v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
-                    meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
-                    proj_op=calc_projecao(v,dt,td) if v>0 else 0
-                    lig_op=int(ul.get("agentes",{}).get(op["_id"],{}).get("ligacoes",0) if isinstance(ul.get("agentes",{}).get(op["_id"]),dict) else 0)
-                    rows_mc.append({"Operador":op["nome"],"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if v>0 else "—","Lig. +5s":lig_op if lig_op>0 else "—","_v":v})
-                df_mc=pd.DataFrame(rows_mc).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
-                df_mc.index=range(1,len(df_mc)+1)
-                st.dataframe(df_mc,use_container_width=True,height=min(400,(len(df_mc)+1)*38+40))
+
         st.markdown("---")
 
-    # ── CARD MEET CALL SEPARADO ──
-    if is_adm or is_dir or u.get("equipe")=="luciano":
-        try:
-            mc_doc=buscar_lancamento_meetcall(ma)
-            lancs_mc=buscar_lancamentos(ma,"metcool")
-            mg_mc=float(buscar_meta_gestora(ma,"metcool").get("metaGestora",0))
-            rg_mc=float(mc_doc.get("recGeralTotal",mc_doc.get("recGeral",0)))
-            ci_mc=0.0
-            dt_mc=td_mc=0
-            if lancs_mc:
-                ul_mc=lancs_mc[0]
-                ci_mc=float(ul_mc.get("totalEquipe",0))
-                dt_mc=int(ul_mc.get("diasTrabalhados",0))
-                td_mc=int(ul_mc.get("totalDias",22))
-            sem_mc=max(0,rg_mc-ci_mc)
-            proj_mc=calc_projecao(rg_mc,dt_mc,td_mc)
-            pct_mc=(rg_mc/mg_mc*100) if mg_mc>0 else 0
-            cv_mc=cor_pct(pct_mc)
-            if rg_mc>0 or mg_mc>0:
-                st.markdown(
-                    f"<div style='background:linear-gradient(135deg,#0a1f2a,#0d2a3d);border:1px solid #1e3a4e;"
-                    f"border-radius:14px;padding:20px 24px;margin-bottom:6px;border-left:3px solid #3b82f6'>"
-                    f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px'>"
-                    f"<div style='font-size:15px;font-weight:700;color:#ffffff'>Equipe Meet Call</div>"
-                    f"<div style='text-align:right'><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>% META</div>"
-                    f"<div style='color:{cv_mc};font-size:24px;font-weight:800'>{pct_mc:.1f}%</div></div></div>"
-                    f"<div style='display:flex;gap:28px;flex-wrap:wrap'>"
-                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>RECEBIDO GERAL</div>"
-                    f"<div style='color:#3b82f6;font-weight:700;font-size:16px'>{fmt_brl(rg_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>COM INTERAÇÃO</div>"
-                    f"<div style='color:#ffffff;font-weight:600;font-size:14px'>{fmt_brl(ci_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>SEM INTERAÇÃO</div>"
-                    f"<div style='color:#8ab8d4;font-weight:600;font-size:14px'>{fmt_brl(sem_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>META</div>"
-                    f"<div style='color:#8ab8d4;font-weight:600;font-size:14px'>{fmt_brl(mg_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>PROJEÇÃO</div>"
-                    f"<div style='color:#8ab8d4;font-weight:600;font-size:14px'>{fmt_brl(proj_mc)}</div></div>"
-                    f"<div><div style='color:#3a6a8a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>DIAS</div>"
-                    f"<div style='color:#8ab8d4;font-weight:600;font-size:14px'>{dt_mc}/{td_mc}</div></div>"
-                    f"</div></div>",
-                    unsafe_allow_html=True)
-                st.markdown("---")
-        except: pass
+
 
 # ── MONITORIAS ─────────────────────────────────
 def pagina_monitorias(ma):
