@@ -1954,10 +1954,14 @@ def pagina_upload(ma):
     with col_hist:
         st.markdown('<p style="color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">HISTORICO DE BASES PROCESSADAS</p>',unsafe_allow_html=True)
         u_hist=st.session_state.usuario
-        if u_hist['role'] in ['admin','diretor']:
-            hist_geral=buscar_historico_geral()
-        else:
-            hist_geral=buscar_historico_geral(equipe_id=u_hist.get('equipe'))
+        try:
+            if u_hist['role'] in ['admin','diretor']:
+                hist_geral=buscar_historico_geral()
+            else:
+                hist_geral=buscar_historico_geral(equipe_id=u_hist.get('equipe'))
+        except Exception as e:
+            hist_geral=[]
+            st.warning(f"Não foi possível carregar o histórico: {e}")
         if not hist_geral:
             st.info('Nenhuma base processada ainda.')
         else:
@@ -2385,6 +2389,6 @@ def main():
             elif "Metas"         in pag: pagina_metas(ma)
             elif "Minha Conta"   in pag: pagina_minha_conta()
 
-# deploy: 2026-06-05-v2
+# deploy: 2026-06-05-v3
 if __name__=="__main__":
     main()
