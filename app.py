@@ -1148,10 +1148,10 @@ def pagina_metas(ma):
     buscar_metas_equipe.clear()
     st.markdown("### Meta da Gestora")
     mg_doc=buscar_meta_gestora(ma,eq)
-    c1,c2,c3=st.columns([2,1,1])
+    c1,c2=st.columns([2,1])
     with c1: mg_val=st.number_input("Meta Base (R$)",min_value=0.0,step=1000.0,format="%.2f",value=float(mg_doc.get("metaGestora",0)),key="mg_val")
-    with c2: tpct=st.number_input("Target (%)",min_value=100,max_value=200,value=int(mg_doc.get("targetPct",125)),key="tpct")
-    with c3: st.markdown(f"<div style='padding-top:28px;color:#2daf5c;font-weight:700;font-size:16px'>{fmt_brl(mg_val*(tpct/100))}</div>",unsafe_allow_html=True)
+    tpct=100
+    with c2: st.markdown(f"<div style='padding-top:28px;color:#2daf5c;font-weight:700;font-size:16px'>{fmt_brl(mg_val)}</div>",unsafe_allow_html=True)
     st.markdown("---")
     st.markdown("### Metas por Operador")
     ms=buscar_metas_equipe(ma,eq); mn={}
@@ -1295,34 +1295,17 @@ def pagina_quadro(ma):
     is_dir=u["role"]=="diretor"; is_adm=u["role"]=="admin"
     eqs_vis=["luciano","deborah","tamires"]
     # Para admin e diretor: mostrar Luciano, Déborah, Tamires + Meet Call separado
-    eqs_base=["luciano","deborah","tamires","metcool"]
+    # Ordem fixa: Luciano, Meet Call, Déborah, Tamires
+    eqs_base=["luciano","metcool","deborah","tamires"]
     if is_adm or is_dir:
-        # Ordenar por % meta (maior primeiro)
-        def _pct_eq(eq_id):
-            try:
-                lancs_tmp=buscar_lancamentos(ma,eq_id)
-                if not lancs_tmp: return 0
-                mg_tmp=float(buscar_meta_gestora(ma,eq_id).get("metaGestora",0))
-                if mg_tmp==0: return 0
-                up_tmp=buscar_ultimo_processamento(ma,eq_id)
-                rg_tmp=float(up_tmp.get("valorElegivel",0)) if up_tmp else 0
-                if rg_tmp==0:
-                    ul_tmp=lancs_tmp[0]
-                    rg_tmp=float(ul_tmp.get("recGeral",0))
-                if eq_id=="metcool":
-                    mc_tmp=buscar_lancamento_meetcall(ma)
-                    rg_mc_tmp=float(mc_tmp.get("recGeralTotal",mc_tmp.get("recGeral",0)))
-                    if rg_mc_tmp>0: rg_tmp=rg_mc_tmp
-                return (rg_tmp/mg_tmp*100) if mg_tmp>0 else 0
-            except: return 0
-        eqs=sorted(eqs_base, key=_pct_eq, reverse=True)
+        eqs=eqs_base
     elif u.get("equipe")=="metcool": eqs=["metcool"]
     else: eqs=[u["equipe"]]
     header_page("Quadro de Resultados", ma.replace("-"," ").upper())
     if is_dir:
         tot_rec=tot_ci=tot_si=tot_meta=tot_proj=0
         equipes_data=[]
-        for eq_r in ["luciano","deborah","tamires","metcool"]:
+        for eq_r in ["luciano","metcool","deborah","tamires"]:
             try:
                 lancs_r=buscar_lancamentos(ma,eq_r)
                 if not lancs_r: continue
