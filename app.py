@@ -1268,7 +1268,7 @@ def pagina_lancamento(ma):
             for e in errs: st.error(e)
         else:
             label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
-            ag={op["_id"]:{"valorRecebido":vi[op["_id"]],"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops}
+            ag={op["_id"]:{"valorRecebido":vi.get(op["_id"],0),"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops if op["nome"] not in OPERADORES_MEETCALL}
             criar_lancamento(ma,eq,str(data_sel),label,ag,tc,0,dt,td,rec_geral_manual)
             st.session_state.ultimo_salvo=f"Lançamento de {label} salvo! Total: {fmt_brl(tc)}"
             st.rerun()
