@@ -1230,6 +1230,9 @@ def pagina_lancamento(ma):
                 if st.button("Confirmar Importação", use_container_width=True, key=f"imp_confirmar_{eq}_{ma}"):
                     for r in resultados_imp:
                         if r['op'] and r['status'] != 'ambiguo' and r['valor'] > 0:
+                            # Ignorar operadores Meet Call no lançamento do Luciano
+                            if r['op'].get('nome','') in OPERADORES_MEETCALL:
+                                continue
                             st.session_state[f"op_{eq}_{ma}_{r['op']['_id']}"] = r['valor']
                             if r['col_lig']:
                                 st.session_state[f"lig_{eq}_{ma}_{r['op']['_id']}"] = r['ligacoes']
@@ -1249,8 +1252,7 @@ def pagina_lancamento(ma):
             with c1: st.markdown(f"<div style='padding-top:10px;color:var(--text-color,#1a3a1a);font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
             with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px;font-weight:500'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
             with c3:
-                val_atual = st.session_state.get(f"op_{eq}_{ma}_{op['_id']}", "")
-                vi_str = st.text_input("v",value=str(val_atual) if val_atual else "",placeholder="R$ 0,00",label_visibility="collapsed",key=f"op_{eq}_{ma}_{op['_id']}")
+                vi_str = st.text_input("v",value="",placeholder="R$ 0,00",label_visibility="collapsed",key=f"op_{eq}_{ma}_{op['_id']}")
                 vi[op["_id"]] = parse_brl(vi_str)
             lig_vi[op["_id"]]=st.number_input("Lig. acima 5s",label_visibility="visible",min_value=0,step=1,value=0,key=f"lig_{eq}_{ma}_{op['_id']}")
     tc=sum(vi.values())
