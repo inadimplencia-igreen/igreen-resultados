@@ -2130,6 +2130,30 @@ def pagina_meetcall(ma):
 
     st.markdown("---")
     st.markdown("### Valores por Operador")
+
+    # Importar via Excel
+    mostrar_imp_mc=st.checkbox("Importar via Excel",key=f"chk_imp_mc_{ma}")
+    if mostrar_imp_mc:
+        arq_imp_mc=st.file_uploader("Planilha Excel (.xlsx)",type=["xlsx"],key=f"imp_mc_{ma}")
+        if arq_imp_mc:
+            arq_imp_mc.seek(0)
+            res_mc,err_mc=importar_excel_operadores(arq_imp_mc,ops_mc)
+            if err_mc:
+                st.error(err_mc)
+            elif res_mc:
+                prev_mc=[]
+                for r in res_mc:
+                    icone=r['op']['nome'] if r['op'] and r['status']!='ambiguo' else ("Ambíguo" if r['status']=='ambiguo' else "Não encontrado")
+                    row={"Excel":r['nome_excel'],"Sistema":icone,"Valor":fmt_brl(r['valor'])}
+                    prev_mc.append(row)
+                st.dataframe(pd.DataFrame(prev_mc),use_container_width=True,hide_index=True)
+                if st.button("Confirmar Importação",use_container_width=True,key=f"imp_mc_confirmar_{ma}"):
+                    for r in res_mc:
+                        if r['op'] and r['status']!='ambiguo' and r['valor']>0:
+                            st.session_state[f"mc_op_{ma}_{r['op']['_id']}"]=r['valor']
+                    st.success("Valores importados! Revise e salve.")
+                    st.rerun()
+
     vi_mc={}
     for op in ops_mc:
         meta=float(ms_mc.get(op["_id"],0))
@@ -2137,8 +2161,9 @@ def pagina_meetcall(ma):
         with c1: st.markdown(f"<div style='padding-top:10px;color:#1a3a1a;font-weight:500'>{op['nome']}</div>",unsafe_allow_html=True)
         with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
         with c3:
-            vi_str=st.text_input("v",value="",placeholder="R$ 0,00",label_visibility="collapsed",key=f"mc_op_{ma}_{op['_id']}")
-            vi_mc[op["_id"]]=parse_brl(vi_str)
+            mc_op_key=f"mc_op_{ma}_{op['_id']}"
+            val_mc=st.session_state.get(mc_op_key,0.0)
+            vi_mc[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",value=float(val_mc) if val_mc else 0.0,key=mc_op_key)
 
     tc_mc=sum(vi_mc.values())
     sem_mc=max(0,rg_total-tc_mc) if rg_total>0 else 0
