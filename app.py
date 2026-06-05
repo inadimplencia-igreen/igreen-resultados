@@ -1715,7 +1715,9 @@ def pagina_analise_operadores(ma):
     ma_ant=f"{MESES_NOMES[11]}-{ano-1}" if idx==0 else f"{MESES_NOMES[idx-1]}-{ano}"
     st.markdown("---")
     for eq in eqs:
-        ops=buscar_operadores(eq)
+        ops_todos=buscar_operadores(eq)
+        # Luciano: excluir Meet Call da análise
+        ops=[op for op in ops_todos if op["nome"] not in OPERADORES_MEETCALL] if eq=="luciano" else ops_todos
         if not ops: continue
         lat=buscar_lancamentos(ma,eq); lan=buscar_lancamentos(ma_ant,eq)
         if not lat: continue
