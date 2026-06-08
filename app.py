@@ -390,7 +390,7 @@ def corrigir_ids_operadores():
 @st.cache_data(ttl=3600)
 def buscar_operadores(eq):
     ops = list(get_db().operadores.find({"equipeId":eq}).sort("nome",1))
-    # Deduplica por nome (evita operadores duplicados)
+    # Deduplica por nome
     vistos = set()
     unicos = []
     for op in ops:
@@ -398,6 +398,9 @@ def buscar_operadores(eq):
         if nome_norm not in vistos:
             vistos.add(nome_norm)
             unicos.append(op)
+    # Luciano: nunca retorna operadores Meet Call
+    if eq == "luciano":
+        unicos = [op for op in unicos if op.get("nome","") not in OPERADORES_MEETCALL]
     return unicos
 
 def salvar_operador(eq, nome, pleno=False):
@@ -1701,7 +1704,10 @@ def pagina_monitorias(ma):
     u=st.session_state.usuario
     header_page("Monitorias","Avaliação de qualidade")
     if u["role"]=="diretor": pagina_monitorias_diretor(ma); return
-    eq=seletor_equipe(u["equipe"]); ops=buscar_operadores(eq)
+    eq=seletor_equipe(u["equipe"])
+    ops_todos=buscar_operadores(eq)
+    # Luciano: mostrar só operadores iGreen (sem Meet Call) — igual Minha Conta
+    ops=[op for op in ops_todos if op["nome"] not in OPERADORES_MEETCALL] if eq=="luciano" else ops_todos
     if not ops: st.warning("Cadastre operadores primeiro."); return
     if "mon_op_sel" not in st.session_state: st.session_state.mon_op_sel=None
     if "mon_modo" not in st.session_state: st.session_state.mon_modo=None
