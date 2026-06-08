@@ -1503,8 +1503,8 @@ def pagina_quadro(ma):
         for eq_r in ["luciano","metcool","deborah","tamires"]:
             try:
                 lancs_r=buscar_lancamentos(ma,eq_r)
-                if not lancs_r: continue
-                ul_r=lancs_r[0]
+                ul_r=lancs_r[0] if lancs_r else {}
+                if not lancs_r and not buscar_ultimo_processamento(ma,eq_r): continue
                 mg_r=float(buscar_meta_gestora(ma,eq_r).get("metaGestora",0))
                 if eq_r=="metcool":
                     tc_r=sum(float(v.get("valorRecebido",0)) for v in ul_r.get("agentes",{}).values() if isinstance(v,dict))
@@ -1575,9 +1575,9 @@ def pagina_quadro(ma):
             ops=buscar_operadores(eq); lancs=buscar_lancamentos(ma,eq)
         except:
             st.error("Erro ao conectar ao banco. Tente recarregar."); continue
-        if not lancs: continue
-        ul=lancs[0]; mg_doc=buscar_meta_gestora(ma,eq); mops=buscar_metas_equipe(ma,eq)
+        mg_doc=buscar_meta_gestora(ma,eq); mops=buscar_metas_equipe(ma,eq)
         mg=float(mg_doc.get("metaGestora",0))
+        ul=lancs[0] if lancs else {}
         # Com Interação: para Luciano exclui Meet Call; para metcool só Meet Call
         if eq=="luciano":
             tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict) and v.get("nome","") not in OPERADORES_MEETCALL)
