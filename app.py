@@ -476,7 +476,17 @@ def salvar_processamento(ma, eq, df, usuario_nome=""):
     clientes_elig = int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns else 0
     forns = sorted(df_num["fornecedora"].dropna().unique().tolist()) if "fornecedora" in df_num.columns else []
 
-    # Salvar só métricas — sem registros (evita DocumentTooLarge)
+    # Calcular breakdown por fornecedora
+    por_fornecedora = {}
+    if "fornecedora" in elig.columns:
+        for forn, grp in elig.groupby("fornecedora"):
+            por_fornecedora[str(forn)] = {
+                "valor": float(grp["valor"].sum()),
+                "boletos": len(grp),
+                "clientes": int(grp["uc_cpf"].nunique()) if "uc_cpf" in grp.columns else 0
+            }
+
+    # Salvar métricas + breakdown por fornecedora (sem registros completos)
     get_db().processamentos.update_one(
         {"_id":f"proc__{ma}__{eq}"},
         {"$set":{
@@ -488,6 +498,7 @@ def salvar_processamento(ma, eq, df, usuario_nome=""):
             "boletosElegiveis":boletos_elig,
             "clientesElegiveis":clientes_elig,
             "fornecedoras":forns,
+            "porFornecedora":por_fornecedora,
             "totalRegistros":len(df_num),
             "atualizadoEm":datetime.now()
         }},
@@ -499,7 +510,8 @@ def buscar_ultimo_processamento(ma, eq):
     doc = get_db().processamentos.find_one(
         {"mesAno":ma,"equipeId":eq},
         {"_id":1,"mesAno":1,"equipeId":1,"valorElegivel":1,"boletosElegiveis":1,
-         "clientesElegiveis":1,"fornecedoras":1,"totalRegistros":1,"usuarioNome":1,"atualizadoEm":1}
+         "clientesElegiveis":1,"fornecedoras":1,"porFornecedora":1,"totalRegistros":1,
+         "usuarioNome":1,"atualizadoEm":1}
     )
     if not doc: return {}
     return doc
@@ -1645,19 +1657,19 @@ def pagina_quadro(ma):
                 df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
                 df.index=range(1,len(df)+1)
                 st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
-        if up and up.get("registros"):
+        if up and up.get("porFornecedora"):
             try:
-                df_proc=pd.DataFrame(up["registros"])
-                if "fornecedora" in df_proc.columns and "valor" in df_proc.columns:
-                    df_proc["valor"]=pd.to_numeric(df_proc["valor"],errors="coerce").fillna(0)
-                    elig_proc=df_proc[df_proc["elegibilidade"]=="Elegível"] if "elegibilidade" in df_proc.columns else df_proc
-                    forn_grp=elig_proc.groupby("fornecedora")["valor"].sum().reset_index()
-                    forn_grp=forn_grp[forn_grp["valor"]>0].sort_values("valor",ascending=False)
-                    if not forn_grp.empty:
-                        total_forn=forn_grp["valor"].sum()
+                pf=up["porFornecedora"]
+                if pf:
+                    forn_rows=[]; total_forn=0
+                    for forn,dados in sorted(pf.items(),key=lambda x:x[1].get("valor",0),reverse=True):
+                        val=float(dados.get("valor",0))
+                        if val>0:
+                            forn_rows.append({"Fornecedora":forn,"Valor Recebido":fmt_brl(val),"Boletos":dados.get("boletos",0)})
+                            total_forn+=val
+                    if forn_rows:
+                        forn_rows.append({"Fornecedora":"TOTAL GERAL","Valor Recebido":fmt_brl(total_forn),"Boletos":""})
                         st.markdown("<p style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px'>POR FORNECEDORA</p>",unsafe_allow_html=True)
-                        forn_rows=[{"Fornecedora":str(r["fornecedora"]),"Valor Recebido":fmt_brl(r["valor"])} for _,r in forn_grp.iterrows()]
-                        forn_rows.append({"Fornecedora":"TOTAL GERAL","Valor Recebido":fmt_brl(total_forn)})
                         df_forn=pd.DataFrame(forn_rows); df_forn.index=range(1,len(df_forn)+1)
                         st.dataframe(df_forn,use_container_width=True,hide_index=False)
             except: pass
