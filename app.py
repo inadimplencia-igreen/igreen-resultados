@@ -799,15 +799,18 @@ def get_val_op(ag, oid, onome):
 # ── CORREÇÃO PRINCIPAL: normalizar_cpf com zfill(11) ──
 def normalizar_cpf(s):
     s=str(s).strip()
-    # Converte notação científica e float do Excel (ex: 1.23457E+10, 12345678909.0)
-    try:
-        f=float(s)
-        if f>0: s=str(int(round(f)))
-    except: pass
-    # Remove formatação
+    # Remove formatação primeiro
     s=s.replace(".","").replace("-","").replace("/","").replace(" ","")
-    # Garante 11 dígitos com zeros à esquerda (CPF pode ter zero inicial)
-    if s.isdigit() and len(s)<=11:
+    # Remove .0 do final (Excel converte para float)
+    if s.endswith(".0"): s=s[:-2]
+    # Converte notação científica (ex: 1.23457E+10)
+    if "E" in s.upper() or "e" in s:
+        try:
+            f=float(s)
+            if f>0: s=str(int(round(f)))
+        except: pass
+    # Zfill só se tiver entre 8 e 11 dígitos (CPF válido tem 11)
+    if s.isdigit() and 8<=len(s)<=11:
         s=s.zfill(11)
     return s
 
@@ -1043,36 +1046,76 @@ def ler_arquivo(arquivo, sheet_name=None):
     """Lê Excel ou CSV automaticamente."""
     import unicodedata
     nome = arquivo.name.lower()
+    # Colunas que devem ser lidas como string (CPF, identificadores)
+    dtype_str = {"cpf": str, "CPF": str, "uc_cpf": str, "identificador": str,
+                 "numinstalacao": str, "idcliente": str, "conta_unica": str}
     if nome.endswith('.csv'):
-        # Tenta separadores comuns
         for sep in [',',';','|','	']:
             try:
                 arquivo.seek(0)
-                df = pd.read_csv(arquivo, sep=sep, header=0, low_memory=False)
+                df = pd.read_csv(arquivo, sep=sep, header=0, low_memory=False, dtype=dtype_str)
                 if len(df.columns) > 1:
                     return df
             except: pass
         arquivo.seek(0)
-        return pd.read_csv(arquivo, header=0, low_memory=False)
+        return pd.read_csv(arquivo, header=0, low_memory=False, dtype=dtype_str)
     else:
         if sheet_name:
-            return pd.read_excel(arquivo, sheet_name=sheet_name, header=0)
-        return pd.read_excel(arquivo, header=0)
+            return pd.read_excel(arquivo, sheet_name=sheet_name, header=0, dtype=dtype_str)
+        return pd.read_excel(arquivo, header=0, dtype=dtype_str)
 
 def mapear_colunas_pagos(df):
     """Mapeia colunas da base de pagos para nomes padrão."""
     import unicodedata
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
-    col_cpf=col_val=col_dpag=col_dvenc=col_forn=None
-    for c in df.columns:
-        cn=norm(str(c))
-        if not col_cpf and any(x==cn for x in ["CPF","IDENTIFICADOR","IDENTIF","IDENTIFICACAO","NUMINSTALACAO","IDCLIENTE"]): col_cpf=c
-        if not col_cpf and any(x in cn for x in ["CPF","IDENTIF"]) and "CLIENTE" not in cn and "NOME" not in cn: col_cpf=c
-        if not col_val and any(x in cn for x in ["VALORAPAGAR","VALORPAGAR","VALOR_APAGAR","VALOR_PAGAR"]): col_val=c
-        if not col_val and any(x in cn for x in ["VALOR","VLR","VL_","PAGAR","TOTAL","VAL_TOT","RECEB"]): col_val=c
-        if not col_dpag and any(x in cn for x in ["DTPAGAMENTO","DT_PAGAMENTO","DATAPAGAMENTO","DATA_PAGAMENTO","PAGAM","PAGTO","DT_PAG","DATA_PAG","BAIXA","DT_BAI"]): col_dpag=c
-        if not col_dvenc and any(x in cn for x in ["DTVENCIMENTO","DT_VENCIMENTO","DATAVENCIMENTO","DATA_VENCIMENTO","VENC","VENCIMENTO"]): col_dvenc=c
-        if not col_forn and any(x in cn for x in ["FORNEC","DISTRIB","EMPRESA","CONCESS","FORNECEDOR","FORNECEDORA","FORN"]): col_forn=c
+    
+    cols_norm = {norm(str(c)): c for c in df.columns}
+    
+    # CPF — match exato primeiro, depois parcial (nunca pega numinstalacao ou idcliente)
+    col_cpf = cols_norm.get("CPF") or cols_norm.get("DOCUMENTO") or cols_norm.get("IDENTIFICADOR")
+    if not col_cpf:
+        for c in df.columns:
+            cn = norm(str(c))
+            if "CPF" in cn and "CLIENTE" not in cn and "NOME" not in cn:
+                col_cpf = c; break
+
+    # VALOR — prioriza valorapagar
+    col_val = cols_norm.get("VALORAPAGAR") or cols_norm.get("VALOR_APAGAR") or cols_norm.get("VALORPAGAR")
+    if not col_val:
+        for c in df.columns:
+            cn = norm(str(c))
+            if any(x in cn for x in ["VALORAPAGAR","VALOR_APAGAR"]):
+                col_val = c; break
+    if not col_val:
+        for c in df.columns:
+            cn = norm(str(c))
+            if any(x in cn for x in ["VALOR","VLR"]) and c != col_cpf:
+                col_val = c; break
+
+    # DATA PAGAMENTO
+    col_dpag = cols_norm.get("DTPAGAMENTO") or cols_norm.get("DT_PAGAMENTO") or cols_norm.get("DATAPAGAMENTO")
+    if not col_dpag:
+        for c in df.columns:
+            cn = norm(str(c))
+            if any(x in cn for x in ["DTPAGAMENTO","DT_PAGAMENTO","DATAPAGAMENTO","DATA_PAGAMENTO","PAGAM","PAGTO","DT_PAG","BAIXA"]):
+                col_dpag = c; break
+
+    # DATA VENCIMENTO
+    col_dvenc = cols_norm.get("DTVENCIMENTO") or cols_norm.get("DT_VENCIMENTO") or cols_norm.get("DATAVENCIMENTO")
+    if not col_dvenc:
+        for c in df.columns:
+            cn = norm(str(c))
+            if any(x in cn for x in ["DTVENCIMENTO","DT_VENCIMENTO","DATAVENCIMENTO","DATA_VENCIMENTO","VENCIMENTO"]) and c != col_dpag:
+                col_dvenc = c; break
+
+    # FORNECEDORA
+    col_forn = cols_norm.get("FORNECEDORA") or cols_norm.get("FORNECEDOR")
+    if not col_forn:
+        for c in df.columns:
+            cn = norm(str(c))
+            if any(x in cn for x in ["FORNEC","FORN"]):
+                col_forn = c; break
+
     mapa={}
     if col_cpf:  mapa[col_cpf]="uc_cpf"
     if col_val:  mapa[col_val]="valor"
