@@ -1575,11 +1575,13 @@ def pagina_quadro(ma):
             ops=buscar_operadores(eq); lancs=buscar_lancamentos(ma,eq)
         except:
             st.error("Erro ao conectar ao banco. Tente recarregar."); continue
-        # Mostrar card só se tiver lançamento no mês
-        if not lancs: continue
+        # Mostrar card se tiver lançamento OU base processada no mês
+        up=buscar_ultimo_processamento(ma,eq)
+        tem_base_mes = up and float(up.get("valorElegivel",0)) > 0 and up.get("mesAno")==ma
+        if not lancs and not tem_base_mes: continue
         mg_doc=buscar_meta_gestora(ma,eq); mops=buscar_metas_equipe(ma,eq)
         mg=float(mg_doc.get("metaGestora",0))
-        ul=lancs[0]
+        ul=lancs[0] if lancs else {}
         # Com Interação: para Luciano exclui Meet Call; para metcool só Meet Call
         if eq=="luciano":
             tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict) and v.get("nome","") not in OPERADORES_MEETCALL)
@@ -1588,7 +1590,6 @@ def pagina_quadro(ma):
         else:
             tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict))
         dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
-        up=buscar_ultimo_processamento(ma,eq)
         rec_geral=float(up.get("valorElegivel",0)) if up else 0
         if rec_geral==0:
             if ul.get("recGeral",0)>0:
@@ -2207,20 +2208,33 @@ def pagina_upload(ma):
                 usuario_nome=h.get('usuarioNome') or equipe_nome
                 data_str=str(h.get('criadoEm',''))[:16]
                 val=float(h.get('valorElegivel',0))
-                st.markdown(
-                    f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:10px;"
-                    f"padding:12px 16px;margin-bottom:6px;border-left:3px solid #00c853'>"
-                    f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px'>"
-                    f"<div>"
-                    f"<div style='color:#ffffff;font-weight:600;font-size:13px'>{equipe_nome} -- {h.get('mesAno','').replace('-',' ')}</div>"
-                    f"<div style='color:#3a6a4a;font-size:11px;margin-top:2px'>Por: {usuario_nome} | {data_str}</div>"
-                    f"<div style='color:#3a6a4a;font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px'>Fornecedoras: {forn_str}</div>"
-                    f"</div>"
-                    f"<div style='text-align:right'>"
-                    f"<div style='color:#00c853;font-weight:700;font-size:14px'>{fmt_brl(val)}</div>"
-                    f"<div style='color:#3a6a4a;font-size:11px'>{h.get('boletosElegiveis',0):,} boletos</div>"
-                    f"</div></div></div>",
-                    unsafe_allow_html=True)
+                c_hist1,c_hist2=st.columns([5,1])
+                with c_hist1:
+                    st.markdown(
+                        f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:10px;"
+                        f"padding:12px 16px;margin-bottom:6px;border-left:3px solid #00c853'>"
+                        f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px'>"
+                        f"<div>"
+                        f"<div style='color:#ffffff;font-weight:600;font-size:13px'>{equipe_nome} -- {h.get('mesAno','').replace('-',' ')}</div>"
+                        f"<div style='color:#3a6a4a;font-size:11px;margin-top:2px'>Por: {usuario_nome} | {data_str}</div>"
+                        f"<div style='color:#3a6a4a;font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px'>Fornecedoras: {forn_str}</div>"
+                        f"</div>"
+                        f"<div style='text-align:right'>"
+                        f"<div style='color:#00c853;font-weight:700;font-size:14px'>{fmt_brl(val)}</div>"
+                        f"<div style='color:#3a6a4a;font-size:11px'>{h.get('boletosElegiveis',0):,} boletos</div>"
+                        f"</div></div></div>",
+                        unsafe_allow_html=True)
+                with c_hist2:
+                    st.markdown("<div style='margin-top:8px'></div>",unsafe_allow_html=True)
+                    if u_hist['role'] in ['admin','diretor']:
+                        if st.button("🗑️",key=f"del_hist_{h['_id']}",help="Excluir este processamento"):
+                            try:
+                                get_db().processamentos.delete_one({"_id":h["_id"]})
+                                get_db().historico_processamentos.delete_one({"_id":h["_id"]})
+                                st.success("✅ Processamento excluído!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Erro: {e}")
             st.markdown('<div style="height:8px"></div>',unsafe_allow_html=True)
             if st.button('Exportar Historico Excel',use_container_width=True,key='btn_exp_hist'):
                 rows=[{'Gestor':h.get('usuarioNome','---'),'Equipe':EQUIPES.get(h.get('equipeId',''),{}).get('nome','---'),'Mes':h.get('mesAno','---'),'Fornecedoras':', '.join(h.get('fornecedoras',[])),'Valor Recebido':fmt_brl(h.get('valorElegivel',0)),'Boletos':h.get('boletosElegiveis',0),'Data':str(h.get('criadoEm',''))[:16]} for h in hist_geral]
