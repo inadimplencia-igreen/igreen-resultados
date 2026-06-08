@@ -2432,7 +2432,9 @@ def pagina_minha_conta():
                     else: st.error('Digite o nome.')
                 st.markdown('</div>',unsafe_allow_html=True)
             st.markdown('---')
-            ops=buscar_operadores(eq)
+            # Luciano: excluir Meet Call da lista
+            ops_todos=buscar_operadores(eq)
+            ops=[op for op in ops_todos if op["nome"] not in OPERADORES_MEETCALL] if eq=="luciano" else ops_todos
             if not ops: st.info('Nenhum operador cadastrado.')
             else:
                 for op in ops:
@@ -2446,7 +2448,10 @@ def pagina_minha_conta():
                             st.success(f"✅ {ne} atualizado com sucesso!"); st.rerun()
                     with c4:
                         if st.button('Excluir',key=f'mc_d_{op["_id"]}',use_container_width=True):
-                            excluir_operador(op['_id']); st.rerun()
+                            excluir_operador(op['_id'])
+                            buscar_operadores.clear()
+                            st.success(f"✅ {op['nome']} excluído!")
+                            st.rerun()
     with t3:
         crits=get_criterios()
         st.markdown('**Critérios de avaliação das monitorias**')
