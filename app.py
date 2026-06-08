@@ -1091,6 +1091,8 @@ def processar_contatos(dc):
     dd=dd[dd["uc_cpf"].str.len()>=8]
     dd=dd[~dd["uc_cpf"].str.match(r"^0+$")]
     dd=dd[dd["uc_cpf"]!="nan"]
+    # Manter apenas a PRIMEIRA interação por CPF
+    dd=dd.sort_values("data_contato").drop_duplicates(subset=["uc_cpf"],keep="first")
     return dd
 
 def finalizar_processamento(df, contatos, abas_lidas, eq, ma):
@@ -1107,6 +1109,8 @@ def finalizar_processamento(df, contatos, abas_lidas, eq, ma):
         if pd.isna(row.get("primeiro_contato")): return "ND"
         d=row.get("diferenca_dias")
         if pd.isna(d): return "ND"
+        # Elegível: contato ANTES ou NO DIA do pagamento (diferença >= 0)
+        # Não Elegível: contato DEPOIS do pagamento (diferença < 0)
         return "Elegível" if int(d)>=0 else "Não Elegível"
     df["elegibilidade"]=df.apply(classif,axis=1)
     if "data_vencimento" in df.columns: df["dias_vencidos"]=(df["data_pagamento"]-df["data_vencimento"]).dt.days
@@ -1176,15 +1180,29 @@ def processar_base_unica(arquivo, eq, ma):
                     except: return 0.0
             df["valor"]=df["valor"].apply(cv)
         contatos=[]; abas_lidas=[]
-        for busca,nome in [("CHAT","CHAT"),("LIG","LIGAÇÕES"),("DISPAR","DISPAROS")]:
-            aba=next((abas_orig[i] for i,a in enumerate(abas_norm) if busca in a),None)
-            if not aba: continue
+
+        # Regra: se existir aba INTERAÇÃO, usar EXCLUSIVAMENTE ela
+        aba_interacao=next((abas_orig[i] for i,a in enumerate(abas_norm) if "INTERAC" in a or a=="INTERACAO" or a=="INTERAÇÃO"),None)
+
+        if aba_interacao:
             try:
-                dc=pd.read_excel(xls,sheet_name=aba,header=0)
-                if dc.empty or len(dc.columns)<2: continue
-                dd=processar_contatos(dc)
-                if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
+                dc=pd.read_excel(xls,sheet_name=aba_interacao,header=0)
+                if not dc.empty and len(dc.columns)>=2:
+                    dd=processar_contatos(dc)
+                    if not dd.empty: contatos.append(dd); abas_lidas.append("Interação")
             except: pass
+        else:
+            # Sem aba INTERAÇÃO — consolidar todas disponíveis (Chat, Ligações, Disparo)
+            for busca,nome in [("CHAT","CHAT"),("LIG","LIGAÇÕES"),("DISPAR","DISPAROS")]:
+                aba=next((abas_orig[i] for i,a in enumerate(abas_norm) if busca in a),None)
+                if not aba: continue
+                try:
+                    dc=pd.read_excel(xls,sheet_name=aba,header=0)
+                    if dc.empty or len(dc.columns)<2: continue
+                    dd=processar_contatos(dc)
+                    if not dd.empty: contatos.append(dd); abas_lidas.append(nome)
+                except: pass
+
         df = finalizar_processamento(df, contatos, abas_lidas, eq, ma)
         return df,[],abas_lidas
 
@@ -1634,7 +1652,25 @@ def pagina_monitorias(ma):
     st.markdown("---")
     t1,t2=st.tabs(["Nova Monitoria","Monitorias do Mês"])
     with t1:
-        semana=st.selectbox("Qual monitoria é esta?",SEMANAS_MONITORIA,key="semana_sel")
+        # Verificar quais semanas já foram registradas para este operador/mês
+        monts_op_mes=[m for m in buscar_monitorias_equipe(eq,ma) if m["opId"]==op["_id"]]
+        semanas_usadas={m.get("semana_mon","") for m in monts_op_mes}
+
+        # Mostrar seletor com indicação de semanas já usadas
+        semanas_opts=[]
+        for s in SEMANAS_MONITORIA:
+            if s in semanas_usadas:
+                semanas_opts.append(f"🔴 {s} — JÁ REGISTRADA")
+            else:
+                semanas_opts.append(f"✅ {s}")
+
+        semana_sel=st.selectbox("Qual monitoria é esta?",semanas_opts,key="semana_sel")
+        semana=SEMANAS_MONITORIA[semanas_opts.index(semana_sel)]
+        semana_bloqueada = semana in semanas_usadas
+
+        if semana_bloqueada:
+            st.error(f"⛔ A **{semana}** já foi registrada para {op['nome']} em {ma.replace('-',' ')}. Escolha outra semana ou edite a existente na aba 'Monitorias do Mês'.")
+
         tipo_mon=st.radio("Tipo de Monitoria",["📞 Ligação","💬 Chat"],horizontal=True,key="tipo_mon_sel")
         tipo_key="ligacao" if "Ligação" in tipo_mon else "chat"
         prot_label="Protocolo da Ligação" if tipo_key=="ligacao" else "ID/Protocolo do Chat"
@@ -1677,7 +1713,7 @@ def pagina_monitorias(ma):
             f"</div>",unsafe_allow_html=True)
         sk_salvo=f"mon_salvo_{op['_id']}_{semana}_{ma}_{tipo_key}"
         if not st.session_state.get(sk_salvo):
-            if st.button("Salvar Monitoria",use_container_width=True,key="btn_salvar_mon"):
+            if st.button("Salvar Monitoria",use_container_width=True,key="btn_salvar_mon",disabled=semana_bloqueada):
                 if not prot.strip(): st.error(f"Preencha o {prot_label}!")
                 else:
                     salvar_monitoria(eq,op["_id"],op["nome"],prot,obs,crits_r,erros_m,nota,ma,semana=semana,tipo=tipo_key)
@@ -1728,6 +1764,21 @@ def pagina_monitorias(ma):
                     hp=gerar_pdf_monitoria(op["nome"],m.get("protocolo",""),m.get("observacao",""),m.get("criterios",[]),m.get("errosCriticos",[]),nm,mm2,nm2,ma)
                     b64h=base64.b64encode(hp.encode()).decode()
                     st.markdown(f'<a href="data:text/html;base64,{b64h}" download="Mon_{op["nome"].replace(" ","_")}_{m.get("semana_mon","").replace(" ","_").replace("—","")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px;margin-top:6px">⬇ Baixar PDF</a>',unsafe_allow_html=True)
+
+                    # Edição rápida
+                    st.markdown("---")
+                    st.markdown("<p style='color:#5a8a5a;font-size:11px;font-weight:600'>✏️ EDITAR INFORMAÇÕES</p>",unsafe_allow_html=True)
+                    ed_semana=st.selectbox("Semana",SEMANAS_MONITORIA,index=SEMANAS_MONITORIA.index(m.get("semana_mon",SEMANAS_MONITORIA[0])) if m.get("semana_mon") in SEMANAS_MONITORIA else 0,key=f"ed_sem_{m['_id']}")
+                    ed_prot=st.text_input("Protocolo",value=m.get("protocolo",""),key=f"ed_prot_{m['_id']}")
+                    ed_obs=st.text_area("Observações",value=m.get("observacao",""),height=60,key=f"ed_obs_{m['_id']}")
+                    if st.button("💾 Salvar Edição",key=f"ed_save_{m['_id']}",use_container_width=True):
+                        get_db().monitorias.update_one(
+                            {"_id":m["_id"]},
+                            {"$set":{"semana_mon":ed_semana,"protocolo":ed_prot,"observacao":ed_obs}}
+                        )
+                        st.success("✅ Monitoria atualizada!")
+                        st.rerun()
+
                 c1x,c2x=st.columns(2)
                 with c2x:
                     if st.button("Excluir",key=f"del_op_{m['_id']}"): excluir_monitoria(m["_id"]); st.rerun()
@@ -1977,6 +2028,22 @@ def pagina_upload(ma):
                     st.session_state['df_proc_temp']=None; st.rerun()
             cols_show=[c for c in ['uc_cpf','data_pagamento','valor','fornecedora','elegibilidade','aging'] if c in df_res.columns]
             st.dataframe(df_res[cols_show].head(30) if cols_show else df_res.head(30),use_container_width=True)
+
+            # Botão para baixar apenas Elegíveis em CSV — todas as colunas originais
+            st.markdown("---")
+            elig_download=df_res[df_res['elegibilidade']=='Elegível'] if 'elegibilidade' in df_res.columns else df_res
+            if not elig_download.empty:
+                # Remove colunas internas do sistema
+                cols_excluir=['equipe','mes_ano','_row_id','dias_vencidos']
+                cols_elig=[c for c in elig_download.columns if c not in cols_excluir]
+                csv_elig=elig_download[cols_elig].to_csv(index=False,sep=';',decimal=',')
+                st.download_button(
+                    label=f"⬇️ Baixar Elegíveis ({len(elig_download):,} registros) — CSV",
+                    data=csv_elig.encode('utf-8-sig'),
+                    file_name=f"elegiveis_{eq}_{ma}.csv",
+                    mime='text/csv',
+                    use_container_width=True
+                )
 
     with col_hist:
         st.markdown('<p style="color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">HISTORICO DE BASES PROCESSADAS</p>',unsafe_allow_html=True)
