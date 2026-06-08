@@ -1838,18 +1838,57 @@ def pagina_monitorias(ma):
                     b64h=base64.b64encode(hp.encode()).decode()
                     st.markdown(f'<a href="data:text/html;base64,{b64h}" download="Mon_{op["nome"].replace(" ","_")}_{m.get("semana_mon","").replace(" ","_").replace("—","")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px;margin-top:6px">⬇ Baixar PDF</a>',unsafe_allow_html=True)
 
-                    # Edição rápida
+                    # Edição completa
                     st.markdown("---")
-                    st.markdown("<p style='color:#5a8a5a;font-size:11px;font-weight:600'>✏️ EDITAR INFORMAÇÕES</p>",unsafe_allow_html=True)
+                    st.markdown("<p style='color:#5a8a5a;font-size:11px;font-weight:600'>✏️ EDITAR MONITORIA</p>",unsafe_allow_html=True)
                     ed_semana=st.selectbox("Semana",SEMANAS_MONITORIA,index=SEMANAS_MONITORIA.index(m.get("semana_mon",SEMANAS_MONITORIA[0])) if m.get("semana_mon") in SEMANAS_MONITORIA else 0,key=f"ed_sem_{m['_id']}")
                     ed_prot=st.text_input("Protocolo",value=m.get("protocolo",""),key=f"ed_prot_{m['_id']}")
                     ed_obs=st.text_area("Observações",value=m.get("observacao",""),height=60,key=f"ed_obs_{m['_id']}")
-                    if st.button("💾 Salvar Edição",key=f"ed_save_{m['_id']}",use_container_width=True):
+
+                    # Edição dos critérios
+                    st.markdown("<p style='color:#e53935;font-size:11px;font-weight:600;margin-top:8px'>CRITÉRIOS — MARQUE O QUE NÃO FOI FEITO</p>",unsafe_allow_html=True)
+                    tipo_ed = m.get("tipo","ligacao")
+                    crits_usar_ed = get_criterios() if tipo_ed!="chat" else get_criterios_chat()
+                    erros_usar_ed = get_erros_criticos() if tipo_ed!="chat" else get_erros_criticos_chat()
+
+                    # Erros críticos
+                    erros_ed=[]; c1e,c2e=st.columns(2)
+                    for i,ec in enumerate(erros_usar_ed):
+                        ja_marcado=any(e.get("id")==ec["id"] for e in m.get("errosCriticos",[]))
+                        with (c1e if i%2==0 else c2e):
+                            if st.checkbox(f"{ec['nome']}",value=ja_marcado,key=f"ed_ec_{m['_id']}_{ec['id']}"): erros_ed.append(ec)
+
+                    zerada_ed=len(erros_ed)>0
+                    crits_ed=[]; nota_ed=0 if zerada_ed else 100
+                    if zerada_ed:
+                        st.error("MONITORIA ZERADA — Erro crítico marcado!")
+                        for c in crits_usar_ed: crits_ed.append({**c,"passou":False})
+                    else:
+                        for crit in crits_usar_ed:
+                            ja_passou=next((c.get("passou",True) for c in m.get("criterios",[]) if c.get("id")==crit["id"]),True)
+                            c1c,c2c=st.columns([8,1])
+                            with c1c: nao_passou_ed=st.checkbox(f"{crit['nome']}",value=not ja_passou,key=f"ed_cr_{m['_id']}_{crit['id']}")
+                            with c2c: st.markdown(f"<div style='padding-top:6px;color:#e53935;font-size:12px;font-weight:600;text-align:right'>−{crit['peso']}</div>",unsafe_allow_html=True)
+                            passou_ed=not nao_passou_ed
+                            if not passou_ed: nota_ed-=crit["peso"]
+                            crits_ed.append({**crit,"passou":passou_ed})
+                    nota_ed=max(0,nota_ed)
+                    cn_ed="#2e7d32" if nota_ed>=80 else "#f57f17" if nota_ed>=60 else "#c62828"
+                    st.markdown(f"<div style='background:#f0f7f0;border-radius:8px;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;margin-top:8px'><span style='color:#5a8a5a;font-size:12px'>Nova nota</span><span style='color:{cn_ed};font-size:28px;font-weight:800'>{round(nota_ed)}</span></div>",unsafe_allow_html=True)
+
+                    if st.button("💾 Salvar Edição Completa",key=f"ed_save_{m['_id']}",use_container_width=True):
                         get_db().monitorias.update_one(
                             {"_id":m["_id"]},
-                            {"$set":{"semana_mon":ed_semana,"protocolo":ed_prot,"observacao":ed_obs}}
+                            {"$set":{
+                                "semana_mon":ed_semana,
+                                "protocolo":ed_prot,
+                                "observacao":ed_obs,
+                                "criterios":crits_ed,
+                                "errosCriticos":erros_ed,
+                                "nota":nota_ed
+                            }}
                         )
-                        st.success("✅ Monitoria atualizada!")
+                        st.success(f"✅ Monitoria atualizada! Nova nota: {round(nota_ed)}%")
                         st.rerun()
 
                 c1x,c2x=st.columns(2)
