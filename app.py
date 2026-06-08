@@ -1575,11 +1575,11 @@ def pagina_quadro(ma):
             ops=buscar_operadores(eq); lancs=buscar_lancamentos(ma,eq)
         except:
             st.error("Erro ao conectar ao banco. Tente recarregar."); continue
-        up_check=buscar_ultimo_processamento(ma,eq)
-        if not lancs and not up_check: continue
+        # Mostrar card só se tiver lançamento no mês
+        if not lancs: continue
         mg_doc=buscar_meta_gestora(ma,eq); mops=buscar_metas_equipe(ma,eq)
         mg=float(mg_doc.get("metaGestora",0))
-        ul=lancs[0] if lancs else {}
+        ul=lancs[0]
         # Com Interação: para Luciano exclui Meet Call; para metcool só Meet Call
         if eq=="luciano":
             tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict) and v.get("nome","") not in OPERADORES_MEETCALL)
