@@ -511,9 +511,24 @@ def buscar_ultimo_processamento(ma, eq):
         {"mesAno":ma,"equipeId":eq},
         {"_id":1,"mesAno":1,"equipeId":1,"valorElegivel":1,"boletosElegiveis":1,
          "clientesElegiveis":1,"fornecedoras":1,"porFornecedora":1,"totalRegistros":1,
-         "usuarioNome":1,"atualizadoEm":1}
+         "usuarioNome":1,"atualizadoEm":1,"registros":1}
     )
     if not doc: return {}
+    # Se não tem porFornecedora mas tem registros (base antiga), calcular
+    if not doc.get("porFornecedora") and doc.get("registros"):
+        try:
+            df = pd.DataFrame(doc["registros"])
+            df["valor"] = pd.to_numeric(df.get("valor", pd.Series(dtype=float)), errors="coerce").fillna(0)
+            elig = df[df["elegibilidade"]=="Elegível"] if "elegibilidade" in df.columns else df
+            doc["valorElegivel"] = float(elig["valor"].sum())
+            doc["boletosElegiveis"] = len(elig)
+            doc["clientesElegiveis"] = int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns else 0
+            if "fornecedora" in elig.columns:
+                pf = {}
+                for forn, grp in elig.groupby("fornecedora"):
+                    pf[str(forn)] = {"valor": float(grp["valor"].sum()), "boletos": len(grp)}
+                doc["porFornecedora"] = pf
+        except: pass
     return doc
 
 def buscar_historico_processamentos(ma, eq): return list(get_db().processamentos.find({"mesAno":ma,"equipeId":eq}).sort("criadoEm",-1))
