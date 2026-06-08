@@ -797,6 +797,20 @@ def get_val_op(ag, oid, onome):
     return 0.0
 
 # ── CORREÇÃO PRINCIPAL: normalizar_cpf com zfill(11) ──
+def parse_data_inteligente(series):
+    """Detecta formato de data automaticamente e converte corretamente."""
+    s = series.dropna().astype(str)
+    if s.empty: return pd.to_datetime(series, errors="coerce").dt.normalize()
+    amostra = s.iloc[0].strip()
+    # Formato ISO: YYYY-MM-DD ou YYYY/MM/DD
+    if len(amostra) >= 10 and amostra[4] in ["-","/"]:
+        return pd.to_datetime(series, dayfirst=False, errors="coerce").dt.normalize()
+    # Formato BR: DD/MM/YYYY ou DD-MM-YYYY
+    if len(amostra) >= 10 and amostra[2] in ["/","-"]:
+        return pd.to_datetime(series, dayfirst=True, errors="coerce").dt.normalize()
+    # Fallback
+    return pd.to_datetime(series, dayfirst=True, errors="coerce").dt.normalize()
+
 def normalizar_cpf(s):
     s=str(s).strip()
     # Remove formatação primeiro
@@ -1130,7 +1144,7 @@ def processar_contatos(dc):
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
     cc=next((c for c in dc.columns if norm(str(c)) in ["CPF","IDENTIFICADOR","IDENTIF","IDENTIFICACAO"]),dc.columns[0])
     cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
-    dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":pd.to_datetime(dc[cd],dayfirst=True,errors="coerce").dt.normalize()}).dropna(subset=["data_contato"])
+    dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":parse_data_inteligente(dc[cd])}).dropna(subset=["data_contato"])
     dd=dd[dd["uc_cpf"].str.len()>=8]
     dd=dd[~dd["uc_cpf"].str.match(r"^0+$")]
     dd=dd[dd["uc_cpf"]!="nan"]
@@ -1181,8 +1195,8 @@ def processar_base_unica(arquivo, eq, ma):
         df = mapear_colunas_pagos(df)
         df["_row_id"]=df.index
         if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
-        if "data_pagamento" in df.columns: df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],dayfirst=True,errors="coerce").dt.normalize()
-        if "data_vencimento" in df.columns: df["data_vencimento"]=pd.to_datetime(df["data_vencimento"],dayfirst=True,errors="coerce").dt.normalize()
+        if "data_pagamento" in df.columns: df["data_pagamento"]=parse_data_inteligente(df["data_pagamento"])
+        if "data_vencimento" in df.columns: df["data_vencimento"]=parse_data_inteligente(df["data_vencimento"])
         if "valor" in df.columns:
             def cv(v):
                 s=str(v).strip().replace("R$","").replace(" ","")
@@ -1212,8 +1226,8 @@ def processar_base_unica(arquivo, eq, ma):
         df["_row_id"]=df.index
         df = mapear_colunas_pagos(df)
         if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
-        if "data_pagamento" in df.columns: df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],dayfirst=True,errors="coerce").dt.normalize()
-        if "data_vencimento" in df.columns: df["data_vencimento"]=pd.to_datetime(df["data_vencimento"],dayfirst=True,errors="coerce").dt.normalize()
+        if "data_pagamento" in df.columns: df["data_pagamento"]=parse_data_inteligente(df["data_pagamento"])
+        if "data_vencimento" in df.columns: df["data_vencimento"]=parse_data_inteligente(df["data_vencimento"])
         if "valor" in df.columns:
             def cv(v):
                 s=str(v).strip().replace("R$","").replace(" ","")
