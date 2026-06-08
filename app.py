@@ -467,25 +467,41 @@ def buscar_monitorias_equipe(eq, ma=None):
 def excluir_monitoria(did): get_db().monitorias.delete_one({"_id":did})
 
 def salvar_processamento(ma, eq, df, usuario_nome=""):
-    get_db().processamentos.update_one({"_id":f"proc__{ma}__{eq}"},{"$set":{"_id":f"proc__{ma}__{eq}","mesAno":ma,"equipeId":eq,"registros":df.to_dict("records"),"usuarioNome":usuario_nome,"atualizadoEm":datetime.now()}},upsert=True)
+    # Calcular métricas antes de salvar
+    df_num = df.copy()
+    df_num["valor"] = pd.to_numeric(df_num.get("valor", pd.Series(dtype=float)), errors="coerce").fillna(0)
+    elig = df_num[df_num["elegibilidade"]=="Elegível"] if "elegibilidade" in df_num.columns else df_num
+    valor_elig = float(elig["valor"].sum())
+    boletos_elig = len(elig)
+    clientes_elig = int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns else 0
+    forns = sorted(df_num["fornecedora"].dropna().unique().tolist()) if "fornecedora" in df_num.columns else []
+
+    # Salvar só métricas — sem registros (evita DocumentTooLarge)
+    get_db().processamentos.update_one(
+        {"_id":f"proc__{ma}__{eq}"},
+        {"$set":{
+            "_id":f"proc__{ma}__{eq}",
+            "mesAno":ma,
+            "equipeId":eq,
+            "usuarioNome":usuario_nome,
+            "valorElegivel":valor_elig,
+            "boletosElegiveis":boletos_elig,
+            "clientesElegiveis":clientes_elig,
+            "fornecedoras":forns,
+            "totalRegistros":len(df_num),
+            "atualizadoEm":datetime.now()
+        }},
+        upsert=True)
     try: salvar_historico_processamento(ma,eq,usuario_nome,df)
     except: pass
 
 def buscar_ultimo_processamento(ma, eq):
-    doc = get_db().processamentos.find_one({"mesAno":ma,"equipeId":eq},sort=[("criadoEm",-1)])
+    doc = get_db().processamentos.find_one(
+        {"mesAno":ma,"equipeId":eq},
+        {"_id":1,"mesAno":1,"equipeId":1,"valorElegivel":1,"boletosElegiveis":1,
+         "clientesElegiveis":1,"fornecedoras":1,"totalRegistros":1,"usuarioNome":1,"atualizadoEm":1}
+    )
     if not doc: return {}
-    if doc.get("registros"):
-        try:
-            df = pd.DataFrame(doc["registros"])
-            df["valor"] = pd.to_numeric(df.get("valor", pd.Series(dtype=float)), errors="coerce").fillna(0)
-            if "elegibilidade" in df.columns:
-                elig = df[df["elegibilidade"]=="Elegível"]
-            else:
-                elig = df
-            doc["valorElegivel"]     = float(elig["valor"].sum())
-            doc["boletosElegiveis"]  = len(elig)
-            doc["clientesElegiveis"] = int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns else 0
-        except: pass
     return doc
 
 def buscar_historico_processamentos(ma, eq): return list(get_db().processamentos.find({"mesAno":ma,"equipeId":eq}).sort("criadoEm",-1))
@@ -2107,9 +2123,9 @@ def pagina_upload(ma):
         u_hist=st.session_state.usuario
         try:
             if u_hist['role'] in ['admin','diretor']:
-                hist_geral=buscar_historico_geral()
+                hist_geral=buscar_historico_geral(mes_ano=ma)
             else:
-                hist_geral=buscar_historico_geral(equipe_id=u_hist.get('equipe'))
+                hist_geral=buscar_historico_geral(mes_ano=ma, equipe_id=u_hist.get('equipe'))
         except Exception as e:
             hist_geral=[]
             st.warning(f"Não foi possível carregar o histórico: {e}")
