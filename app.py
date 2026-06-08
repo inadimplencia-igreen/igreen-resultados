@@ -479,7 +479,7 @@ def salvar_processamento(ma, eq, df, usuario_nome=""):
     clientes_elig = int(elig["uc_cpf"].nunique()) if "uc_cpf" in elig.columns else 0
     forns = sorted(df_num["fornecedora"].dropna().unique().tolist()) if "fornecedora" in df_num.columns else []
 
-    # Calcular breakdown por fornecedora
+    # Calcular breakdown por fornecedora (e por UF se disponível)
     por_fornecedora = {}
     if "fornecedora" in elig.columns:
         for forn, grp in elig.groupby("fornecedora"):
@@ -488,6 +488,17 @@ def salvar_processamento(ma, eq, df, usuario_nome=""):
                 "boletos": len(grp),
                 "clientes": int(grp["uc_cpf"].nunique()) if "uc_cpf" in grp.columns else 0
             }
+            # Se tiver UF, salvar breakdown por UF dentro da fornecedora
+            if "uf" in elig.columns:
+                por_uf = {}
+                for uf, grp_uf in grp.groupby("uf"):
+                    if pd.notna(uf) and str(uf).strip():
+                        por_uf[str(uf).strip().upper()] = {
+                            "valor": float(grp_uf["valor"].sum()),
+                            "boletos": len(grp_uf)
+                        }
+                if por_uf:
+                    por_fornecedora[str(forn)]["porUF"] = por_uf
 
     # Salvar métricas + breakdown por fornecedora (sem registros completos)
     get_db().processamentos.update_one(
@@ -1176,6 +1187,8 @@ def mapear_colunas_pagos(df):
             if any(x in cn for x in ["FORNEC","FORN"]):
                 col_forn = c; break
 
+    # UF — manter coluna original no dataframe (não precisa renomear)
+
     mapa={}
     if col_cpf:  mapa[col_cpf]="uc_cpf"
     if col_val:  mapa[col_val]="valor"
@@ -1688,6 +1701,10 @@ def pagina_quadro(ma):
                         if val>0:
                             forn_rows.append({"Fornecedora":forn,"Valor Recebido":fmt_brl(val),"Boletos":dados.get("boletos",0)})
                             total_forn+=val
+                            # Se tiver breakdown por UF, exibir sub-linhas
+                            por_uf=dados.get("porUF",{})
+                            for uf,duf in sorted(por_uf.items(),key=lambda x:x[1].get("valor",0),reverse=True):
+                                forn_rows.append({"Fornecedora":f"  └ {forn} — {uf}","Valor Recebido":fmt_brl(float(duf.get("valor",0))),"Boletos":duf.get("boletos",0)})
                     if forn_rows:
                         forn_rows.append({"Fornecedora":"TOTAL GERAL","Valor Recebido":fmt_brl(total_forn),"Boletos":""})
                         st.markdown("<p style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px'>POR FORNECEDORA</p>",unsafe_allow_html=True)
