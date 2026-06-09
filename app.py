@@ -1669,26 +1669,46 @@ def pagina_quadro(ma):
 
         show=st.session_state[k]
         if show and ops:
-            if eq=="luciano":
-                ops_ig=[op for op in ops if op["nome"] not in OPERADORES_MEETCALL]
-                rows=[]
-                for op in ops_ig:
-                    v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
-                    meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
-                    proj_op=calc_projecao(v,dt,td) if v>0 else 0
-                    lig_op=int(ul.get("agentes",{}).get(op["_id"],{}).get("ligacoes",0) if isinstance(ul.get("agentes",{}).get(op["_id"]),dict) else 0)
-                    rows.append({"Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if v>0 else "—","Lig. +5s":lig_op if lig_op>0 else "—","_v":v})
-                df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
-                df.index=range(1,len(df)+1)
-                st.dataframe(df,use_container_width=True,height=min(400,(len(df)+1)*38+40))
-            else:
-                rows=[]
-                for op in ops:
-                    v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
-                    meta=float(mops.get(op["_id"],0)); pc=(v/meta*100) if meta>0 else 0
-                    proj_op=calc_projecao(v,dt,td) if v>0 else 0
-                    rows.append({"Status":status_pct(pc) if meta>0 else "—","Operador":op["nome"]+(" ★" if op.get("pleno") else ""),"Recebido":fmt_brl(v) if v>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pc:.1f}%" if meta>0 else "—","Projeção":fmt_brl(proj_op) if v>0 else "—","_v":v})
-                df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
+            # Filtrar operadores da equipe (Luciano sem Meet Call)
+            ops_show=[op for op in ops if op["nome"] not in OPERADORES_MEETCALL] if eq=="luciano" else ops
+
+            # Montar ranking por % meta
+            rows_com_meta=[]
+            rows_sem_meta=[]
+            for op in ops_show:
+                v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
+                meta=float(mops.get(op["_id"],0))
+                pc=(v/meta*100) if meta>0 else 0
+                proj_op=calc_projecao(v,dt,td) if v>0 else 0
+                lig_op=int(ul.get("agentes",{}).get(op["_id"],{}).get("ligacoes",0) if isinstance(ul.get("agentes",{}).get(op["_id"]),dict) else 0)
+                row={"Operador":op["nome"]+(" ★" if op.get("pleno") else ""),
+                     "Recebido":fmt_brl(v) if v>0 else "—",
+                     "Meta":fmt_brl(meta) if meta>0 else "—",
+                     "% Meta":f"{pc:.1f}%" if meta>0 else "—",
+                     "Projeção":fmt_brl(proj_op) if v>0 else "—",
+                     "_pc":pc,"_v":v}
+                if lig_op>0: row["Lig. +5s"]=lig_op
+                if meta>0:
+                    rows_com_meta.append(row)
+                else:
+                    rows_sem_meta.append(row)
+
+            # Ordenar com meta por % desc, sem meta por valor desc
+            rows_com_meta.sort(key=lambda x: x["_pc"], reverse=True)
+            rows_sem_meta.sort(key=lambda x: x["_v"], reverse=True)
+            todos=rows_com_meta+rows_sem_meta
+
+            # Adicionar posição com medalhas
+            rows_final=[]
+            for i,r in enumerate(todos):
+                pos = "🥇" if i==0 else "🥈" if i==1 else "🥉" if i==2 else f"{i+1}º"
+                r2={k2:v2 for k2,v2 in r.items() if not k2.startswith("_")}
+                r2={"#":pos,**r2}
+                rows_final.append(r2)
+
+            if rows_final:
+                st.markdown(f"<p style='color:#81c784;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px'>🏆 Ranking — {EQUIPES.get(eq,{}).get('nome','') if eq!='metcool' else 'Meet Call'}</p>",unsafe_allow_html=True)
+                df=pd.DataFrame(rows_final).reset_index(drop=True)
                 df.index=range(1,len(df)+1)
                 st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
         if up and up.get("porFornecedora"):
