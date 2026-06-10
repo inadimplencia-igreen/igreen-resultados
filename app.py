@@ -764,8 +764,10 @@ def processar_base_inadimplencia(arquivo, eq, ma):
             pagos = float(df_fx[df_fx["_pago"]]["_valor"].sum())
             vencidos = float(df_fx[~df_fx["_pago"]]["_valor"].sum())
             total_faixa = pagos + vencidos
-            pct_faixa = (total_faixa/total_geral*100) if total_geral>0 else 0
-            pct_inad = (vencidos/total_faixa*100) if total_faixa>0 else 0
+            # %Faixa = Vencidos / Total da faixa
+            pct_faixa = (vencidos/total_faixa*100) if total_faixa>0 else 0
+            # %Geral = Vencidos da faixa / Total geral (pagos + vencidos de todas as faixas)
+            pct_inad = (vencidos/total_geral*100) if total_geral>0 else 0
             resultado[forn][faixa] = {
                 "pagos": pagos,
                 "vencidos": vencidos,
