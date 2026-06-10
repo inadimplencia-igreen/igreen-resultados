@@ -682,8 +682,23 @@ def processar_base_inadimplencia(arquivo, eq, ma):
         return None, f"Colunas não encontradas. Necessário: fornecedora, dtvencimento, valor. Encontradas: {list(df.columns)}"
 
     # Data de referência = último dia do mês selecionado
-    ano, mes = map(int, ma.split("-"))
     import calendar
+    try:
+        # Formato "Junho-2026"
+        partes = ma.split("-")
+        if len(partes) == 2:
+            mes_nome, ano_str = partes[0].strip(), partes[1].strip()
+            if mes_nome.isdigit():
+                ano, mes = int(ano_str), int(mes_nome)
+            else:
+                meses_map = {"Janeiro":1,"Fevereiro":2,"Março":3,"Abril":4,"Maio":5,"Junho":6,
+                             "Julho":7,"Agosto":8,"Setembro":9,"Outubro":10,"Novembro":11,"Dezembro":12}
+                mes = meses_map.get(mes_nome, 1)
+                ano = int(ano_str)
+        else:
+            return None, f"Formato de mês inválido: {ma}"
+    except Exception as e:
+        return None, f"Erro ao processar mês {ma}: {e}"
     ultimo_dia = calendar.monthrange(ano, mes)[1]
     data_ref = pd.Timestamp(ano, mes, ultimo_dia)
     data_inicio = data_ref - pd.DateOffset(years=1)
