@@ -1995,20 +1995,25 @@ def pagina_monitorias_diretor(ma):
         return
     # Calcular médias por equipe para mostrar no header
     linhas_eq=""; todas_medias_top=[]; eqs_mon=["luciano","deborah","tamires"]
+    eq_medias_list=[]
     for eq_pre in eqs_mon:
         ops_pre=buscar_operadores(eq_pre)
         medias_pre=[calc_media_operador(op["_id"],ma)[0] for op in ops_pre if calc_media_operador(op["_id"],ma)[1]>0]
         if medias_pre:
             me_pre=sum(medias_pre)/len(medias_pre)
-            todas_medias_top.append(me_pre)
-            cor_me=cor_pct(me_pre)
             nome_eq=EQUIPES.get(eq_pre,{}).get("nome",eq_pre)
-            linhas_eq+=f"<div style='display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #e8f0e8'><span style='color:#2d4a2d;font-size:13px;font-weight:500'>{nome_eq}</span><span style='color:{cor_me};font-size:15px;font-weight:700'>{me_pre:.1f}%</span></div>"
+            eq_medias_list.append((nome_eq,me_pre))
+            todas_medias_top.append(me_pre)
+    # Ordenar por melhor média
+    eq_medias_list.sort(key=lambda x: x[1], reverse=True)
+    for nome_eq,me_pre in eq_medias_list:
+        cor_me=cor_pct(me_pre)
+        linhas_eq+=f"<div style='display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #e8f0e8'><span style='color:#2d4a2d;font-size:13px;font-weight:500'>{nome_eq}</span><span style='color:{cor_me};font-size:15px;font-weight:700'>{me_pre:.1f}%</span></div>"
 
     if todas_medias_top:
         mg_top=sum(todas_medias_top)/len(todas_medias_top)
         cor_mg=cor_pct(mg_top)
-        linhas_eq+=f"<div style='display:flex;justify-content:space-between;align-items:center;padding:6px 0 0'><span style='color:#5a8a5a;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px'>Média Geral</span><span style='color:{cor_mg};font-size:16px;font-weight:800'>{mg_top:.1f}%</span></div>"
+        linhas_eq+=f"<div style='border-top:1px solid #c8e0c8;margin-top:6px;padding-top:8px;display:flex;justify-content:space-between;align-items:center'><span style='color:#2d4a2d;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px'>Média Geral</span><span style='color:{cor_mg};font-size:22px;font-weight:800'>{mg_top:.1f}%</span></div>"
 
     if linhas_eq:
         st.markdown(
