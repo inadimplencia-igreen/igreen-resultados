@@ -687,8 +687,10 @@ def processar_base_inadimplencia(arquivo, eq, ma):
             if "VALOR" in cn and c not in [col_forn, col_dvenc, col_dpag]:
                 col_val = c; break
 
+    # Debug — mostrar o que foi mapeado
+    debug_msg = f"Mapeamento: forn='{col_forn}' | venc='{col_dvenc}' | pag='{col_dpag}' | val='{col_val}'"
     if not col_forn or not col_dvenc or not col_val:
-        return None, f"Colunas não encontradas. Necessário: fornecedora, dtvencimento, valor. Encontradas: {list(df.columns)}"
+        return None, f"Colunas não encontradas. {debug_msg}. Colunas disponíveis: {list(df.columns)}"
 
     # Data de referência = último dia do mês selecionado
     import calendar
@@ -713,13 +715,22 @@ def processar_base_inadimplencia(arquivo, eq, ma):
     data_inicio = data_ref - pd.DateOffset(years=1)
 
     # Converter datas
-    df["_dvenc"] = parse_data_inteligente(df[col_dvenc])
-    df["_dpag"] = parse_data_inteligente(df[col_dpag]) if col_dpag else pd.NaT
-    df["_valor"] = pd.to_numeric(df[col_val].astype(str).str.replace("R$","").str.replace(".","").str.replace(",",".").str.strip(), errors="coerce").fillna(0)
+    df["_dvenc"] = pd.to_datetime(df[col_dvenc], errors="coerce")
+    df["_dpag"] = pd.to_datetime(df[col_dpag], errors="coerce") if col_dpag else pd.NaT
+    # Converter valor — aceita vírgula como decimal
+    df["_valor"] = pd.to_numeric(
+        df[col_val].astype(str).str.replace("R$","").str.replace(" ","").str.replace(".","").str.replace(",",".").str.strip(),
+        errors="coerce").fillna(0)
     df["_forn"] = df[col_forn].astype(str).str.strip().str.upper()
 
+    # Detectar coluna Status (PAGO/VENCIDO) se existir
+    col_status = None
+    for c in df.columns:
+        cn = norm(str(c))
+        if cn == "STATUS":
+            col_status = c; break
+
     # Aplicar janela de 1 ano
-    # Entra se: vencimento dentro da janela OU (vencimento fora mas pagamento dentro da janela)
     mask_venc_janela = (df["_dvenc"] >= data_inicio) & (df["_dvenc"] <= data_ref)
     mask_pag_janela = df["_dpag"].notna() & (df["_dpag"] >= data_inicio) & (df["_dpag"] <= data_ref)
     df = df[mask_venc_janela | mask_pag_janela].copy()
@@ -737,8 +748,11 @@ def processar_base_inadimplencia(arquivo, eq, ma):
         return "D90+"
     df["_faixa"] = df["_dias"].apply(calc_faixa)
 
-    # Pago = tem data de pagamento válida dentro da janela
-    df["_pago"] = df["_dpag"].notna() & (df["_dpag"] <= data_ref)
+    # Pago = usar coluna Status se disponível, senão usar data pagamento
+    if col_status:
+        df["_pago"] = df[col_status].astype(str).str.upper().str.strip() == "PAGO"
+    else:
+        df["_pago"] = df["_dpag"].notna() & (df["_dpag"] <= data_ref)
 
     # Calcular resultado por fornecedora e faixa
     FAIXAS = ["D0-30", "D31-60", "D61-90", "D90+"]
