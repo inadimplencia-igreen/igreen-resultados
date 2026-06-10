@@ -2451,7 +2451,7 @@ def pagina_inadimplencia(ma):
     u=st.session_state.usuario
     is_dir=u["role"]=="diretor"; is_adm=u["role"]=="admin"
     header_page("Análise de Inadimplência","Taxa de recuperação por faixa e fornecedora")
-    FAIXAS=["D30","D31-60","D61-90","D90+"]
+    FAIXAS=["D0-30","D31-60","D61-90","D90+"]
     c1,c2,c3=st.columns(3)
     with c1:
         md=listar_meses_inadimplencia() or [ma]
