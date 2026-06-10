@@ -2455,13 +2455,10 @@ def pagina_inadimplencia(ma):
             "</div>", unsafe_allow_html=True)
         arq_i=st.file_uploader("Base (.xlsx ou .csv)",type=["xlsx","csv"],label_visibility="collapsed",key=f"arq_inad_{ms}_{eq}")
         if arq_i:
-            if st.button("⚙️ Processar Base",use_container_width=True,key=f"btn_proc_inad_{ms}_{eq}",
-                         disabled=st.session_state.get("proc_inad_loading",False)):
-                st.session_state["proc_inad_loading"]=True
+            if st.button("⚙️ Processar Base",use_container_width=True,key=f"btn_proc_inad_{ms}_{eq}"):
                 arq_i.seek(0)
                 with st.spinner("Processando base..."):
                     resultado_inad,erro_inad=processar_base_inadimplencia(arq_i,eq or u.get("equipe","tamires"),ms)
-                st.session_state["proc_inad_loading"]=False
                 if erro_inad:
                     st.error(erro_inad)
                 elif resultado_inad:
