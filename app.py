@@ -2477,20 +2477,25 @@ def pagina_inadimplencia(ma):
             "Outras colunas são ignoradas. Data de referência: último dia do mês selecionado."
             "</div>", unsafe_allow_html=True)
         arq_i=st.file_uploader("Base (.xlsx ou .csv)",type=["xlsx","csv"],label_visibility="collapsed",key=f"arq_inad_{ms}_{eq}")
+        col_proc1, col_proc2 = st.columns(2)
+        with col_proc1:
+            if st.button("🗑️ Limpar dados do mês",use_container_width=True,key=f"btn_limpar_inad_{ms}_{eq}"):
+                salvar_inadimplencia(ms, eq or u.get("equipe","tamires"), {})
+                st.success("✅ Dados do mês limpos!")
+                st.rerun()
         if arq_i:
-            if st.button("⚙️ Processar Base",use_container_width=True,key=f"btn_proc_inad_{ms}_{eq}"):
-                arq_i.seek(0)
-                with st.spinner("Processando base..."):
-                    resultado_inad,erro_inad=processar_base_inadimplencia(arq_i,eq or u.get("equipe","tamires"),ms)
-                if erro_inad:
-                    st.error(erro_inad)
-                elif resultado_inad:
-                    doc_inad=buscar_inadimplencia(ms,eq or u.get("equipe","tamires")) or {}
-                    dados_novo=doc_inad.get("dados",{})
-                    dados_novo.update(resultado_inad)
-                    salvar_inadimplencia(ms,eq or u.get("equipe","tamires"),dados_novo)
-                    st.success(f"✅ Base processada! {len(resultado_inad)} fornecedoras encontradas.")
-                    st.rerun()
+            with col_proc2:
+                if st.button("⚙️ Processar Base",use_container_width=True,key=f"btn_proc_inad_{ms}_{eq}"):
+                    arq_i.seek(0)
+                    with st.spinner("Processando base..."):
+                        resultado_inad,erro_inad=processar_base_inadimplencia(arq_i,eq or u.get("equipe","tamires"),ms)
+                    if erro_inad:
+                        st.error(erro_inad)
+                    elif resultado_inad:
+                        # Substituir completamente — não mesclar com dados antigos
+                        salvar_inadimplencia(ms,eq or u.get("equipe","tamires"),resultado_inad)
+                        st.success(f"✅ Base processada! {len(resultado_inad)} fornecedoras encontradas.")
+                        st.rerun()
     st.markdown("---")
     edit=st.checkbox("Editar manualmente",key="edit_inad")
     if is_dir or is_adm:
@@ -2519,9 +2524,16 @@ def pagina_inadimplencia(ma):
         cor=CORES_FORN.get(forn,"#333"); fd=dados.get(forn,{})
         html+=f'<tr><td class="tdn"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:{cor};margin-right:6px"></span>{forn}</td>'
         tp=tv=0
+        # Calcular total geral da fornecedora (todas as faixas)
+        total_geral_forn = sum(
+            float(fd.get(fx,{}).get("pagos",0)) + float(fd.get(fx,{}).get("vencidos",0))
+            for fx in FAIXAS)
         for faixa in FAIXAS:
             p=float(fd.get(faixa,{}).get("pagos",0)); v=float(fd.get(faixa,{}).get("vencidos",0))
-            pf=(p/(p+v)*100) if (p+v)>0 else 0; pi=(v/(p+v)*100) if (p+v)>0 else 0
+            # %Faixa = Vencidos / Total da faixa
+            pf=(v/(p+v)*100) if (p+v)>0 else 0
+            # %Inad = Vencidos da faixa / Total geral da fornecedora
+            pi=(v/total_geral_forn*100) if total_geral_forn>0 else 0
             tots[faixa]["p"]+=p; tots[faixa]["v"]+=v; tp+=p; tv+=v
             html+=f'<td>{fmt_brl_td(p)}</td><td>{fmt_brl_td(v)}</td><td class="tdf">{pf:.1f}%</td><td class="tdp">{pi:.1f}%</td>'
         tots["T"]["p"]+=tp; tots["T"]["v"]+=tv
