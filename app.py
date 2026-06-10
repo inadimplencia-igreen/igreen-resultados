@@ -1993,19 +1993,28 @@ def pagina_monitorias_diretor(ma):
                     b64=base64.b64encode(hp.encode()).decode()
                     st.markdown(f'<a href="data:text/html;base64,{b64}" download="Mon_{m["opNome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px">Baixar PDF</a>',unsafe_allow_html=True)
         return
-    # Calcular média geral para mostrar compacto no topo
-    todas_medias_top=[]
-    for eq_pre in EQUIPES:
-        for op_pre in buscar_operadores(eq_pre):
-            m_pre,n_pre=calc_media_operador(op_pre["_id"],ma)
-            if n_pre>0: todas_medias_top.append(m_pre)
+    # Calcular médias por equipe para mostrar no header
+    linhas_eq=""; todas_medias_top=[]; eqs_mon=["luciano","deborah","tamires"]
+    for eq_pre in eqs_mon:
+        ops_pre=buscar_operadores(eq_pre)
+        medias_pre=[calc_media_operador(op["_id"],ma)[0] for op in ops_pre if calc_media_operador(op["_id"],ma)[1]>0]
+        if medias_pre:
+            me_pre=sum(medias_pre)/len(medias_pre)
+            todas_medias_top.append(me_pre)
+            cor_me=cor_pct(me_pre)
+            nome_eq=EQUIPES.get(eq_pre,{}).get("nome",eq_pre)
+            linhas_eq+=f"<div style='display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #e8f0e8'><span style='color:#2d4a2d;font-size:13px;font-weight:500'>{nome_eq}</span><span style='color:{cor_me};font-size:15px;font-weight:700'>{me_pre:.1f}%</span></div>"
+
     if todas_medias_top:
         mg_top=sum(todas_medias_top)/len(todas_medias_top)
+        cor_mg=cor_pct(mg_top)
+        linhas_eq+=f"<div style='display:flex;justify-content:space-between;align-items:center;padding:6px 0 0'><span style='color:#5a8a5a;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px'>Média Geral</span><span style='color:{cor_mg};font-size:16px;font-weight:800'>{mg_top:.1f}%</span></div>"
+
+    if linhas_eq:
         st.markdown(
-            f"<div style='display:flex;align-items:center;gap:12px;margin-bottom:12px'>"
-            f"<span style='color:#5a8a5a;font-size:11px;text-transform:uppercase;letter-spacing:1px'>Média Geral</span>"
-            f"<span style='color:{cor_pct(mg_top)};font-size:18px;font-weight:700'>{mg_top:.1f}%</span>"
-            f"</div>",
+            f"<div style='background:#ffffff;border:1px solid #c8e0c8;border-radius:12px;padding:16px 24px;"
+            f"margin-bottom:20px;border-left:4px solid #2e7d32;box-shadow:0 2px 8px rgba(0,0,0,0.06)'>"
+            f"{linhas_eq}</div>",
             unsafe_allow_html=True)
 
     st.markdown("### Visão Geral — Monitorias por Equipe")
