@@ -1993,17 +1993,22 @@ def pagina_monitorias_diretor(ma):
                     b64=base64.b64encode(hp.encode()).decode()
                     st.markdown(f'<a href="data:text/html;base64,{b64}" download="Mon_{m["opNome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px">Baixar PDF</a>',unsafe_allow_html=True)
         return
-    st.markdown("### Visão Geral — Monitorias por Equipe")
-    todas_medias=[]
-    # Calcular média geral antecipadamente para mostrar no topo
+    # Calcular média geral para mostrar compacto no topo
+    todas_medias_top=[]
     for eq_pre in EQUIPES:
-        ops_pre=buscar_operadores(eq_pre)
-        for op_pre in ops_pre:
+        for op_pre in buscar_operadores(eq_pre):
             m_pre,n_pre=calc_media_operador(op_pre["_id"],ma)
-            if n_pre>0: todas_medias.append(m_pre)
-    if todas_medias:
-        mg_top=sum(todas_medias)/len(todas_medias)
-        st.markdown(f"<div style='background:#001a0a;border:2px solid #1e3a1e;border-radius:12px;padding:16px 24px;text-align:center;margin-bottom:16px'><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px'>MÉDIA GERAL DE INADIMPLÊNCIA</div><div style='color:{cor_pct(mg_top)};font-size:32px;font-weight:800'>{mg_top:.1f}%</div></div>",unsafe_allow_html=True)
+            if n_pre>0: todas_medias_top.append(m_pre)
+    if todas_medias_top:
+        mg_top=sum(todas_medias_top)/len(todas_medias_top)
+        st.markdown(
+            f"<div style='display:flex;align-items:center;gap:12px;margin-bottom:12px'>"
+            f"<span style='color:#5a8a5a;font-size:11px;text-transform:uppercase;letter-spacing:1px'>Média Geral</span>"
+            f"<span style='color:{cor_pct(mg_top)};font-size:18px;font-weight:700'>{mg_top:.1f}%</span>"
+            f"</div>",
+            unsafe_allow_html=True)
+
+    st.markdown("### Visão Geral — Monitorias por Equipe")
     todas_medias=[]
     for eq in EQUIPES:
         ops=buscar_operadores(eq)
