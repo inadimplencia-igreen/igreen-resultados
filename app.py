@@ -749,11 +749,8 @@ def processar_base_inadimplencia(arquivo, eq, ma):
         return "D90+"
     df["_faixa"] = df["_dias"].apply(calc_faixa)
 
-    # Pago = pagou ATÉ a data de referência E após o vencimento
-    # Boleto pago ANTES do vencimento = excluir (não entra no cálculo)
-    df["_pago"] = df["_dpag"].notna() & (df["_dpag"] <= data_ref) & (df["_dpag"] >= df["_dvenc"])
-    # Excluir boletos pagos antes do vencimento
-    df = df[~(df["_dpag"].notna() & (df["_dpag"] < df["_dvenc"]))].copy()
+    # Pago = pagou ATÉ a data de referência
+    df["_pago"] = df["_dpag"].notna() & (df["_dpag"] <= data_ref)
 
     # Calcular resultado por fornecedora e faixa
     FAIXAS = ["D0-30", "D31-60", "D61-90", "D90+"]
