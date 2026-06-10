@@ -712,7 +712,8 @@ def processar_base_inadimplencia(arquivo, eq, ma):
         return None, f"Erro ao processar mês {ma}: {e}"
     ultimo_dia = calendar.monthrange(ano, mes)[1]
     data_ref = pd.Timestamp(ano, mes, ultimo_dia)
-    data_inicio = data_ref - pd.DateOffset(years=1)
+    # Janela: dia 01 do mesmo mês do ano anterior até último dia do mês de referência
+    data_inicio = pd.Timestamp(ano - 1, mes, 1)
 
     # Converter datas
     df["_dvenc"] = pd.to_datetime(df[col_dvenc], errors="coerce")
@@ -748,11 +749,11 @@ def processar_base_inadimplencia(arquivo, eq, ma):
         return "D90+"
     df["_faixa"] = df["_dias"].apply(calc_faixa)
 
-    # Pago = usar coluna Status se disponível, senão usar data pagamento
-    if col_status:
-        df["_pago"] = df[col_status].astype(str).str.upper().str.strip() == "PAGO"
-    else:
-        df["_pago"] = df["_dpag"].notna() & (df["_dpag"] <= data_ref)
+    # Pago = pagou ATÉ a data de referência E após o vencimento
+    # Boleto pago ANTES do vencimento = excluir (não entra no cálculo)
+    df["_pago"] = df["_dpag"].notna() & (df["_dpag"] <= data_ref) & (df["_dpag"] >= df["_dvenc"])
+    # Excluir boletos pagos antes do vencimento
+    df = df[~(df["_dpag"].notna() & (df["_dpag"] < df["_dvenc"]))].copy()
 
     # Calcular resultado por fornecedora e faixa
     FAIXAS = ["D0-30", "D31-60", "D61-90", "D90+"]
