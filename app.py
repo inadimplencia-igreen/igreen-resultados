@@ -643,6 +643,102 @@ def salvar_inadimplencia(ma, eq, dados):
     did = f"inadimp__{ma}__{eq}"
     get_db().inadimplencia.update_one({"_id":did},{"$set":{"_id":did,"mesAno":ma,"equipeId":eq,"dados":dados,"atualizadoEm":datetime.now()}},upsert=True)
 
+def processar_base_inadimplencia(arquivo, eq, ma):
+    """Processa base de inadimplência e calcula faixas D30/D31-60/D61-90/D90+."""
+    import unicodedata
+    def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
+
+    try:
+        df = ler_arquivo(arquivo)
+    except Exception as e:
+        return None, f"Erro ao ler arquivo: {e}"
+
+    # Mapear colunas
+    cols_norm = {norm(str(c)): c for c in df.columns}
+    col_forn = cols_norm.get("FORNECEDORA") or cols_norm.get("FORNECEDOR")
+    if not col_forn:
+        for c in df.columns:
+            if "FORN" in norm(str(c)): col_forn=c; break
+
+    col_dvenc = cols_norm.get("DTVENCIMENTO") or cols_norm.get("DT_VENCIMENTO") or cols_norm.get("DATAVENCIMENTO")
+    if not col_dvenc:
+        for c in df.columns:
+            cn=norm(str(c))
+            if any(x in cn for x in ["VENC","VENCIMENTO"]) and c!=col_forn: col_dvenc=c; break
+
+    col_dpag = cols_norm.get("DTPAGAMENTO") or cols_norm.get("DT_PAGAMENTO") or cols_norm.get("DATAPAGAMENTO")
+    if not col_dpag:
+        for c in df.columns:
+            cn=norm(str(c))
+            if any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DTPAG"]) and c!=col_dvenc: col_dpag=c; break
+
+    col_val = cols_norm.get("VALOR") or cols_norm.get("VALORAPAGAR") or cols_norm.get("VALORSERIA")
+    if not col_val:
+        for c in df.columns:
+            cn=norm(str(c))
+            if "VALOR" in cn and c not in [col_forn,col_dvenc,col_dpag]: col_val=c; break
+
+    if not col_forn or not col_dvenc or not col_val:
+        return None, f"Colunas não encontradas. Necessário: fornecedora, dtvencimento, valor. Encontradas: {list(df.columns)}"
+
+    # Data de referência = último dia do mês selecionado
+    ano, mes = map(int, ma.split("-"))
+    import calendar
+    ultimo_dia = calendar.monthrange(ano, mes)[1]
+    data_ref = pd.Timestamp(ano, mes, ultimo_dia)
+    data_inicio = data_ref - pd.DateOffset(years=1)
+
+    # Converter datas
+    df["_dvenc"] = parse_data_inteligente(df[col_dvenc])
+    df["_dpag"] = parse_data_inteligente(df[col_dpag]) if col_dpag else pd.NaT
+    df["_valor"] = pd.to_numeric(df[col_val].astype(str).str.replace("R$","").str.replace(".","").str.replace(",",".").str.strip(), errors="coerce").fillna(0)
+    df["_forn"] = df[col_forn].astype(str).str.strip().str.upper()
+
+    # Aplicar janela de 1 ano
+    # Entra se: vencimento dentro da janela OU (vencimento fora mas pagamento dentro da janela)
+    mask_venc_janela = (df["_dvenc"] >= data_inicio) & (df["_dvenc"] <= data_ref)
+    mask_pag_janela = df["_dpag"].notna() & (df["_dpag"] >= data_inicio) & (df["_dpag"] <= data_ref)
+    df = df[mask_venc_janela | mask_pag_janela].copy()
+
+    if df.empty:
+        return None, "Nenhum registro encontrado dentro da janela de 1 ano."
+
+    # Calcular faixa pela data de vencimento
+    df["_dias"] = (data_ref - df["_dvenc"]).dt.days
+    def calc_faixa(dias):
+        if pd.isna(dias): return "D90+"
+        if dias <= 30: return "D0-30"
+        if dias <= 60: return "D31-60"
+        if dias <= 90: return "D61-90"
+        return "D90+"
+    df["_faixa"] = df["_dias"].apply(calc_faixa)
+
+    # Pago = tem data de pagamento válida dentro da janela
+    df["_pago"] = df["_dpag"].notna() & (df["_dpag"] <= data_ref)
+
+    # Calcular resultado por fornecedora e faixa
+    FAIXAS = ["D0-30", "D31-60", "D61-90", "D90+"]
+    resultado = {}
+    for forn in sorted(df["_forn"].unique()):
+        df_f = df[df["_forn"]==forn]
+        total_geral = float(df_f["_valor"].sum())
+        resultado[forn] = {}
+        for faixa in FAIXAS:
+            df_fx = df_f[df_f["_faixa"]==faixa]
+            pagos = float(df_fx[df_fx["_pago"]]["_valor"].sum())
+            vencidos = float(df_fx[~df_fx["_pago"]]["_valor"].sum())
+            total_faixa = pagos + vencidos
+            pct_faixa = (total_faixa/total_geral*100) if total_geral>0 else 0
+            pct_inad = (vencidos/total_faixa*100) if total_faixa>0 else 0
+            resultado[forn][faixa] = {
+                "pagos": pagos,
+                "vencidos": vencidos,
+                "pct_faixa": pct_faixa,
+                "pct_inad": pct_inad
+            }
+
+    return resultado, None
+
 def buscar_inadimplencia(ma, eq): return get_db().inadimplencia.find_one({"_id":f"inadimp__{ma}__{eq}"})
 def listar_meses_inadimplencia(): return sorted(get_db().inadimplencia.distinct("mesAno"),reverse=True)
 
@@ -2334,11 +2430,32 @@ def pagina_inadimplencia(ma):
     st.markdown("---")
     doc=buscar_inadimplencia(ms,eq or "tamires")
     dados=doc.get("dados",{}) if doc else {}
-    with st.expander("Subir planilha de inadimplência",expanded=not bool(dados)):
-        st.markdown("<p style='color:#555;font-size:13px'>Suba a planilha com as abas por fornecedora.</p>",unsafe_allow_html=True)
-        arq_i=st.file_uploader("Planilha de inadimplência (.xlsx)",type=["xlsx"],key="arq_inad")
-        if arq_i and st.button("Processar planilha",key="btn_proc_inad"):
-            st.info("Estrutura da planilha ainda sendo mapeada. Use a edição manual por enquanto.")
+    with st.expander("📂 Subir base de inadimplência",expanded=not bool(dados)):
+        st.markdown(
+            "<div style='background:#0d1a0d;border:1px solid #1e3a1e;border-radius:8px;padding:10px 14px;"
+            "margin-bottom:10px;font-size:12px;color:#5a9a70;line-height:1.8'>"
+            "Aceita <strong style='color:#e8f5e9'>.xlsx</strong> ou <strong style='color:#e8f5e9'>.csv</strong><br>"
+            "Colunas necessárias: <strong>fornecedora, dtvencimento, dtpagamento, valor</strong><br>"
+            "Outras colunas são ignoradas. Data de referência: último dia do mês selecionado."
+            "</div>", unsafe_allow_html=True)
+        arq_i=st.file_uploader("Base (.xlsx ou .csv)",type=["xlsx","csv"],label_visibility="collapsed",key=f"arq_inad_{ms}_{eq}")
+        if arq_i:
+            if st.button("⚙️ Processar Base",use_container_width=True,key=f"btn_proc_inad_{ms}_{eq}",
+                         disabled=st.session_state.get("proc_inad_loading",False)):
+                st.session_state["proc_inad_loading"]=True
+                arq_i.seek(0)
+                with st.spinner("Processando base..."):
+                    resultado_inad,erro_inad=processar_base_inadimplencia(arq_i,eq or u.get("equipe","tamires"),ms)
+                st.session_state["proc_inad_loading"]=False
+                if erro_inad:
+                    st.error(erro_inad)
+                elif resultado_inad:
+                    doc_inad=buscar_inadimplencia(ms,eq or u.get("equipe","tamires")) or {}
+                    dados_novo=doc_inad.get("dados",{})
+                    dados_novo.update(resultado_inad)
+                    salvar_inadimplencia(ms,eq or u.get("equipe","tamires"),dados_novo)
+                    st.success(f"✅ Base processada! {len(resultado_inad)} fornecedoras encontradas.")
+                    st.rerun()
     st.markdown("---")
     edit=st.checkbox("Editar manualmente",key="edit_inad")
     if is_dir or is_adm:
