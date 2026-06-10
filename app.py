@@ -1059,7 +1059,7 @@ tbody td{{padding:10px 14px;border-bottom:1px solid #e0ede5}}
         L.append(f"<tr><td>{c['num']}</td><td>{c['nome']}</td><td>{c['peso']}</td><td>{p}</td></tr>")
     L.append("</tbody></table>")
     L.append(f"<div class='nbox'><div style='font-size:13px;color:#5a9a70'>Nota desta Monitoria</div><div class='nnum'>{nota:.0f}%</div></div>")
-    L.append(f"<div class='mbox'><div><div class='lbl'>Média ({n_mon} monitorias)</div><div style='font-size:24px;font-weight:800'>{media:.1f}%</div></div><div><div class='lbl'>Pontuação</div><div style='font-size:24px;font-weight:800;color:#1a6b35'>{pontos} pts</div></div></div>")
+    L.append(f"<div class='mbox'><div><div class='lbl'>Média ({n_mon} monitorias)</div><div style='font-size:24px;font-weight:800'>{media:.2f}%</div></div><div><div class='lbl'>Pontuação</div><div style='font-size:24px;font-weight:800;color:#1a6b35'>{pontos} pts</div></div></div>")
     if obs: L.append(f"<div class='obs'><strong>Observações:</strong><br>{obs}</div>")
     L.append(f"</div><div class='foot'>iGreen Energy · {datetime.now().strftime('%d/%m/%Y às %H:%M')}</div></body></html>")
     return "".join(L)
@@ -1697,7 +1697,7 @@ def pagina_quadro(ma):
                     f"<div><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(ed['meta'])}</div></div>"
                     f"<div><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(ed['proj'])}</div></div>"
                     "</div>"
-                    f"<div style='color:{cv_e};font-size:16px;font-weight:800'>{ed['pct']:.1f}%</div>"
+                    f"<div style='color:{cv_e};font-size:16px;font-weight:800'>{ed['pct']:.2f}%</div>"
                     "</div>"
                 )
                 linhas+=row
@@ -1711,7 +1711,7 @@ def pagina_quadro(ma):
                 f"<div><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-size:15px'>{fmt_brl(tot_meta)}</div></div>"
                 f"<div><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:15px'>{fmt_brl(tot_proj)}</div></div>"
                 "</div>"
-                f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>% META</div><div style='color:{cv_t};font-size:22px;font-weight:800'>{pct_t:.1f}%</div></div>"
+                f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>% META</div><div style='color:{cv_t};font-size:22px;font-weight:800'>{pct_t:.2f}%</div></div>"
                 "</div>"
             )
             st.markdown(
@@ -1778,7 +1778,7 @@ def pagina_quadro(ma):
             f"<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px'>"
             f"<div style='font-size:15px;font-weight:700;color:#ffffff'>Equipe {EQUIPES[eq]['nome']} · {ul.get('label','')}</div>"
             f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>% META</div>"
-            f"<div style='color:{cv};font-size:24px;font-weight:800'>{pct:.1f}%</div></div></div>"
+            f"<div style='color:{cv};font-size:24px;font-weight:800'>{pct:.2f}%</div></div></div>"
             f"<div style='display:flex;gap:28px;flex-wrap:wrap'>"
             f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px'>RECEBIDO GERAL</div>"
             f"<div style='color:#00c853;font-weight:700;font-size:16px'>{fmt_brl(rec_geral)}</div></div>"
@@ -1818,7 +1818,7 @@ def pagina_quadro(ma):
                 row={"Operador":op["nome"]+(" ★" if op.get("pleno") else ""),
                      "Recebido":fmt_brl(v) if v>0 else "—",
                      "Meta":fmt_brl(meta) if meta>0 else "—",
-                     "% Meta":f"{pc:.1f}%" if meta>0 else "—",
+                     "% Meta":f"{pc:.2f}%" if meta>0 else "—",
                      "Projeção":fmt_brl(proj_op) if v>0 else "—",
                      "_pc":pc,"_v":v}
                 if lig_op>0: row["Ligações"]=lig_op
@@ -1885,7 +1885,7 @@ def pagina_monitorias(ma):
     if st.session_state.mon_op_sel is None:
         ultimo=st.session_state.pop("mon_ultimo_salvo",None)
         if ultimo:
-            st.success(f"Monitoria salva! {ultimo['nome']} — Nota: {ultimo['nota']:.0f}% | Média: {ultimo['media']:.1f}% | Pontos: {ultimo['pontos']}")
+            st.success(f"Monitoria salva! {ultimo['nome']} — Nota: {ultimo['nota']:.0f}% | Média: {ultimo['media']:.2f}% | Pontos: {ultimo['pontos']}")
             st.markdown(f'<a href="data:text/html;base64,{ultimo["b64"]}" download="Mon_{ultimo["nome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;margin-bottom:12px">Baixar PDF</a>',unsafe_allow_html=True)
         monts_eq=buscar_monitorias_equipe(eq,ma)
         if monts_eq:
@@ -1897,7 +1897,7 @@ def pagina_monitorias(ma):
                     f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:10px;"
                     f"padding:12px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center'>"
                     f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>MEDIA DA EQUIPE — {ma.replace('-',' ').upper()}</div>"
-                    f"<div style='color:{st_cor};font-size:22px;font-weight:800;margin-top:2px'>{me_eq:.1f}%</div></div>"
+                    f"<div style='color:{st_cor};font-size:22px;font-weight:800;margin-top:2px'>{me_eq:.2f}%</div></div>"
                     f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>STATUS</div>"
                     f"<div style='color:{st_cor};font-size:13px;font-weight:600'>{st_txt}</div></div>"
                     f"</div>",unsafe_allow_html=True)
@@ -2010,7 +2010,7 @@ def pagina_monitorias(ma):
                 f"<div style='color:#00c853;font-weight:700;font-size:15px;margin-bottom:8px'>✓ Monitoria salva!</div>"
                 f"<div style='color:#e8f5e9;font-size:13px'>Operador: <strong>{salvo['nome']}</strong></div>"
                 f"<div style='color:#e8f5e9;font-size:13px'>Nota: <strong style='color:{cn2}'>{salvo['nota']:.0f}%</strong> | "
-                f"Média: <strong>{salvo['media']:.1f}%</strong> | Pontos: <strong>{salvo['pontos']}</strong></div>"
+                f"Média: <strong>{salvo['media']:.2f}%</strong> | Pontos: <strong>{salvo['pontos']}</strong></div>"
                 f"</div>",unsafe_allow_html=True)
             st.markdown(
                 f'<a href="data:text/html;base64,{salvo["b64"]}" '
@@ -2111,7 +2111,7 @@ def pagina_monitorias_diretor(ma):
         st_txt,st_cor,_=get_status_media(media_op)
         if st.button("← Voltar"):
             st.session_state.dir_op_sel=None; st.session_state.dir_eq_sel=None; st.rerun()
-        st.markdown(f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:12px;padding:16px 20px;margin-bottom:16px'><div style='color:#fff;font-weight:700;font-size:16px'>{op['nome']}</div><div style='color:#3a6a4a;font-size:12px'>Equipe {EQUIPES.get(eq,{}).get('nome','—')} · {ma.replace('-',' ')} · Média: <strong style='color:{st_cor}'>{media_op:.1f}%</strong></div></div>",unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:12px;padding:16px 20px;margin-bottom:16px'><div style='color:#fff;font-weight:700;font-size:16px'>{op['nome']}</div><div style='color:#3a6a4a;font-size:12px'>Equipe {EQUIPES.get(eq,{}).get('nome','—')} · {ma.replace('-',' ')} · Média: <strong style='color:{st_cor}'>{media_op:.2f}%</strong></div></div>",unsafe_allow_html=True)
         monts_op=[m for m in buscar_monitorias_equipe(eq,ma) if m["opId"]==op["_id"]]
         if not monts_op: st.info("Nenhuma monitoria registrada neste mês.")
         else:
@@ -2142,12 +2142,12 @@ def pagina_monitorias_diretor(ma):
     eq_medias_list.sort(key=lambda x: x[1], reverse=True)
     for nome_eq,me_pre in eq_medias_list:
         cor_me=cor_pct(me_pre)
-        linhas_eq+=f"<div style='display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #e8f0e8'><span style='color:#2d4a2d;font-size:13px;font-weight:500'>{nome_eq}</span><span style='color:{cor_me};font-size:15px;font-weight:700'>{me_pre:.1f}%</span></div>"
+        linhas_eq+=f"<div style='display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #e8f0e8'><span style='color:#2d4a2d;font-size:13px;font-weight:500'>{nome_eq}</span><span style='color:{cor_me};font-size:15px;font-weight:700'>{me_pre:.2f}%</span></div>"
 
     if todas_medias_top:
         mg_top=sum(todas_medias_top)/len(todas_medias_top)
         cor_mg=cor_pct(mg_top)
-        linhas_eq+=f"<div style='border-top:1px solid #c8e0c8;margin-top:6px;padding-top:8px;display:flex;justify-content:space-between;align-items:center'><span style='color:#2d4a2d;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px'>Média Geral</span><span style='color:{cor_mg};font-size:22px;font-weight:800'>{mg_top:.1f}%</span></div>"
+        linhas_eq+=f"<div style='border-top:1px solid #c8e0c8;margin-top:6px;padding-top:8px;display:flex;justify-content:space-between;align-items:center'><span style='color:#2d4a2d;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px'>Média Geral</span><span style='color:{cor_mg};font-size:22px;font-weight:800'>{mg_top:.2f}%</span></div>"
 
     if linhas_eq:
         st.markdown(
@@ -2168,12 +2168,12 @@ def pagina_monitorias_diretor(ma):
         if not medias: continue
         me=sum(v[1][0] for v in medias.values())/len(medias)
         todas_medias.append(me)
-        st.markdown(f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:3px solid #00c853'><div style='display:flex;justify-content:space-between;align-items:center'><div style='font-size:15px;font-weight:700;color:#fff'>Equipe {EQUIPES[eq]['nome']}</div><div style='text-align:right'><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>MEDIA DA EQUIPE</div><div style='color:{cor_pct(me)};font-size:24px;font-weight:800'>{me:.1f}%</div></div></div></div>",unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#0a1a0a;border:1px solid #1e3a1e;border-radius:12px;padding:16px 20px;margin-bottom:8px;border-left:3px solid #00c853'><div style='display:flex;justify-content:space-between;align-items:center'><div style='font-size:15px;font-weight:700;color:#fff'>Equipe {EQUIPES[eq]['nome']}</div><div style='text-align:right'><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>MEDIA DA EQUIPE</div><div style='color:{cor_pct(me)};font-size:24px;font-weight:800'>{me:.2f}%</div></div></div></div>",unsafe_allow_html=True)
         cols_op=st.columns(4)
         for idx_op,(nome,(op_obj,(media,n))) in enumerate(sorted(medias.items(),key=lambda x:-x[1][1][0])):
             st_txt,st_cor,_=get_status_media(media)
             with cols_op[idx_op%4]:
-                st.markdown(f"<div style='background:#0d1a0d;border:1px solid #1e3a1e;border-radius:10px;padding:12px;text-align:center;margin-bottom:8px'><div style='color:#fff;font-weight:600;font-size:12px'>{nome}</div><div style='color:{st_cor};font-size:18px;font-weight:800'>{media:.1f}%</div><div style='color:#3a6a4a;font-size:10px'>{n} monitoria{'s' if n!=1 else ''}</div></div>",unsafe_allow_html=True)
+                st.markdown(f"<div style='background:#0d1a0d;border:1px solid #1e3a1e;border-radius:10px;padding:12px;text-align:center;margin-bottom:8px'><div style='color:#fff;font-weight:600;font-size:12px'>{nome}</div><div style='color:{st_cor};font-size:18px;font-weight:800'>{media:.2f}%</div><div style='color:#3a6a4a;font-size:10px'>{n} monitoria{'s' if n!=1 else ''}</div></div>",unsafe_allow_html=True)
                 if st.button("Ver detalhes",key=f"dir_op_{op_obj['_id']}",use_container_width=True):
                     st.session_state.dir_op_sel=op_obj; st.session_state.dir_eq_sel=eq; st.rerun()
         st.markdown("---")
@@ -2204,7 +2204,7 @@ def pagina_analise_operadores(ma):
             pct=(vat/meta*100) if meta>0 else 0
             var_op=calc_variacao(vat,van)
             sv="↑" if (var_op or 0)>=0 else "↓"
-            rows.append({"Operador":("★ " if op.get("pleno") else "")+op["nome"],"Recebido":fmt_brl(vat) if vat>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.1f}%" if meta>0 else "—","Mês Ant.":fmt_brl(van) if van>0 else "—","Variação":f"{sv} {abs(var_op):.1f}%" if var_op is not None else "—","_v":vat})
+            rows.append({"Operador":("★ " if op.get("pleno") else "")+op["nome"],"Recebido":fmt_brl(vat) if vat>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.2f}%" if meta>0 else "—","Mês Ant.":fmt_brl(van) if van>0 else "—","Variação":f"{sv} {abs(var_op):.2f}%" if var_op is not None else "—","_v":vat})
         st.markdown(f"**Equipe {EQUIPES[eq]['nome']}**")
         df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
         df.index=range(1,len(df)+1)
@@ -2535,16 +2535,16 @@ def pagina_inadimplencia(ma):
             # %Inad = Vencidos da faixa / Total geral da fornecedora
             pi=(v/total_geral_forn*100) if total_geral_forn>0 else 0
             tots[faixa]["p"]+=p; tots[faixa]["v"]+=v; tp+=p; tv+=v
-            html+=f'<td>{fmt_brl_td(p)}</td><td>{fmt_brl_td(v)}</td><td class="tdf">{pf:.1f}%</td><td class="tdp">{pi:.1f}%</td>'
+            html+=f'<td>{fmt_brl_td(p)}</td><td>{fmt_brl_td(v)}</td><td class="tdf">{pf:.2f}%</td><td class="tdp">{pi:.2f}%</td>'
         tots["T"]["p"]+=tp; tots["T"]["v"]+=tv
         pg=(tv/(tp+tv)*100) if (tp+tv)>0 else 0
-        html+=f'<td>{fmt_brl_td(tp)}</td><td>{fmt_brl_td(tv)}</td><td class="tdp">{pg:.1f}%</td></tr>'
+        html+=f'<td>{fmt_brl_td(tp)}</td><td>{fmt_brl_td(tv)}</td><td class="tdp">{pg:.2f}%</td></tr>'
     html+='<tr class="trt"><td class="tdn">TOTAL</td>'
     for f in FAIXAS:
         tp2=tots[f]["p"]; tv2=tots[f]["v"]; pf2=(tp2/(tp2+tv2)*100) if (tp2+tv2)>0 else 0; pi2=(tv2/(tp2+tv2)*100) if (tp2+tv2)>0 else 0
-        html+=f'<td>{fmt_brl_td(tp2)}</td><td>{fmt_brl_td(tv2)}</td><td class="tdf">{pf2:.1f}%</td><td class="tdp">{pi2:.1f}%</td>'
+        html+=f'<td>{fmt_brl_td(tp2)}</td><td>{fmt_brl_td(tv2)}</td><td class="tdf">{pf2:.2f}%</td><td class="tdp">{pi2:.2f}%</td>'
     tpt=tots["T"]["p"]; tvt=tots["T"]["v"]; pgt=(tvt/(tpt+tvt)*100) if (tpt+tvt)>0 else 0
-    html+=f'<td>{fmt_brl_td(tpt)}</td><td>{fmt_brl_td(tvt)}</td><td class="tdp">{pgt:.1f}%</td></tr>'
+    html+=f'<td>{fmt_brl_td(tpt)}</td><td>{fmt_brl_td(tvt)}</td><td class="tdp">{pgt:.2f}%</td></tr>'
     html+='</tbody></table></div>'
     st.markdown(html,unsafe_allow_html=True)
     st.markdown("<div style='height:12px'></div>",unsafe_allow_html=True)
@@ -2556,8 +2556,8 @@ def pagina_inadimplencia(ma):
             st.markdown(f"""<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px;text-align:center">
                 <div style="font-size:11px;font-weight:600;color:#2e7d32;margin-bottom:6px">{f}</div>
                 <div style="display:flex;justify-content:center;gap:16px">
-                    <div><div style="font-size:9px;color:#555;text-transform:uppercase">%Faixa</div><div style="font-size:14px;font-weight:700;color:#1565c0">{pf2:.1f}%</div></div>
-                    <div><div style="font-size:9px;color:#555;text-transform:uppercase">%Inad</div><div style="font-size:14px;font-weight:700;color:#e53935">{pi2:.1f}%</div></div>
+                    <div><div style="font-size:9px;color:#555;text-transform:uppercase">%Faixa</div><div style="font-size:14px;font-weight:700;color:#1565c0">{pf2:.2f}%</div></div>
+                    <div><div style="font-size:9px;color:#555;text-transform:uppercase">%Inad</div><div style="font-size:14px;font-weight:700;color:#e53935">{pi2:.2f}%</div></div>
                 </div></div>""",unsafe_allow_html=True)
     if edit:
         st.markdown("---")
@@ -2785,7 +2785,7 @@ def pagina_meetcall(ma):
     c1.metric("Recebido Geral",fmt_brl(rg_total))
     c2.metric("Com Interação",fmt_brl(tc_mc))
     c3.metric("Sem Interação",fmt_brl(sem_mc))
-    st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin:12px 0 16px'><span style='color:#5a9a70;font-size:11px'>META: {fmt_brl(mg_mc)} | % META: {pct_mc:.1f}%</span></div>",unsafe_allow_html=True)
+    st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin:12px 0 16px'><span style='color:#5a9a70;font-size:11px'>META: {fmt_brl(mg_mc)} | % META: {pct_mc:.2f}%</span></div>",unsafe_allow_html=True)
 
     ja_salvando_mc = st.session_state.get("salvando_mc", False)
     if st.button("Salvar Lançamento Meet Call",use_container_width=True,key="mc_salvar", disabled=ja_salvando_mc):
