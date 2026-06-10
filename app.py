@@ -1414,7 +1414,7 @@ def pagina_lancamento(ma):
                     else:
                         icone = "" + r['op']['nome']
                     row = {"Excel": r['nome_excel'], "Sistema": icone, "Valor": fmt_brl(r['valor'])}
-                    if r['col_lig']: row["Lig. +5s"] = r['ligacoes']
+                    if r['col_lig']: row["Ligações"] = r['ligacoes']
                     prev_rows.append(row)
                 st.dataframe(pd.DataFrame(prev_rows), use_container_width=True, hide_index=True)
                 pode_importar = all(r['op'] is not None and r['status'] != 'ambiguo' for r in resultados_imp if r['valor'] > 0)
@@ -1445,7 +1445,7 @@ def pagina_lancamento(ma):
             with c1: st.markdown(f"<div style='padding-top:10px;color:var(--text-color,#1a3a1a);font-weight:500'>{'★ ' if op.get('pleno') else ''}{op['nome']}</div>",unsafe_allow_html=True)
             with c2: st.markdown(f"<div style='padding-top:10px;color:#2e7d32;font-size:13px;font-weight:500'>{fmt_brl(meta) if meta>0 else '—'}</div>",unsafe_allow_html=True)
             with c3: vi[op["_id"]]=st.number_input("v",label_visibility="collapsed",min_value=0.0,step=100.0,format="%.2f",key=f"op_{eq}_{ma}_{op['_id']}")
-            lig_vi[op["_id"]]=st.number_input("Lig. acima 5s",label_visibility="visible",min_value=0,step=1,value=0,key=f"lig_{eq}_{ma}_{op['_id']}")
+            lig_vi[op["_id"]]=st.number_input("Ligações",label_visibility="visible",min_value=0,step=1,value=0,key=f"lig_{eq}_{ma}_{op['_id']}")
     tc=sum(vi.values())
     st.markdown("---")
     usar_manual=st.checkbox("Inserir valor total manualmente",key=f"manual_{eq}_{ma}")
@@ -1687,7 +1687,7 @@ def pagina_quadro(ma):
                      "% Meta":f"{pc:.1f}%" if meta>0 else "—",
                      "Projeção":fmt_brl(proj_op) if v>0 else "—",
                      "_pc":pc,"_v":v}
-                if lig_op>0: row["Lig. +5s"]=lig_op
+                if lig_op>0: row["Ligações"]=lig_op
                 if meta>0:
                     rows_com_meta.append(row)
                 else:
@@ -1995,6 +1995,16 @@ def pagina_monitorias_diretor(ma):
         return
     st.markdown("### Visão Geral — Monitorias por Equipe")
     todas_medias=[]
+    # Calcular média geral antecipadamente para mostrar no topo
+    for eq_pre in EQUIPES:
+        ops_pre=buscar_operadores(eq_pre)
+        for op_pre in ops_pre:
+            m_pre,n_pre=calc_media_operador(op_pre["_id"],ma)
+            if n_pre>0: todas_medias.append(m_pre)
+    if todas_medias:
+        mg_top=sum(todas_medias)/len(todas_medias)
+        st.markdown(f"<div style='background:#001a0a;border:2px solid #1e3a1e;border-radius:12px;padding:16px 24px;text-align:center;margin-bottom:16px'><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px'>MÉDIA GERAL DE INADIMPLÊNCIA</div><div style='color:{cor_pct(mg_top)};font-size:32px;font-weight:800'>{mg_top:.1f}%</div></div>",unsafe_allow_html=True)
+    todas_medias=[]
     for eq in EQUIPES:
         ops=buscar_operadores(eq)
         if not ops: continue
@@ -2014,9 +2024,7 @@ def pagina_monitorias_diretor(ma):
                 if st.button("Ver detalhes",key=f"dir_op_{op_obj['_id']}",use_container_width=True):
                     st.session_state.dir_op_sel=op_obj; st.session_state.dir_eq_sel=eq; st.rerun()
         st.markdown("---")
-    if todas_medias:
-        mg=sum(todas_medias)/len(todas_medias)
-        st.markdown(f"<div style='background:#001a0a;border:2px solid #1e3a1e;border-radius:12px;padding:20px 24px;text-align:center'><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px'>MEDIA GERAL</div><div style='color:{cor_pct(mg)};font-size:32px;font-weight:800'>{mg:.1f}%</div></div>",unsafe_allow_html=True)
+
 
 # ── ANÁLISE DOS OPERADORES ─────────────────────
 def pagina_analise_operadores(ma):
