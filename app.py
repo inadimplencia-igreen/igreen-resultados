@@ -660,19 +660,23 @@ def processar_base_inadimplencia(arquivo, eq, ma):
         for c in df.columns:
             if "FORN" in norm(str(c)): col_forn=c; break
 
-    col_dvenc = cols_norm.get("DTVENCIMENTO") or cols_norm.get("DT_VENCIMENTO") or cols_norm.get("DATAVENCIMENTO")
+    col_dvenc = cols_norm.get("DTVENCIMENTO") or cols_norm.get("DT_VENCIMENTO") or                 cols_norm.get("DATAVENCIMENTO") or cols_norm.get("DATA_VENCIMENTO") or                 cols_norm.get("DATAVENCIMENTO") or cols_norm.get("DATAVENCIMENTOORI")
     if not col_dvenc:
         for c in df.columns:
             cn=norm(str(c))
-            if any(x in cn for x in ["VENC","VENCIMENTO"]) and c!=col_forn: col_dvenc=c; break
+            if any(x in cn for x in ["VENCIMENTO","VENCTO","VENC"]) and "ORIG" not in cn and c!=col_forn: col_dvenc=c; break
 
-    col_dpag = cols_norm.get("DTPAGAMENTO") or cols_norm.get("DT_PAGAMENTO") or cols_norm.get("DATAPAGAMENTO")
+    col_dpag = cols_norm.get("DTPAGAMENTO") or cols_norm.get("DT_PAGAMENTO") or                cols_norm.get("DATAPAGAMENTO") or cols_norm.get("DATA_PAGAMENTO")
     if not col_dpag:
         for c in df.columns:
             cn=norm(str(c))
-            if any(x in cn for x in ["PAGAM","PAGTO","DT_PAG","DTPAG"]) and c!=col_dvenc: col_dpag=c; break
+            if any(x in cn for x in ["PAGAMENTO","PAGAM","PAGTO"]) and c!=col_dvenc: col_dpag=c; break
 
-    col_val = cols_norm.get("VALOR") or cols_norm.get("VALORAPAGAR") or cols_norm.get("VALORSERIA")
+    col_val = cols_norm.get("VALORAPAGAR") or cols_norm.get("VALOR_A_PAGAR") or               cols_norm.get("VALORAPAGAR") or cols_norm.get("VALOR")
+    if not col_val:
+        for c in df.columns:
+            cn=norm(str(c))
+            if any(x in cn for x in ["VALORAPAGAR","VALOR A PAGAR","VALOR_A_PAGAR"]) and c not in [col_forn,col_dvenc,col_dpag]: col_val=c; break
     if not col_val:
         for c in df.columns:
             cn=norm(str(c))
