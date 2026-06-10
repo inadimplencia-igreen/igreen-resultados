@@ -660,27 +660,32 @@ def processar_base_inadimplencia(arquivo, eq, ma):
         for c in df.columns:
             if "FORN" in norm(str(c)): col_forn=c; break
 
-    col_dvenc = cols_norm.get("DTVENCIMENTO") or cols_norm.get("DT_VENCIMENTO") or                 cols_norm.get("DATAVENCIMENTO") or cols_norm.get("DATA_VENCIMENTO") or                 cols_norm.get("DATAVENCIMENTO") or cols_norm.get("DATAVENCIMENTOORI")
-    if not col_dvenc:
-        for c in df.columns:
-            cn=norm(str(c))
-            if any(x in cn for x in ["VENCIMENTO","VENCTO","VENC"]) and "ORIG" not in cn and c!=col_forn: col_dvenc=c; break
+    # Mapear colunas pelo nome normalizado (sem espaços, sem acentos)
+    # Data Vencimento — exclui "Origi" para não pegar "Data Vencimento Origi"
+    col_dvenc = None
+    for c in df.columns:
+        cn = norm(str(c))
+        if "VENCIMENTO" in cn and "ORIG" not in cn:
+            col_dvenc = c; break
 
-    col_dpag = cols_norm.get("DTPAGAMENTO") or cols_norm.get("DT_PAGAMENTO") or                cols_norm.get("DATAPAGAMENTO") or cols_norm.get("DATA_PAGAMENTO")
-    if not col_dpag:
-        for c in df.columns:
-            cn=norm(str(c))
-            if any(x in cn for x in ["PAGAMENTO","PAGAM","PAGTO"]) and c!=col_dvenc: col_dpag=c; break
+    # Data Pagamento
+    col_dpag = None
+    for c in df.columns:
+        cn = norm(str(c))
+        if "PAGAMENTO" in cn:
+            col_dpag = c; break
 
-    col_val = cols_norm.get("VALORAPAGAR") or cols_norm.get("VALOR_A_PAGAR") or               cols_norm.get("VALORAPAGAR") or cols_norm.get("VALOR")
+    # Valor A Pagar — prioriza "Valor A Pagar" sobre outros
+    col_val = None
+    for c in df.columns:
+        cn = norm(str(c))
+        if "VALORAPAGAR" in cn or "VALOR A PAGAR" in cn or "VALOR_A_PAGAR" in cn:
+            col_val = c; break
     if not col_val:
         for c in df.columns:
-            cn=norm(str(c))
-            if any(x in cn for x in ["VALORAPAGAR","VALOR A PAGAR","VALOR_A_PAGAR"]) and c not in [col_forn,col_dvenc,col_dpag]: col_val=c; break
-    if not col_val:
-        for c in df.columns:
-            cn=norm(str(c))
-            if "VALOR" in cn and c not in [col_forn,col_dvenc,col_dpag]: col_val=c; break
+            cn = norm(str(c))
+            if "VALOR" in cn and c not in [col_forn, col_dvenc, col_dpag]:
+                col_val = c; break
 
     if not col_forn or not col_dvenc or not col_val:
         return None, f"Colunas não encontradas. Necessário: fornecedora, dtvencimento, valor. Encontradas: {list(df.columns)}"
