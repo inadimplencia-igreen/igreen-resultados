@@ -1515,12 +1515,14 @@ def pagina_lancamento(ma):
     with c3: td=st.number_input("Total Dias do Mês *",min_value=0,max_value=31,value=0,key=f"td_{eq}_{ma}")
     up_atual=buscar_ultimo_processamento(ma,eq)
     rec_auto=float(up_atual.get("valorElegivel",0)) if up_atual else 0
-    rec_anterior=rec_auto
+    # rec_anterior = último recGeral salvo manualmente (prioridade) ou da base
+    rec_anterior=0.0
+    lancs_ant=buscar_lancamentos(ma,eq)
+    for l in lancs_ant:
+        if l.get("recGeral",0)>0:
+            rec_anterior=float(l["recGeral"]); break
     if rec_anterior==0:
-        lancs_ant=buscar_lancamentos(ma,eq)
-        for l in lancs_ant:
-            if l.get("recGeral",0)>0:
-                rec_anterior=float(l["recGeral"]); break
+        rec_anterior=rec_auto
     usar_rec_manual=st.checkbox("Inserir Recebido Geral manualmente",key=f"rec_manual_chk_{eq}_{ma}")
     if usar_rec_manual:
         rec_geral_manual=st.number_input("Recebido Geral (R$)",min_value=0.0,step=100.0,format="%.2f",value=float(rec_anterior or 0),key=f"rec_geral_manual_{eq}_{ma}")
