@@ -1524,6 +1524,8 @@ def pagina_lancamento(ma):
     usar_rec_manual=st.checkbox("Inserir Recebido Geral manualmente",key=f"rec_manual_chk_{eq}_{ma}")
     if usar_rec_manual:
         rec_geral_manual=st.number_input("Recebido Geral (R$)",min_value=0.0,step=100.0,format="%.2f",value=float(rec_anterior or 0),key=f"rec_geral_manual_{eq}_{ma}")
+        if rec_anterior>0:
+            st.caption(f"Último valor salvo: {fmt_brl(rec_anterior)}")
     else:
         rec_geral_manual=rec_anterior
     st.markdown("---")
@@ -2739,6 +2741,14 @@ def pagina_meetcall(ma):
     else:
         rg_total=rg_atual
 
+    # Com Interação manual (caso não queira lançar por operador)
+    usar_ci_manual=st.checkbox("Inserir Com Interação manualmente",key=f"mc_ci_chk_{ma}")
+    ci_manual=0.0
+    if usar_ci_manual:
+        ci_atual=float(mc_doc.get("recGeral",0))
+        ci_str=st.text_input("Com Interação (R$)",value=fmt_brl(ci_atual) if ci_atual>0 else "",placeholder="R$ 0,00",key=f"mc_ci_manual_{ma}")
+        ci_manual=parse_brl(ci_str)
+
     st.markdown("---")
     st.markdown("### Valores por Operador")
 
@@ -2799,8 +2809,9 @@ def pagina_meetcall(ma):
             st.session_state["salvando_mc"] = True
             label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
             ag_mc={op["_id"]:{"valorRecebido":vi_mc[op["_id"]],"nome":op["nome"]} for op in ops_mc}
-            criar_lancamento(ma,"metcool",str(data_sel),label,ag_mc,tc_mc,0,dt_mc,td_mc)
-            salvar_lancamento_meetcall(ma,0,tc_mc,rg_total)
+            tc_final=ci_manual if usar_ci_manual and ci_manual>0 else tc_mc
+            criar_lancamento(ma,"metcool",str(data_sel),label,ag_mc,tc_final,0,dt_mc,td_mc)
+            salvar_lancamento_meetcall(ma,0,tc_final,rg_total)
             buscar_lancamentos.clear()
             st.session_state["salvando_mc"] = False
             st.session_state.mc_ultimo_salvo=f"✅ Lançamento de {label} salvo com sucesso! Total: {fmt_brl(tc_mc)}"
