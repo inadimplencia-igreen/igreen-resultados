@@ -1809,11 +1809,6 @@ def pagina_quadro(ma):
                 f'</table></div>'
             )
             st.markdown(table_html, unsafe_allow_html=True)
-            st.markdown(
-                "<div style='background:linear-gradient(135deg,#0a1f0a,#0d2a0d);border:1px solid #1e3a1e;"
-                "border-radius:14px;margin-bottom:16px;overflow:hidden;border-left:3px solid #00c853'>"
-                +linhas+total_row+"</div>",
-                unsafe_allow_html=True)
         st.markdown("---")
     for eq in eqs:
         try:
