@@ -2824,9 +2824,6 @@ def pagina_meetcall(ma):
         st.warning("Acesso restrito."); return
     header_page("Meet Call","Lançamento da equipe Meet Call")
     ops_mc=buscar_operadores("metcool")
-    if not ops_mc:
-        st.warning("Nenhum operador cadastrado na Meet Call.")
-        return
     ms_mc=buscar_metas_equipe(ma,"metcool")
     mg_mc=float(buscar_meta_gestora(ma,"metcool").get("metaGestora",0))
     if st.session_state.get("mc_ultimo_salvo"):
@@ -2862,10 +2859,23 @@ def pagina_meetcall(ma):
         ci_manual=parse_brl(ci_str)
 
     st.markdown("---")
-    st.markdown("### Valores por Operador")
 
+    # Sempre mostrar campos manuais de Recebido Geral e Com Interação
+    usar_ci_manual_mc=st.checkbox("Inserir Com Interação manualmente",key=f"mc_ci_manual_chk_{ma}")
+    ci_manual_mc=0.0
+    if usar_ci_manual_mc:
+        ci_ant=float(mc_doc.get("recGeral",0))
+        ci_str=st.text_input("Com Interação (R$)",value=fmt_brl(ci_ant) if ci_ant>0 else "",placeholder="R$ 0,00",key=f"mc_ci_txt_{ma}")
+        ci_manual_mc=parse_brl(ci_str) if ci_str else 0.0
+        if ci_manual_mc>0:
+            get_db().temp_lancamento.update_one({"_id":f"tmp_mc_{ma}"},{"$set":{"ci_manual":ci_manual_mc}},upsert=True)
+        else:
+            ci_manual_mc=float((get_db().temp_lancamento.find_one({"_id":f"tmp_mc_{ma}"}) or {}).get("ci_manual",0))
+
+    if ops_mc:
+        st.markdown("### Valores por Operador")
     # Importar via Excel
-    mostrar_imp_mc=st.checkbox("Importar via Excel",key=f"chk_imp_mc_{ma}")
+    mostrar_imp_mc=st.checkbox("Importar via Excel",key=f"chk_imp_mc_{ma}") if ops_mc else False
     if mostrar_imp_mc:
         arq_imp_mc=st.file_uploader("Planilha Excel (.xlsx)",type=["xlsx"],key=f"imp_mc_{ma}")
         if arq_imp_mc:
@@ -2921,7 +2931,14 @@ def pagina_meetcall(ma):
             st.session_state["salvando_mc"] = True
             label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
             ag_mc={op["_id"]:{"valorRecebido":vi_mc[op["_id"]],"nome":op["nome"]} for op in ops_mc}
-            tc_final=ci_manual if usar_ci_manual and ci_manual>0 else tc_mc
+            tc_ops_mc=sum(vi_mc.values()) if vi_mc else 0
+            # Prioridade: operadores > ci_manual_mc > ci_manual antigo
+            if tc_ops_mc>0:
+                tc_final=tc_ops_mc
+            elif usar_ci_manual_mc and ci_manual_mc>0:
+                tc_final=ci_manual_mc
+            else:
+                tc_final=float((get_db().temp_lancamento.find_one({"_id":f"tmp_mc_{ma}"}) or {}).get("ci_manual",0))
             criar_lancamento(ma,"metcool",str(data_sel),label,ag_mc,tc_final,0,dt_mc,td_mc)
             salvar_lancamento_meetcall(ma,0,tc_final,rg_total)
             buscar_lancamentos.clear()
