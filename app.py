@@ -1602,32 +1602,27 @@ def pagina_lancamento(ma):
         if tc==0 and tc_manual>0:
             tc=tc_manual
     st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin-bottom:16px'><span style='color:#5a9a70;font-size:11px'>TOTAL COM INTERAÇÃO</span><br><span style='color:#2daf5c;font-size:20px;font-weight:700'>{fmt_brl(tc)}</span></div>",unsafe_allow_html=True)
-    ja_salvando=st.session_state.get(f"salvando_{eq}_{ma}",False)
-    if st.button("Salvar Lançamento",use_container_width=True,key=f"btn_{eq}_{ma}",disabled=ja_salvando):
-        errs=[]
-        if dt==0: errs.append("Dias Trabalhados é obrigatório.")
-        if td==0: errs.append("Total de Dias do Mês é obrigatório.")
-        if errs:
-            for e in errs: st.error(e)
-        else:
-            st.session_state[f"salvando_{eq}_{ma}"]=True
-            label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
-            ag={op["_id"]:{"valorRecebido":vi.get(op["_id"],0),"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops if op["nome"] not in OPERADORES_MEETCALL}
-            tc_ops=sum(float(v.get("valorRecebido",0)) for v in ag.values())
-            # Se não tem agentes, usa o manual
-            tc_manual_final=parse_brl(st.session_state.get(f"tc_manual_{eq}_{ma}",""))
-            if tc_ops==0 and usar_manual and tc_manual_final>0:
-                tc_real=tc_manual_final
+    with st.form(key=f"form_lanc_{eq}_{ma}"):
+        tc_form=st.number_input("Com Interação (confirme o valor)",min_value=0.0,step=0.01,format="%.2f",value=float(tc_manual if usar_manual and tc_manual>0 else tc),label_visibility="collapsed")
+        rg_form=st.number_input("Recebido Geral (confirme o valor)",min_value=0.0,step=0.01,format="%.2f",value=float(rec_geral_manual if usar_rec_manual else 0),label_visibility="collapsed")
+        submitted=st.form_submit_button("Salvar Lançamento",use_container_width=True)
+        if submitted:
+            errs=[]
+            if dt==0: errs.append("Dias Trabalhados é obrigatório.")
+            if td==0: errs.append("Total de Dias do Mês é obrigatório.")
+            if errs:
+                for e in errs: st.error(e)
             else:
-                tc_real=tc_ops
-            # Recebido Geral: usar manual se marcado, senão zero
-            rg_salvar=rec_geral_manual if usar_rec_manual else 0
-            criar_lancamento(ma,eq,str(data_sel),label,ag,tc_real,0,dt,td,rg_salvar)
-            buscar_lancamentos.clear()
-            buscar_metas_equipe.clear()
-            st.session_state[f"salvando_{eq}_{ma}"]=False
-            st.session_state.ultimo_salvo=f"✅ Lançamento salvo! Geral: {fmt_brl(rg_salvar)} | Com Interação: {fmt_brl(tc_real)}"
-            st.rerun()
+                label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
+                ag={op["_id"]:{"valorRecebido":vi.get(op["_id"],0),"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops if op["nome"] not in OPERADORES_MEETCALL}
+                tc_ops=sum(float(v.get("valorRecebido",0)) for v in ag.values())
+                tc_real=tc_ops if tc_ops>0 else tc_form
+                rg_salvar=rg_form if usar_rec_manual else 0
+                criar_lancamento(ma,eq,str(data_sel),label,ag,tc_real,0,dt,td,rg_salvar)
+                buscar_lancamentos.clear()
+                buscar_metas_equipe.clear()
+                st.session_state.ultimo_salvo=f"✅ Lançamento salvo! Geral: {fmt_brl(rg_salvar)} | Com Interação: {fmt_brl(tc_real)}"
+                st.rerun()
     st.markdown("---")
     lancs=buscar_lancamentos(ma,eq)
     if lancs:
