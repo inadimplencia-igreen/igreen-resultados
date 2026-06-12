@@ -1830,13 +1830,26 @@ def pagina_quadro(ma):
         else:
             tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict))
         dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
-        # Prioridade: 1) recGeral do lançamento manual, 2) base processada
+        # Usar o mais recente: comparar data do lançamento manual vs base processada
         rec_geral=0.0
+        rec_manual=0.0; dt_manual=None
         for l in lancs:
             if l.get("recGeral",0)>0:
-                rec_geral=float(l["recGeral"]); break
-        if rec_geral==0:
-            rec_geral=float(up.get("valorElegivel",0)) if up else 0
+                rec_manual=float(l["recGeral"])
+                dt_manual=l.get("criadoEm")
+                break
+        rec_base=float(up.get("valorElegivel",0)) if up else 0
+        dt_base=up.get("atualizadoEm") if up else None
+        # Usar o mais recente
+        if rec_manual>0 and rec_base>0:
+            if dt_manual and dt_base and dt_manual>dt_base:
+                rec_geral=rec_manual
+            else:
+                rec_geral=rec_base
+        elif rec_manual>0:
+            rec_geral=rec_manual
+        elif rec_base>0:
+            rec_geral=rec_base
         # Para metcool: recGeral vem do lancamento_meetcall (recGeralTotal)
         if eq=="metcool":
             mc_doc=buscar_lancamento_meetcall(ma)
