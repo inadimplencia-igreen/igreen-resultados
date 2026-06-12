@@ -1733,56 +1733,82 @@ def pagina_quadro(ma):
                             v=float(up_ant.get("valorElegivel",0)) if up_ant else 0
                         rg_ant[nome_ant]=v
                 except: pass
-            linhas=""
-            for ed in equipes_data:
-                cv_e=cor_pct(ed["pct"])
-                rg_anterior=rg_ant.get(ed["nome"],0)
-                if rg_anterior>0:
-                    diff=ed["rg"]-rg_anterior
-                    pct_cresc=(diff/rg_anterior*100) if rg_anterior>0 else 0
-                    seta=f"\u2191 +{pct_cresc:.1f}%" if diff>0 else (f"\u2193 {pct_cresc:.1f}%" if diff<0 else "\u2192 0%")
-                    cor_seta="#00c853" if diff>0 else ("#e53935" if diff<0 else "#8ab89a")
-                    col_ant=f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#8ab89a;font-size:13px;white-space:nowrap">{fmt_brl(rg_anterior)}</div></div>'
-                    col_cresc=f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">CRESCIMENTO</div><div style="color:{cor_seta};font-size:13px;font-weight:700">{seta}</div></div>'
-                else:
-                    col_ant='<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
-                    col_cresc='<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">CRESCIMENTO</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
-                row=(
-                    '<div style="display:flex;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #1e3a1e;gap:0;overflow:hidden">'
-                    f'<div style="color:#ffffff;font-weight:700;font-size:13px;min-width:120px;flex-shrink:0">Equipe {ed["nome"]}</div>'
-                    ''
-                    f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">RECEBIDO</div><div style="color:#00c853;font-weight:700;font-size:14px;white-space:nowrap">{fmt_brl(ed["rg"])}</div></div>'
-                    f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">COM INTER.</div><div style="color:#e8f5e9;font-size:14px;white-space:nowrap">{fmt_brl(ed["ci"])}</div></div>'
-                    f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">SEM INTER.</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(ed["si"])}</div></div>'
-                    f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">META</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(ed["meta"])}</div></div>'
-                    f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">PROJEÇÃO</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(ed["proj"])}</div></div>'
-                    f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">% META</div><div style="color:{cv_e};font-size:14px;font-weight:800">{ed["pct"]:.2f}%</div></div>'
-                    f'{col_ant}'
-                    f'{col_cresc}'
-                    '</div>'
-                )
-                linhas+=row
-            # Total mês anterior
-            tot_ant=sum(rg_ant.get(ed["nome"],0) for ed in equipes_data)
-            tot_diff=tot_rec-tot_ant if tot_ant>0 else 0
-            tot_pct_cresc=(tot_diff/tot_ant*100) if tot_ant>0 else 0
-            tot_seta=f"\u2191 +{tot_pct_cresc:.1f}%" if tot_diff>0 else (f"\u2193 {tot_pct_cresc:.1f}%" if tot_diff<0 else "\u2192 0%")
-            tot_cor_seta="#00c853" if tot_diff>0 else ("#e53935" if tot_diff<0 else "#8ab89a")
-            tot_col_ant=f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#8ab89a;font-size:15px;font-weight:700;white-space:nowrap">{fmt_brl(tot_ant)}</div></div>' if tot_ant>0 else '<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
-            tot_col_cresc=f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">CRESCIMENTO</div><div style="color:{tot_cor_seta};font-size:15px;font-weight:700">{tot_seta}</div></div>' if tot_ant>0 else '<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">CRESCIMENTO</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
-            total_row=(
-                '<div style="padding:12px 16px;background:#051005;display:flex;align-items:flex-start;gap:0;overflow:hidden">'
-                '<div style="color:#ffffff;font-weight:800;font-size:13px;min-width:120px;flex-shrink:0">TOTAL GERAL</div>'
-                f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">RECEBIDO</div><div style="color:#00c853;font-weight:800;font-size:15px;white-space:nowrap">{fmt_brl(tot_rec)}</div></div>'
-                f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">COM INTER.</div><div style="color:#ffffff;font-weight:700;font-size:14px;white-space:nowrap">{fmt_brl(tot_ci)}</div></div>'
-                f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">SEM INTER.</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(tot_si)}</div></div>'
-                f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">META</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(tot_meta)}</div></div>'
-                f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">PROJEÇÃO</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(tot_proj)}</div></div>'
-                f'<div style="min-width:95px;flex-shrink:0"><div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">% META</div><div style="color:{cv_t};font-size:14px;font-weight:800">{pct_t:.2f}%</div></div>'
-                f'{tot_col_ant}'
-                f'{tot_col_cresc}'
-                '</div>'
+
+            # Build HTML table for perfect column alignment
+            th = lambda t: f'<th style="color:#3a6a4a;font-size:10px;text-transform:uppercase;padding:8px 12px;font-weight:400;white-space:nowrap;text-align:left">{t}</th>'
+            
+            header = (
+                '<thead><tr>'
+                + '<th style="min-width:120px;padding:8px 12px"></th>'
+                + th("RECEBIDO")
+                + th("COM INTER.")
+                + th("SEM INTER.")
+                + th("META")
+                + th("PROJEÇÃO")
+                + th("% META")
+                + th("MÊS ANT.")
+                + th("CRESCIMENTO")
+                + '</tr></thead>'
             )
+            
+            rows_html = ""
+            for ed in equipes_data:
+                cv_e = cor_pct(ed["pct"])
+                rg_anterior = rg_ant.get(ed["nome"], 0)
+                if rg_anterior > 0:
+                    diff = ed["rg"] - rg_anterior
+                    pct_cresc = (diff/rg_anterior*100) if rg_anterior > 0 else 0
+                    seta = f"↑ +{pct_cresc:.1f}%" if diff > 0 else (f"↓ {pct_cresc:.1f}%" if diff < 0 else "→ 0%")
+                    cor_seta = "#00c853" if diff > 0 else ("#e53935" if diff < 0 else "#8ab89a")
+                    td_ant = f'<td style="padding:10px 12px;white-space:nowrap;color:#8ab89a;font-size:13px">{fmt_brl(rg_anterior)}</td>'
+                    td_cresc = f'<td style="padding:10px 12px;white-space:nowrap;color:{cor_seta};font-size:13px;font-weight:700">{seta}</td>'
+                else:
+                    td_ant = '<td style="padding:10px 12px;color:#5a6a5a;font-size:13px">—</td>'
+                    td_cresc = '<td style="padding:10px 12px;color:#5a6a5a;font-size:13px">—</td>'
+                
+                rows_html += (
+                    f'<tr style="border-bottom:1px solid #1e3a1e">'
+                    f'<td style="padding:10px 12px;color:#ffffff;font-weight:700;font-size:13px;white-space:nowrap">Equipe {ed["nome"]}</td>'
+                    f'<td style="padding:10px 12px;color:#00c853;font-weight:700;font-size:14px;white-space:nowrap">{fmt_brl(ed["rg"])}</td>'
+                    f'<td style="padding:10px 12px;color:#e8f5e9;font-size:13px;white-space:nowrap">{fmt_brl(ed["ci"])}</td>'
+                    f'<td style="padding:10px 12px;color:#8ab89a;font-size:13px;white-space:nowrap">{fmt_brl(ed["si"])}</td>'
+                    f'<td style="padding:10px 12px;color:#8ab89a;font-size:13px;white-space:nowrap">{fmt_brl(ed["meta"])}</td>'
+                    f'<td style="padding:10px 12px;color:#8ab89a;font-size:13px;white-space:nowrap">{fmt_brl(ed["proj"])}</td>'
+                    f'<td style="padding:10px 12px;color:{cv_e};font-size:14px;font-weight:800;white-space:nowrap">{ed["pct"]:.2f}%</td>'
+                    f'{td_ant}'
+                    f'{td_cresc}'
+                    f'</tr>'
+                )
+
+            # Total row
+            tot_ant = sum(rg_ant.get(ed["nome"], 0) for ed in equipes_data)
+            tot_diff = tot_rec - tot_ant if tot_ant > 0 else 0
+            tot_pct_cresc = (tot_diff/tot_ant*100) if tot_ant > 0 else 0
+            tot_seta = f"↑ +{tot_pct_cresc:.1f}%" if tot_diff > 0 else (f"↓ {tot_pct_cresc:.1f}%" if tot_diff < 0 else "→ 0%")
+            tot_cor = "#00c853" if tot_diff > 0 else ("#e53935" if tot_diff < 0 else "#8ab89a")
+            
+            total_html = (
+                f'<tr style="background:#051005">'
+                f'<td style="padding:12px;color:#ffffff;font-weight:800;font-size:14px;white-space:nowrap">TOTAL GERAL</td>'
+                f'<td style="padding:12px;color:#00c853;font-weight:800;font-size:15px;white-space:nowrap">{fmt_brl(tot_rec)}</td>'
+                f'<td style="padding:12px;color:#ffffff;font-weight:700;font-size:14px;white-space:nowrap">{fmt_brl(tot_ci)}</td>'
+                f'<td style="padding:12px;color:#8ab89a;font-size:13px;white-space:nowrap">{fmt_brl(tot_si)}</td>'
+                f'<td style="padding:12px;color:#8ab89a;font-size:13px;white-space:nowrap">{fmt_brl(tot_meta)}</td>'
+                f'<td style="padding:12px;color:#8ab89a;font-size:13px;white-space:nowrap">{fmt_brl(tot_proj)}</td>'
+                f'<td style="padding:12px;color:{cv_t};font-size:16px;font-weight:800;white-space:nowrap">{pct_t:.2f}%</td>'
+                f'<td style="padding:12px;color:#8ab89a;font-size:13px;white-space:nowrap">{"—" if tot_ant==0 else fmt_brl(tot_ant)}</td>'
+                f'<td style="padding:12px;color:{tot_cor};font-size:13px;font-weight:700;white-space:nowrap">{"—" if tot_ant==0 else tot_seta}</td>'
+                f'</tr>'
+            )
+
+            table_html = (
+                f'<div style="background:linear-gradient(135deg,#0a1f0a,#0d2a0d);border:1px solid #1e3a1e;border-radius:14px;padding:0;overflow:hidden">'
+                f'<table style="width:100%;border-collapse:collapse">'
+                f'{header}'
+                f'<tbody>{rows_html}{total_html}</tbody>'
+                f'</table></div>'
+            )
+            st.markdown(table_html, unsafe_allow_html=True)
             st.markdown(
                 "<div style='background:linear-gradient(135deg,#0a1f0a,#0d2a0d);border:1px solid #1e3a1e;"
                 "border-radius:14px;margin-bottom:16px;overflow:hidden;border-left:3px solid #00c853'>"
