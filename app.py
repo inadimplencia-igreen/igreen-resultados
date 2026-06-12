@@ -1589,12 +1589,11 @@ def pagina_lancamento(ma):
     usar_manual=st.checkbox("Inserir valor total manualmente",key=f"manual_{eq}_{ma}")
     tc_manual=0.0
     if usar_manual:
-        # Buscar último valor de Com Interação salvo
         tc_anterior=0.0
-        if lancs:
-            for l in lancs:
-                if l.get("totalEquipe",0)>0:
-                    tc_anterior=float(l["totalEquipe"]); break
+        lancs_tmp=buscar_lancamentos(ma,eq)
+        for l in (lancs_tmp or []):
+            if l.get("totalEquipe",0)>0:
+                tc_anterior=float(l["totalEquipe"]); break
         tc_manual=st.number_input("Valor Total com Interação (R$)",min_value=0.0,step=100.0,format="%.2f",value=tc_anterior,key=f"tc_manual_{eq}_{ma}")
         if tc==0 and tc_manual>0:
             tc=tc_manual
