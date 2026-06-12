@@ -1689,18 +1689,30 @@ def pagina_quadro(ma):
                 else:
                     tc_r=sum(float(v.get("valorRecebido",0)) for v in ul_r.get("agentes",{}).values() if isinstance(v,dict))
                 dt_r=int(ul_r.get("diasTrabalhados",0)); td_r=int(ul_r.get("totalDias",22))
-                # Prioridade: 1) recGeral lançamento manual, 2) base processada
+                # Usar o mais recente: manual vs base processada
                 rg_r=0.0
                 if eq_r=="metcool":
                     mc_doc_r=buscar_lancamento_meetcall(ma)
                     rg_r=float(mc_doc_r.get("recGeralTotal",mc_doc_r.get("recGeral",0)))
                 else:
+                    up_r=buscar_ultimo_processamento(ma,eq_r)
+                    rec_manual_r=0.0; dt_manual_r=None
                     for l in lancs_r:
                         if l.get("recGeral",0)>0:
-                            rg_r=float(l["recGeral"]); break
-                    if rg_r==0:
-                        up_r=buscar_ultimo_processamento(ma,eq_r)
-                        rg_r=float(up_r.get("valorElegivel",0)) if up_r else 0
+                            rec_manual_r=float(l["recGeral"])
+                            dt_manual_r=l.get("criadoEm")
+                            break
+                    rec_base_r=float(up_r.get("valorElegivel",0)) if up_r else 0
+                    dt_base_r=up_r.get("atualizadoEm") if up_r else None
+                    if rec_manual_r>0 and rec_base_r>0:
+                        if dt_manual_r and dt_base_r and dt_manual_r>dt_base_r:
+                            rg_r=rec_manual_r
+                        else:
+                            rg_r=rec_base_r
+                    elif rec_manual_r>0:
+                        rg_r=rec_manual_r
+                    elif rec_base_r>0:
+                        rg_r=rec_base_r
                 si_r=max(0,rg_r-tc_r); proj_r=calc_projecao(rg_r,dt_r,td_r)
                 pct_r=(rg_r/mg_r*100) if mg_r>0 else 0
                 tot_rec+=rg_r; tot_ci+=tc_r; tot_si+=si_r; tot_meta+=mg_r; tot_proj+=proj_r
