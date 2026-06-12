@@ -1601,13 +1601,20 @@ def pagina_lancamento(ma):
         else:
             st.session_state[f"salvando_{eq}_{ma}"]=True
             label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
-            ag={op["_id"]:{"valorRecebido":vi.get(op["_id"],0),"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops if op["nome"] not in OPERADORES_MEETCALL}
-            tc_real=sum(float(v.get("valorRecebido",0)) for v in ag.values())
-            criar_lancamento(ma,eq,str(data_sel),label,ag,tc_real,0,dt,td,rec_geral_manual)
+            # Com Interação: usar manual se marcado, senão soma dos operadores
+            if usar_manual and tc_manual>0:
+                tc_real=tc_manual
+                ag={}
+            else:
+                ag={op["_id"]:{"valorRecebido":vi.get(op["_id"],0),"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops if op["nome"] not in OPERADORES_MEETCALL}
+                tc_real=sum(float(v.get("valorRecebido",0)) for v in ag.values())
+            # Recebido Geral: usar manual se marcado, senão zero
+            rg_salvar=rec_geral_manual if usar_rec_manual else 0
+            criar_lancamento(ma,eq,str(data_sel),label,ag,tc_real,0,dt,td,rg_salvar)
             buscar_lancamentos.clear()
             buscar_metas_equipe.clear()
             st.session_state[f"salvando_{eq}_{ma}"]=False
-            st.session_state.ultimo_salvo=f"✅ Lançamento de {label} salvo com sucesso! Total: {fmt_brl(tc_real)}"
+            st.session_state.ultimo_salvo=f"✅ Lançamento salvo! Geral: {fmt_brl(rg_salvar)} | Com Interação: {fmt_brl(tc_real)}"
             st.rerun()
     st.markdown("---")
     lancs=buscar_lancamentos(ma,eq)
