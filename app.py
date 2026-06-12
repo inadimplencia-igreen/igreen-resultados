@@ -1742,20 +1742,20 @@ def pagina_quadro(ma):
                     pct_cresc=(diff/rg_anterior*100) if rg_anterior>0 else 0
                     seta=f"\u2191 +{pct_cresc:.1f}%" if diff>0 else (f"\u2193 {pct_cresc:.1f}%" if diff<0 else "\u2192 0%")
                     cor_seta="#00c853" if diff>0 else ("#e53935" if diff<0 else "#8ab89a")
-                    col_ant=f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#8ab89a;font-size:13px">{fmt_brl(rg_anterior)}</div></div>'
+                    col_ant=f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#8ab89a;font-size:13px;white-space:nowrap">{fmt_brl(rg_anterior)}</div></div>'
                     col_cresc=f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">CRESCIMENTO</div><div style="color:{cor_seta};font-size:13px;font-weight:700">{seta}</div></div>'
                 else:
                     col_ant='<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
                     col_cresc='<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">CRESCIMENTO</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
                 row=(
-                    '<div style="display:grid;grid-template-columns:140px repeat(8,1fr) 80px 100px;align-items:center;padding:14px 16px;border-bottom:1px solid #1e3a1e;gap:8px">'
+                    '<div style="display:grid;grid-template-columns:130px repeat(6,minmax(100px,1fr)) 70px minmax(110px,1fr) minmax(100px,1fr);align-items:start;padding:12px 16px;border-bottom:1px solid #1e3a1e;gap:6px">'
                     f'<div style="color:#ffffff;font-weight:700;font-size:14px">Equipe {ed["nome"]}</div>'
                     ''
-                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">RECEBIDO</div><div style="color:#00c853;font-weight:700;font-size:14px">{fmt_brl(ed["rg"])}</div></div>'
-                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">COM INTER.</div><div style="color:#e8f5e9;font-size:14px">{fmt_brl(ed["ci"])}</div></div>'
-                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">SEM INTER.</div><div style="color:#8ab89a;font-size:14px">{fmt_brl(ed["si"])}</div></div>'
-                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">META</div><div style="color:#8ab89a;font-size:14px">{fmt_brl(ed["meta"])}</div></div>'
-                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">PROJEÇÃO</div><div style="color:#8ab89a;font-size:14px">{fmt_brl(ed["proj"])}</div></div>'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">RECEBIDO</div><div style="color:#00c853;font-weight:700;font-size:14px;white-space:nowrap">{fmt_brl(ed["rg"])}</div></div>'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">COM INTER.</div><div style="color:#e8f5e9;font-size:14px;white-space:nowrap">{fmt_brl(ed["ci"])}</div></div>'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">SEM INTER.</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(ed["si"])}</div></div>'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">META</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(ed["meta"])}</div></div>'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">PROJEÇÃO</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(ed["proj"])}</div></div>'
                     f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">% META</div><div style="color:{cv_e};font-size:14px;font-weight:800">{ed["pct"]:.2f}%</div></div>'
                     f'{col_ant}'
                     f'{col_cresc}'
@@ -1768,16 +1768,16 @@ def pagina_quadro(ma):
             tot_pct_cresc=(tot_diff/tot_ant*100) if tot_ant>0 else 0
             tot_seta=f"\u2191 +{tot_pct_cresc:.1f}%" if tot_diff>0 else (f"\u2193 {tot_pct_cresc:.1f}%" if tot_diff<0 else "\u2192 0%")
             tot_cor_seta="#00c853" if tot_diff>0 else ("#e53935" if tot_diff<0 else "#8ab89a")
-            tot_col_ant=f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#8ab89a;font-size:15px;font-weight:700">{fmt_brl(tot_ant)}</div></div>' if tot_ant>0 else '<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
+            tot_col_ant=f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#8ab89a;font-size:15px;font-weight:700;white-space:nowrap">{fmt_brl(tot_ant)}</div></div>' if tot_ant>0 else '<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
             tot_col_cresc=f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">CRESCIMENTO</div><div style="color:{tot_cor_seta};font-size:15px;font-weight:700">{tot_seta}</div></div>' if tot_ant>0 else '<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">CRESCIMENTO</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
             total_row=(
-                '<div style="padding:14px 16px;background:#051005;display:grid;grid-template-columns:140px repeat(8,1fr) 80px 100px;align-items:center;gap:8px">'
+                '<div style="padding:12px 16px;background:#051005;display:grid;grid-template-columns:130px repeat(6,minmax(100px,1fr)) 70px minmax(110px,1fr) minmax(100px,1fr);align-items:start;gap:6px">'
                 '<div style="color:#ffffff;font-weight:800;font-size:14px">TOTAL GERAL</div>'
-                f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">RECEBIDO</div><div style="color:#00c853;font-weight:800;font-size:15px">{fmt_brl(tot_rec)}</div></div>'
-                f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">COM INTER.</div><div style="color:#ffffff;font-weight:700;font-size:14px">{fmt_brl(tot_ci)}</div></div>'
-                f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">SEM INTER.</div><div style="color:#8ab89a;font-size:14px">{fmt_brl(tot_si)}</div></div>'
-                f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">META</div><div style="color:#8ab89a;font-size:14px">{fmt_brl(tot_meta)}</div></div>'
-                f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">PROJEÇÃO</div><div style="color:#8ab89a;font-size:14px">{fmt_brl(tot_proj)}</div></div>'
+                f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">RECEBIDO</div><div style="color:#00c853;font-weight:800;font-size:15px;white-space:nowrap">{fmt_brl(tot_rec)}</div></div>'
+                f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">COM INTER.</div><div style="color:#ffffff;font-weight:700;font-size:14px;white-space:nowrap">{fmt_brl(tot_ci)}</div></div>'
+                f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">SEM INTER.</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(tot_si)}</div></div>'
+                f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">META</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(tot_meta)}</div></div>'
+                f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">PROJEÇÃO</div><div style="color:#8ab89a;font-size:14px;white-space:nowrap">{fmt_brl(tot_proj)}</div></div>'
                 f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">% META</div><div style="color:{cv_t};font-size:14px;font-weight:800">{pct_t:.2f}%</div></div>'
                 f'{tot_col_ant}'
                 f'{tot_col_cresc}'
