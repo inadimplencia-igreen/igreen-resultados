@@ -1710,22 +1710,56 @@ def pagina_quadro(ma):
         if equipes_data:
             pct_t=(tot_rec/tot_meta*100) if tot_meta>0 else 0
             cv_t=cor_pct(pct_t)
+            # Mês anterior
+            meses_map2={"Janeiro":1,"Fevereiro":2,"Março":3,"Abril":4,"Maio":5,"Junho":6,"Julho":7,"Agosto":8,"Setembro":9,"Outubro":10,"Novembro":11,"Dezembro":12}
+            if "-" in ma:
+                partes_ma=ma.split("-"); mes_r=meses_map2.get(partes_ma[0],1); ano_r=int(partes_ma[1])
+            else:
+                mes_r=1; ano_r=2026
+            ma_ant=f"Dezembro-{ano_r-1}" if mes_r==1 else f"{MESES_NOMES[mes_r-2]}-{ano_r}"
+            rg_ant={}
+            for eq_ant in ["luciano","metcool","deborah","tamires"]:
+                try:
+                    nome_ant="Meet Call" if eq_ant=="metcool" else EQUIPES[eq_ant]["nome"]
+                    if eq_ant=="metcool":
+                        mc_ant=buscar_lancamento_meetcall(ma_ant)
+                        rg_ant[nome_ant]=float(mc_ant.get("recGeralTotal",mc_ant.get("recGeral",0)))
+                    else:
+                        lancs_ant=buscar_lancamentos(ma_ant,eq_ant); v=0.0
+                        for l in (lancs_ant or []):
+                            if l.get("recGeral",0)>0: v=float(l["recGeral"]); break
+                        if v==0:
+                            up_ant=buscar_ultimo_processamento(ma_ant,eq_ant)
+                            v=float(up_ant.get("valorElegivel",0)) if up_ant else 0
+                        rg_ant[nome_ant]=v
+                except: pass
             linhas=""
             for ed in equipes_data:
                 cv_e=cor_pct(ed["pct"])
+                rg_anterior=rg_ant.get(ed["nome"],0)
+                if rg_anterior>0:
+                    diff=ed["rg"]-rg_anterior
+                    pct_cresc=(diff/rg_anterior*100) if rg_anterior>0 else 0
+                    seta=f"\u2191 +{pct_cresc:.1f}%" if diff>0 else (f"\u2193 {pct_cresc:.1f}%" if diff<0 else "\u2192 0%")
+                    cor_seta="#00c853" if diff>0 else ("#e53935" if diff<0 else "#8ab89a")
+                    col_ant=f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#8ab89a;font-size:13px">{fmt_brl(rg_anterior)}</div></div>'
+                    col_cresc=f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">CRESCIMENTO</div><div style="color:{cor_seta};font-size:13px;font-weight:700">{seta}</div></div>'
+                else:
+                    col_ant='<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">MÊS ANT.</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
+                    col_cresc='<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">CRESCIMENTO</div><div style="color:#5a6a5a;font-size:13px">—</div></div>'
                 row=(
-                    "<div style='display:flex;justify-content:space-between;align-items:center;"
-                    "padding:14px 16px;border-bottom:1px solid #1e3a1e;flex-wrap:wrap;gap:8px'>"
-                    f"<div style='color:#ffffff;font-weight:700;font-size:14px;min-width:130px'>Equipe {ed['nome']}</div>"
-                    "<div style='display:flex;gap:16px;flex-wrap:wrap;flex:1'>"
-                    f"<div><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>RECEBIDO</div><div style='color:#00c853;font-weight:700;font-size:14px'>{fmt_brl(ed['rg'])}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>COM INTER.</div><div style='color:#e8f5e9;font-size:14px'>{fmt_brl(ed['ci'])}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>SEM INTER.</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(ed['si'])}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>META</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(ed['meta'])}</div></div>"
-                    f"<div><div style='color:#3a6a4a;font-size:10px;text-transform:uppercase'>PROJEÇÃO</div><div style='color:#8ab89a;font-size:14px'>{fmt_brl(ed['proj'])}</div></div>"
-                    "</div>"
-                    f"<div style='color:{cv_e};font-size:16px;font-weight:800'>{ed['pct']:.2f}%</div>"
-                    "</div>"
+                    '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #1e3a1e;flex-wrap:wrap;gap:8px">'
+                    f'<div style="color:#ffffff;font-weight:700;font-size:14px;min-width:130px">Equipe {ed["nome"]}</div>'
+                    '<div style="display:flex;gap:16px;flex-wrap:wrap;flex:1">'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">RECEBIDO</div><div style="color:#00c853;font-weight:700;font-size:14px">{fmt_brl(ed["rg"])}</div></div>'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">COM INTER.</div><div style="color:#e8f5e9;font-size:14px">{fmt_brl(ed["ci"])}</div></div>'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">SEM INTER.</div><div style="color:#8ab89a;font-size:14px">{fmt_brl(ed["si"])}</div></div>'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">META</div><div style="color:#8ab89a;font-size:14px">{fmt_brl(ed["meta"])}</div></div>'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">PROJEÇÃO</div><div style="color:#8ab89a;font-size:14px">{fmt_brl(ed["proj"])}</div></div>'
+                    f'<div><div style="color:#3a6a4a;font-size:10px;text-transform:uppercase">% META</div><div style="color:{cv_e};font-size:14px;font-weight:800">{ed["pct"]:.2f}%</div></div>'
+                    f'{col_ant}'
+                    f'{col_cresc}'
+                    '</div></div>'
                 )
                 linhas+=row
             total_row=(
