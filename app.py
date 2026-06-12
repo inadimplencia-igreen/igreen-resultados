@@ -1589,13 +1589,13 @@ def pagina_lancamento(ma):
     usar_manual=st.checkbox("Inserir valor total manualmente",key=f"manual_{eq}_{ma}")
     tc_manual=0.0
     if usar_manual:
-        tc_manual=st.number_input("Valor Total com Interação (R$)",min_value=0.0,step=100.0,format="%.2f",value=0.0,key=f"tc_manual_{eq}_{ma}")
-        st.session_state[f"tc_manual_val_{eq}_{ma}"]=tc_manual
+        # Usar session_state para preservar valor
+        key_tc = f"tc_manual_val_{eq}_{ma}"
+        val_prev = st.session_state.get(key_tc, 0.0)
+        tc_manual=st.number_input("Valor Total com Interação (R$)",min_value=0.0,step=100.0,format="%.2f",value=val_prev,key=f"tc_manual_{eq}_{ma}")
+        st.session_state[key_tc]=tc_manual
         if tc==0 and tc_manual>0:
             tc=tc_manual
-    # Recuperar valor manual mesmo após rerun
-    if usar_manual and tc_manual==0:
-        tc_manual=st.session_state.get(f"tc_manual_val_{eq}_{ma}",0.0)
     st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin-bottom:16px'><span style='color:#5a9a70;font-size:11px'>TOTAL COM INTERAÇÃO</span><br><span style='color:#2daf5c;font-size:20px;font-weight:700'>{fmt_brl(tc)}</span></div>",unsafe_allow_html=True)
     ja_salvando=st.session_state.get(f"salvando_{eq}_{ma}",False)
     if st.button("Salvar Lançamento",use_container_width=True,key=f"btn_{eq}_{ma}",disabled=ja_salvando):
