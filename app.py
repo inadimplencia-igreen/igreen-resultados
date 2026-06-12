@@ -1609,10 +1609,9 @@ def pagina_lancamento(ma):
             label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
             ag={op["_id"]:{"valorRecebido":vi.get(op["_id"],0),"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops if op["nome"] not in OPERADORES_MEETCALL}
             tc_ops=sum(float(v.get("valorRecebido",0)) for v in ag.values())
-            # Buscar valor manual direto do session_state (mais confiável que variável)
-            tc_manual_salvo=float(st.session_state.get(f"tc_manual_val_{eq}_{ma}",0))
-            if usar_manual and tc_manual_salvo>0 and tc_ops==0:
-                tc_real=tc_manual_salvo
+            if tc_ops==0:
+                # Sem valor nos colaboradores — pegar do campo manual
+                tc_real=float(st.session_state.get(f"tc_manual_{eq}_{ma}", 0))
             else:
                 tc_real=tc_ops
             # Recebido Geral: usar manual se marcado, senão zero
