@@ -1499,7 +1499,12 @@ def pagina_lancamento(ma):
     u=st.session_state.usuario
     header_page("Lançamento de Resultado",ma.replace("-"," "))
     eq=seletor_equipe(u["equipe"])
-    ops=buscar_operadores(eq)
+    # Se equipe metcool, usar tela Meet Call
+    if eq=="metcool":
+        pagina_meetcall(ma)
+        return
+    ops_todos=buscar_operadores(eq)
+    ops=[op for op in ops_todos if op["nome"] not in OPERADORES_MEETCALL] if eq=="luciano" else ops_todos
     if not ops: st.warning("Cadastre operadores primeiro."); return
     ms=buscar_metas_equipe(ma,eq)
     if st.session_state.get("ultimo_salvo"):
@@ -2318,7 +2323,7 @@ def pagina_analise_operadores(ma):
             pct=(vat/meta*100) if meta>0 else 0
             var_op=calc_variacao(vat,van)
             sv="↑" if (var_op or 0)>=0 else "↓"
-            rows.append({"Operador":("★ " if op.get("pleno") else "")+op["nome"],"Recebido":fmt_brl(vat) if vat>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.2f}%" if meta>0 else "—","Mês Ant.":fmt_brl(van) if van>0 else "—","Variação":f"{sv} {abs(var_op):.2f}%" if var_op is not None else "—","_v":vat})
+            rows.append({"Operador":("★ " if op.get("pleno") else "")+op["nome"],"Recebido":fmt_brl(vat) if vat>0 else "—","Meta":fmt_brl(meta) if meta>0 else "—","% Meta":f"{pct:.2f}%" if meta>0 else "—","Projeção":fmt_brl(calc_projecao(vat,dt,td)) if vat>0 else "—","Mês Ant.":fmt_brl(van) if van>0 else "—","Variação":f"{sv} {abs(var_op):.2f}%" if var_op is not None else "—","Monitoria":f"{calc_media_operador(op['_id'],ma)[0]:.1f}%" if calc_media_operador(op['_id'],ma)[1]>0 else "—","_v":vat})
         st.markdown(f"**Equipe {EQUIPES[eq]['nome']}**")
         df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
         df.index=range(1,len(df)+1)
