@@ -1589,11 +1589,11 @@ def pagina_lancamento(ma):
     usar_manual=st.checkbox("Inserir valor total manualmente",key=f"manual_{eq}_{ma}")
     tc_manual=0.0
     if usar_manual:
-        # Usar session_state para preservar valor
-        key_tc = f"tc_manual_val_{eq}_{ma}"
-        val_prev = st.session_state.get(key_tc, 0.0)
-        tc_manual=st.number_input("Valor Total com Interação (R$)",min_value=0.0,step=100.0,format="%.2f",value=val_prev,key=f"tc_manual_{eq}_{ma}")
-        st.session_state[key_tc]=tc_manual
+        key_tc = f"tc_manual_{eq}_{ma}"
+        tc_manual=st.number_input("Valor Total com Interação (R$)",min_value=0.0,step=100.0,format="%.2f",value=0.0,key=key_tc)
+        # Salvar imediatamente em chave separada
+        if tc_manual>0:
+            st.session_state[f"_saved_tc_{eq}_{ma}"] = tc_manual
         if tc==0 and tc_manual>0:
             tc=tc_manual
     st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin-bottom:16px'><span style='color:#5a9a70;font-size:11px'>TOTAL COM INTERAÇÃO</span><br><span style='color:#2daf5c;font-size:20px;font-weight:700'>{fmt_brl(tc)}</span></div>",unsafe_allow_html=True)
@@ -1610,8 +1610,7 @@ def pagina_lancamento(ma):
             ag={op["_id"]:{"valorRecebido":vi.get(op["_id"],0),"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops if op["nome"] not in OPERADORES_MEETCALL}
             tc_ops=sum(float(v.get("valorRecebido",0)) for v in ag.values())
             if tc_ops==0:
-                # Sem valor nos colaboradores — pegar do campo manual
-                tc_real=float(st.session_state.get(f"tc_manual_{eq}_{ma}", 0))
+                tc_real=float(st.session_state.get(f"_saved_tc_{eq}_{ma}", 0))
             else:
                 tc_real=tc_ops
             # Recebido Geral: usar manual se marcado, senão zero
