@@ -1589,16 +1589,20 @@ def pagina_lancamento(ma):
     usar_manual=st.checkbox("Inserir valor total manualmente",key=f"manual_{eq}_{ma}")
     tc_manual=0.0
     if usar_manual:
-        # Buscar valor salvo temporariamente no banco
         doc_tmp=get_db().temp_lancamento.find_one({"_id":f"tmp_{eq}_{ma}"}) or {}
         tc_anterior_tmp=float(doc_tmp.get("tc_manual",0))
-        tc_manual=st.number_input("Valor Total com Interação (R$)",min_value=0.0,step=100.0,format="%.2f",value=tc_anterior_tmp,key=f"tc_manual_{eq}_{ma}")
-        if tc_manual>0:
-            # Salvar temporariamente no banco para sobreviver ao rerun
+        tc_manual_str=st.text_input("Valor Total com Interação (R$)",
+            value=f"{tc_anterior_tmp:.2f}".replace(".",",") if tc_anterior_tmp>0 else "",
+            placeholder="Ex: 2.061.583,17",key=f"tc_manual_txt_{eq}_{ma}")
+        # Salvar no banco sempre que o valor mudar
+        val_digitado=parse_brl(tc_manual_str)
+        if val_digitado>0 and val_digitado!=tc_anterior_tmp:
             get_db().temp_lancamento.update_one(
                 {"_id":f"tmp_{eq}_{ma}"},
-                {"$set":{"tc_manual":tc_manual,"rg_manual":rec_geral_manual if usar_rec_manual else 0}},
-                upsert=True)
+                {"$set":{"tc_manual":val_digitado}},upsert=True)
+            tc_manual=val_digitado
+        else:
+            tc_manual=tc_anterior_tmp
         if tc==0 and tc_manual>0:
             tc=tc_manual
     st.markdown(f"<div style='background:#0a2414;border-radius:8px;padding:12px 16px;margin-bottom:16px'><span style='color:#5a9a70;font-size:11px'>TOTAL COM INTERAÇÃO</span><br><span style='color:#2daf5c;font-size:20px;font-weight:700'>{fmt_brl(tc)}</span></div>",unsafe_allow_html=True)
@@ -1614,13 +1618,13 @@ def pagina_lancamento(ma):
             label="Fechamento do Mês" if eh_fech else data_sel.strftime("%d/%m/%Y")
             ag={op["_id"]:{"valorRecebido":vi.get(op["_id"],0),"nome":op["nome"],"ligacoes":lig_vi.get(op["_id"],0)} for op in ops if op["nome"] not in OPERADORES_MEETCALL}
             tc_ops=sum(float(v.get("valorRecebido",0)) for v in ag.values())
-            # Pegar tc_manual do text_input via session_state key
-            # Ler valores do banco temporário — sobrevive ao rerun
+            # Ler tc_manual do banco temporário
             doc_tmp=get_db().temp_lancamento.find_one({"_id":f"tmp_{eq}_{ma}"}) or {}
             tc_manual_val=float(doc_tmp.get("tc_manual",0))
-            rg_tmp=float(doc_tmp.get("rg_manual",0))
+            # Se atendentes zerados usa manual, senão usa atendentes
             tc_real = tc_ops if tc_ops > 0 else tc_manual_val
-            rg_salvar = rg_tmp if usar_rec_manual else 0
+            # Recebido Geral — usar direto da variável (já funciona)
+            rg_salvar = rec_geral_manual if usar_rec_manual else 0
             criar_lancamento(ma,eq,str(data_sel),label,ag,tc_real,0,dt,td,rg_salvar)
             buscar_lancamentos.clear()
             buscar_metas_equipe.clear()
