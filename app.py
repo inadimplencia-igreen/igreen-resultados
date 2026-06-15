@@ -2387,8 +2387,8 @@ def pagina_dashboard_executivo():
 
 
 
-def calcular_divisao_proporcional_luciano(arq_pagos, arq_interacoes, ma):
-    """Calcula divisão proporcional Luciano vs Amitycall."""
+def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
+    """Calcula divisão proporcional Luciano vs Amitycall usando df já processado."""
     import unicodedata
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
 
@@ -2401,24 +2401,13 @@ def calcular_divisao_proporcional_luciano(arq_pagos, arq_interacoes, ma):
     ]]
 
     try:
-        # 1. Ler pagos
-        arq_pagos.seek(0)
-        df_pagos = ler_arquivo(arq_pagos)
-        # Mapear colunas do CSV padrão do Luciano
-        df_pagos.columns = [str(c).strip().lower() for c in df_pagos.columns]
-        df_pagos['uc_cpf'] = df_pagos['cpf'].apply(normalizar_cpf) if 'cpf' in df_pagos.columns else df_pagos.iloc[:,0].apply(normalizar_cpf)
-        df_pagos['data_pagamento'] = parse_data_inteligente(df_pagos['dtpagamento']) if 'dtpagamento' in df_pagos.columns else pd.NaT
-        if 'valorapagar' in df_pagos.columns:
-            df_pagos['valor'] = pd.to_numeric(
-                df_pagos['valorapagar'].astype(str).str.replace('R$','').str.replace(' ','')
-                .str.replace('.','').str.replace(',','.').str.strip(), errors='coerce').fillna(0)
-        elif 'valor' in df_pagos.columns:
-            df_pagos['valor'] = pd.to_numeric(
-                df_pagos['valor'].astype(str).str.replace('R$','').str.replace(' ','')
-                .str.replace('.','').str.replace(',','.').str.strip(), errors='coerce').fillna(0)
-        # Filtrar apenas pagos
-        if 'status_financeiro' in df_pagos.columns:
-            df_pagos = df_pagos[df_pagos['status_financeiro'].astype(str).str.upper().str.contains('PAGO|BAIXADO', na=False)]
+        # 1. df_eleg já vem processado com elegíveis — apenas pegar CPF e valor
+        # Colunas esperadas: uc_cpf, valor, data_pagamento
+        df_pagos = df_eleg[df_eleg['elegibilidade']=='Elegível'].copy() if 'elegibilidade' in df_eleg.columns else df_eleg.copy()
+        if 'uc_cpf' not in df_pagos.columns:
+            return None, "Coluna uc_cpf não encontrada no resultado processado."
+        if 'valor' not in df_pagos.columns:
+            return None, "Coluna valor não encontrada no resultado processado."
 
         # 2. Ler interações — pode ter abas CHAT, LIGACOES, DISPAROS
         arq_interacoes.seek(0)
@@ -2521,30 +2510,12 @@ def calcular_divisao_proporcional_luciano(arq_pagos, arq_interacoes, ma):
 
         df_int = pd.concat(contatos, ignore_index=True)
 
-        # 3. Primeiro contato por CPF (data mais antiga)
-        df_primeiro = df_int.sort_values('data_contato').drop_duplicates(subset=['uc_cpf'], keep='first')[['uc_cpf','data_contato']]
-        df_pagos['data_pagamento'] = pd.to_datetime(df_pagos['data_pagamento'], errors='coerce').dt.normalize()
-        df_pagos['primeiro_contato'] = df_pagos['uc_cpf'].map(dict(zip(df_primeiro['uc_cpf'], df_primeiro['data_contato'])))
-
-        # Elegível = contato antes ou no dia do pagamento
-        df_pagos['diferenca'] = (df_pagos['data_pagamento'] - df_pagos['primeiro_contato']).dt.days
-        df_eleg = df_pagos[df_pagos['diferenca'] >= 0].copy()
-
-        if df_eleg.empty:
-            return None, "Nenhum registro elegível encontrado."
+        # 3. Elegíveis já vêm do df processado — apenas garantir que temos dados
+        if df_pagos.empty:
+            return None, "Nenhum registro elegível encontrado na base processada."
 
         # 4. Divisão proporcional por CPF
-        # Usar APENAS contatos ELEGÍVEIS (antes ou no dia do pagamento) por CPF
-        # Mapear data de pagamento por CPF
-        cpf_para_dtpag = df_eleg.groupby('uc_cpf')['data_pagamento'].min().to_dict()
-
-        df_int_eleg = df_int[df_int['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
-        df_int_eleg['data_pagamento_cpf'] = df_int_eleg['uc_cpf'].map(cpf_para_dtpag)
-        df_int_eleg['data_contato'] = pd.to_datetime(df_int_eleg['data_contato'], errors='coerce').dt.normalize()
-        df_int_eleg['data_pagamento_cpf'] = pd.to_datetime(df_int_eleg['data_pagamento_cpf'], errors='coerce').dt.normalize()
-
-        # Só contatos antes ou no dia do pagamento
-        df_int_eleg = df_int_eleg[df_int_eleg['data_contato'] <= df_int_eleg['data_pagamento_cpf']].copy()
+        df_int_eleg = df_int[df_int['uc_cpf'].isin(df_pagos['uc_cpf'].unique())].copy()
 
         # Agrupar segundos por CPF + agente
         df_seg = df_int_eleg.groupby(['uc_cpf','agente'])['segundos'].sum().reset_index()
@@ -2553,7 +2524,7 @@ def calcular_divisao_proporcional_luciano(arq_pagos, arq_interacoes, ma):
         df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
 
         # Valor por CPF — soma de todos os boletos elegíveis
-        df_valor = df_eleg.groupby('uc_cpf')['valor'].sum().reset_index()
+        df_valor = df_pagos.groupby('uc_cpf')['valor'].sum().reset_index()
         df_seg = df_seg.merge(df_valor, on='uc_cpf', how='left')
         df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
 
@@ -2565,8 +2536,8 @@ def calcular_divisao_proporcional_luciano(arq_pagos, arq_interacoes, ma):
         total_luciano = float(df_seg[df_seg['equipe']=='luciano']['valor_proporcional'].sum())
         total_amitycall = float(df_seg[df_seg['equipe']=='amitycall']['valor_proporcional'].sum())
         total_geral = total_luciano + total_amitycall
-        n_eleg = len(df_eleg)
-        n_boletos = len(df_pagos)
+        n_eleg = len(df_pagos)
+        n_boletos = len(df_eleg)
 
         resultado = {
             'total_luciano': total_luciano,
@@ -2620,11 +2591,18 @@ def pagina_upload(ma):
         if st.button('PROCESSAR',use_container_width=True):
             if not arq: st.error('Selecione a base de pagos antes de processar!'); return
 
-            # Luciano: processar divisão proporcional Luciano/Amitycall
+            # Luciano com interações: processar base normalmente primeiro, depois divisão proporcional
             if eq=='luciano' and arq_interacoes is not None:
-                arq.seek(0); arq_interacoes.seek(0)
+                arq.seek(0)
+                with st.spinner('Processando base...'):
+                    df_res,erros,abas=processar_base_unica(arq,eq,ma)
+                if df_res is None or erros:
+                    for e in (erros or []): st.error(e)
+                    st.stop()
+                # Aplicar divisão proporcional sobre elegíveis
+                arq_interacoes.seek(0)
                 with st.spinner('Calculando divisão proporcional...'):
-                    res_div, erro_div = calcular_divisao_proporcional_luciano(arq, arq_interacoes, ma)
+                    res_div, erro_div = calcular_divisao_proporcional_luciano(df_res, arq_interacoes, ma)
                 if erro_div:
                     st.error(erro_div)
                 else:
