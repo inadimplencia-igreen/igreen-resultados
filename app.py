@@ -2591,11 +2591,38 @@ def pagina_upload(ma):
         if st.button('PROCESSAR',use_container_width=True):
             if not arq: st.error('Selecione a base de pagos antes de processar!'); return
 
-            # Luciano com interações: processar base normalmente primeiro, depois divisão proporcional
+            # Luciano com interações: processar base com interações, depois divisão proporcional
             if eq=='luciano' and arq_interacoes is not None:
-                arq.seek(0)
+                arq.seek(0); arq_interacoes.seek(0)
                 with st.spinner('Processando base...'):
                     df_res,erros,abas=processar_base_unica(arq,eq,ma)
+                    # Cruzar com interações para calcular elegibilidade
+                    if df_res is not None:
+                        try:
+                            arq_interacoes.seek(0)
+                            xls_int2=pd.ExcelFile(arq_interacoes)
+                            contatos_tmp=[]
+                            for aba in xls_int2.sheet_names:
+                                df_aba=pd.read_excel(xls_int2,sheet_name=aba,nrows=5)
+                                cols=[str(c).upper() for c in df_aba.columns]
+                                if any('CPF' in c or 'IDENTIF' in c for c in cols):
+                                    df_aba_full=pd.read_excel(xls_int2,sheet_name=aba)
+                                    dd=processar_contatos(df_aba_full)
+                                    if not dd.empty:
+                                        contatos_tmp.append(dd)
+                            if contatos_tmp:
+                                pc_tmp=pd.concat(contatos_tmp,ignore_index=True).groupby('uc_cpf',as_index=False)['data_contato'].min()
+                                df_res['primeiro_contato']=df_res['uc_cpf'].map(dict(zip(pc_tmp['uc_cpf'],pc_tmp['data_contato'])))
+                                df_res['primeiro_contato']=pd.to_datetime(df_res['primeiro_contato'],errors='coerce').dt.normalize()
+                                df_res['data_pagamento']=pd.to_datetime(df_res['data_pagamento'],errors='coerce').dt.normalize()
+                                df_res['diferenca_dias']=(df_res['data_pagamento']-df_res['primeiro_contato']).dt.days
+                                def classif2(row):
+                                    if pd.isna(row.get('primeiro_contato')): return 'ND'
+                                    d=row.get('diferenca_dias')
+                                    if pd.isna(d): return 'ND'
+                                    return 'Elegível' if int(d)>=0 else 'Não Elegível'
+                                df_res['elegibilidade']=df_res.apply(classif2,axis=1)
+                        except: pass
                 if df_res is None or erros:
                     for e in (erros or []): st.error(e)
                     st.stop()
