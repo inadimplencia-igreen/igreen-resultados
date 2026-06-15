@@ -2614,7 +2614,8 @@ def pagina_upload(ma):
                     st.error(erro_div)
                 else:
                     st.session_state['div_prop_resultado'] = res_div
-                return
+                    st.rerun()
+                st.stop()
 
             arq.seek(0)
             with st.spinner('Processando...'):
