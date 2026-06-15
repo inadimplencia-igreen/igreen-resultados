@@ -2426,53 +2426,63 @@ def calcular_divisao_proporcional_luciano(arq_pagos, arq_interacoes, ma):
 
         contatos = []
 
+        def tempo_para_segundos(t):
+            try:
+                s = str(t).strip()
+                if ':' in s:
+                    partes = s.split(':')
+                    if len(partes) == 3:
+                        return int(partes[0])*3600 + int(partes[1])*60 + int(partes[2])
+                    elif len(partes) == 2:
+                        return int(partes[0])*60 + int(partes[1])
+                return float(s)
+            except:
+                return 1
+
         def extrair_cpf_agente_data(df_raw, meio, segundos_fixos=None):
             """Extrai CPF, agente, data e segundos de um dataframe."""
             cols_norm = {norm(str(c)): c for c in df_raw.columns}
-            # CPF
-            col_cpf = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['CPF','IDENTIFICAD','CLIENTE'])), df_raw.columns[0])
-            # Data
-            col_data = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['DATA','DT','DATE'])), None)
-            if col_data is None:
-                return pd.DataFrame()
 
-            # Agente — opcional (chat e disparo não têm)
-            col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','USUARIO','USER','COLLABORATOR'])), None)
-            # Tempo — só para ligações
-            col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME'])), None)
+            # CPF — primeira coluna que pareça CPF
+            col_cpf = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['CPF','IDENTIFICAD','CLIENTE'])), df_raw.columns[0])
+
+            # Data — qualquer coluna com data
+            col_data = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['DATA','DT','DATE','DIA'])), None)
+            if col_data is None:
+                # Tentar segunda coluna como data
+                if len(df_raw.columns) > 1:
+                    col_data = df_raw.columns[1]
+                else:
+                    return pd.DataFrame()
+
+            # Agente — opcional (disparo e chat não têm)
+            col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','USUARIO','USER','AGENT'])), None)
+
+            # Tempo — só ligações
+            col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO'])), None)
 
             df_out = pd.DataFrame()
             df_out['uc_cpf'] = df_raw[col_cpf].apply(normalizar_cpf)
             df_out['data_contato'] = parse_data_inteligente(df_raw[col_data])
             df_out['meio'] = meio
 
-            # Agente: se não tem coluna de agente = LUCIANO (chat/disparo são todos do Luciano)
+            # Agente: disparo e chat = LUCIANO, ligação = nome do agente
             if col_agente is not None:
                 df_out['agente'] = df_raw[col_agente].astype(str).str.strip().str.upper()
             else:
                 df_out['agente'] = 'LUCIANO'
 
+            # Segundos
             if segundos_fixos is not None:
                 df_out['segundos'] = segundos_fixos
             elif col_tempo is not None:
-                def tempo_para_segundos(t):
-                    try:
-                        s = str(t).strip()
-                        if ':' in s:
-                            partes = s.split(':')
-                            if len(partes) == 3:
-                                return int(partes[0])*3600 + int(partes[1])*60 + int(partes[2])
-                            elif len(partes) == 2:
-                                return int(partes[0])*60 + int(partes[1])
-                        return float(s)
-                    except:
-                        return 1
                 df_out['segundos'] = df_raw[col_tempo].apply(tempo_para_segundos)
             else:
                 df_out['segundos'] = 1
 
             df_out = df_out.dropna(subset=['data_contato'])
             df_out = df_out[df_out['uc_cpf'].str.len() >= 8]
+            df_out = df_out[df_out['uc_cpf'] != 'nan']
             return df_out
 
         # Processar cada aba
