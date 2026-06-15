@@ -2473,13 +2473,14 @@ def calcular_divisao_proporcional_luciano(arq_pagos, arq_interacoes, ma):
 
         # Processar cada aba
         if xls_int:
-            for aba_n, aba_orig in abas_norm.items():
+            for aba_orig in xls_int.sheet_names:
+                aba_n = norm(aba_orig)
                 df_raw = pd.read_excel(xls_int, sheet_name=aba_orig)
                 if 'DISPAR' in aba_n:
                     df_c = extrair_cpf_agente_data(df_raw, 'DISPARO', segundos_fixos=1)
                 elif 'CHAT' in aba_n:
                     df_c = extrair_cpf_agente_data(df_raw, 'CHAT', segundos_fixos=5)
-                elif 'LIG' in aba_n:
+                elif 'LIG' in aba_n or 'LIGAC' in aba_n:
                     df_c = extrair_cpf_agente_data(df_raw, 'LIGACAO', segundos_fixos=None)
                 else:
                     df_c = extrair_cpf_agente_data(df_raw, 'OUTRO', segundos_fixos=1)
