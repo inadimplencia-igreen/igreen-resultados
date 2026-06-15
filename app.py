@@ -2392,13 +2392,14 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
     import unicodedata
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
 
-    AGENTES_LUCIANO = [n.upper().strip() for n in [
+    AGENTES_LUCIANO = {n.upper().strip() for n in [
         'JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA',
         'MICHELLE BATISTA','LORENZZO PEREIRA','EDUARDA SANQUETA','MARIA CLARA',
         'HEVERTON TAVARES','DIOGO OLIVEIRA','GRASIELLE DA SILVA SANTOS',
         'EMANUEL FERREIRA','KETLE SILVA','CAUA ALVES','VICTORIA SILVA',
-        'PAULO ROBERTO','GABRIELLE MARTINS','JENNIFER ARIELLE','SAMIRES BARROS'
-    ]]
+        'PAULO ROBERTO','GABRIELLE MARTINS','JENNIFER ARIELLE','SAMIRES BARROS',
+        'LUCIANO'
+    ]}
 
     try:
         # 1. df_eleg já vem processado com elegíveis — apenas pegar CPF e valor
@@ -2533,6 +2534,9 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             lambda a: 'luciano' if a.upper().strip() in AGENTES_LUCIANO else 'amitycall'
         )
 
+        # Debug — agentes únicos e classificação
+        agentes_unicos = df_seg[['agente','equipe']].drop_duplicates().to_dict('records')
+
         total_luciano = float(df_seg[df_seg['equipe']=='luciano']['valor_proporcional'].sum())
         total_amitycall = float(df_seg[df_seg['equipe']=='amitycall']['valor_proporcional'].sum())
         total_geral = total_luciano + total_amitycall
@@ -2546,6 +2550,7 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             'n_elegivel': n_eleg,
             'n_boletos': n_boletos,
             'df_agentes': df_seg,
+            'agentes_debug': agentes_unicos,
             'ma': ma
         }
         return resultado, None
