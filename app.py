@@ -2386,6 +2386,171 @@ def pagina_dashboard_executivo():
             st.dataframe(ed[["Equipe","Boletos","Valor"]],use_container_width=True,hide_index=True)
 
 
+
+def calcular_divisao_proporcional_luciano(arq_pagos, arq_interacoes, ma):
+    """Calcula divisão proporcional Luciano vs Amitycall."""
+    import unicodedata
+    def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
+
+    AGENTES_LUCIANO = [n.upper().strip() for n in [
+        'JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA',
+        'MICHELLE BATISTA','LORENZZO PEREIRA','EDUARDA SANQUETA','MARIA CLARA',
+        'HEVERTON TAVARES','DIOGO OLIVEIRA','GRASIELLE DA SILVA SANTOS',
+        'EMANUEL FERREIRA','KETLE SILVA','CAUA ALVES','VICTORIA SILVA',
+        'PAULO ROBERTO','GABRIELLE MARTINS','JENNIFER ARIELLE','SAMIRES BARROS'
+    ]]
+
+    try:
+        # 1. Ler pagos
+        arq_pagos.seek(0)
+        df_pagos = ler_arquivo(arq_pagos)
+        df_pagos = mapear_colunas_pagos(df_pagos)
+        if 'uc_cpf' in df_pagos.columns:
+            df_pagos['uc_cpf'] = df_pagos['uc_cpf'].apply(normalizar_cpf)
+        if 'data_pagamento' in df_pagos.columns:
+            df_pagos['data_pagamento'] = parse_data_inteligente(df_pagos['data_pagamento'])
+        if 'valor' in df_pagos.columns:
+            df_pagos['valor'] = pd.to_numeric(
+                df_pagos['valor'].astype(str).str.replace('R$','').str.replace(' ','')
+                .str.replace('.','').str.replace(',','.').str.strip(), errors='coerce').fillna(0)
+
+        # 2. Ler interações — pode ter abas CHAT, LIGACOES, DISPAROS
+        arq_interacoes.seek(0)
+        try:
+            xls_int = pd.ExcelFile(arq_interacoes)
+            abas_norm = {norm(a): a for a in xls_int.sheet_names}
+        except:
+            arq_interacoes.seek(0)
+            xls_int = None
+            abas_norm = {}
+
+        contatos = []
+
+        def extrair_cpf_agente_data(df_raw, meio, segundos_fixos=None):
+            """Extrai CPF, agente, data e segundos de um dataframe."""
+            cols_norm = {norm(str(c)): c for c in df_raw.columns}
+            # CPF
+            col_cpf = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['CPF','IDENTIFICAD','CLIENTE'])), df_raw.columns[0])
+            # Agente
+            col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','USUARIO','USER','COLLABORATOR'])), None)
+            # Data
+            col_data = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['DATA','DT','DATE'])), None)
+            # Tempo (só para ligações)
+            col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME'])), None)
+
+            if col_agente is None or col_data is None:
+                return pd.DataFrame()
+
+            df_out = pd.DataFrame()
+            df_out['uc_cpf'] = df_raw[col_cpf].apply(normalizar_cpf)
+            df_out['agente'] = df_raw[col_agente].astype(str).str.strip().str.upper()
+            df_out['data_contato'] = parse_data_inteligente(df_raw[col_data])
+            df_out['meio'] = meio
+
+            if segundos_fixos is not None:
+                df_out['segundos'] = segundos_fixos
+            elif col_tempo is not None:
+                # Converter tempo HH:MM:SS para segundos
+                def tempo_para_segundos(t):
+                    try:
+                        s = str(t).strip()
+                        if ':' in s:
+                            partes = s.split(':')
+                            if len(partes) == 3:
+                                return int(partes[0])*3600 + int(partes[1])*60 + int(partes[2])
+                            elif len(partes) == 2:
+                                return int(partes[0])*60 + int(partes[1])
+                        return float(s)
+                    except:
+                        return 1
+                df_out['segundos'] = df_raw[col_tempo].apply(tempo_para_segundos)
+            else:
+                df_out['segundos'] = 1
+
+            df_out = df_out.dropna(subset=['data_contato'])
+            df_out = df_out[df_out['uc_cpf'].str.len() >= 8]
+            return df_out
+
+        # Processar cada aba
+        if xls_int:
+            for aba_n, aba_orig in abas_norm.items():
+                df_raw = pd.read_excel(xls_int, sheet_name=aba_orig)
+                if 'DISPAR' in aba_n:
+                    df_c = extrair_cpf_agente_data(df_raw, 'DISPARO', segundos_fixos=1)
+                elif 'CHAT' in aba_n:
+                    df_c = extrair_cpf_agente_data(df_raw, 'CHAT', segundos_fixos=5)
+                elif 'LIG' in aba_n:
+                    df_c = extrair_cpf_agente_data(df_raw, 'LIGACAO', segundos_fixos=None)
+                else:
+                    df_c = extrair_cpf_agente_data(df_raw, 'OUTRO', segundos_fixos=1)
+                if not df_c.empty:
+                    contatos.append(df_c)
+        else:
+            # Arquivo único — tentar ler como CSV de interações
+            arq_interacoes.seek(0)
+            df_raw = ler_arquivo(arq_interacoes)
+            df_c = extrair_cpf_agente_data(df_raw, 'OUTRO', segundos_fixos=1)
+            if not df_c.empty:
+                contatos.append(df_c)
+
+        if not contatos:
+            return None, "Nenhuma interação encontrada no arquivo."
+
+        df_int = pd.concat(contatos, ignore_index=True)
+
+        # 3. Primeiro contato por CPF (data mais antiga)
+        df_primeiro = df_int.sort_values('data_contato').drop_duplicates(subset=['uc_cpf'], keep='first')[['uc_cpf','data_contato']]
+        df_pagos['data_pagamento'] = pd.to_datetime(df_pagos['data_pagamento'], errors='coerce').dt.normalize()
+        df_pagos['primeiro_contato'] = df_pagos['uc_cpf'].map(dict(zip(df_primeiro['uc_cpf'], df_primeiro['data_contato'])))
+
+        # Elegível = contato antes ou no dia do pagamento
+        df_pagos['diferenca'] = (df_pagos['data_pagamento'] - df_pagos['primeiro_contato']).dt.days
+        df_eleg = df_pagos[df_pagos['diferenca'] >= 0].copy()
+
+        if df_eleg.empty:
+            return None, "Nenhum registro elegível encontrado."
+
+        # 4. Divisão proporcional por CPF
+        # Para cada CPF elegível, somar segundos por agente
+        df_int_eleg = df_int[df_int['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
+
+        # Agrupar segundos por CPF + agente
+        df_seg = df_int_eleg.groupby(['uc_cpf','agente'])['segundos'].sum().reset_index()
+        df_seg_total = df_seg.groupby('uc_cpf')['segundos'].sum().reset_index().rename(columns={'segundos':'total_seg'})
+        df_seg = df_seg.merge(df_seg_total, on='uc_cpf')
+        df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
+
+        # Valor por CPF (pode ter múltiplos boletos)
+        df_valor = df_eleg.groupby('uc_cpf')['valor'].sum().reset_index()
+        df_seg = df_seg.merge(df_valor, on='uc_cpf')
+        df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
+
+        # 5. Separar Luciano vs Amitycall
+        df_seg['equipe'] = df_seg['agente'].apply(
+            lambda a: 'luciano' if a.upper().strip() in AGENTES_LUCIANO else 'amitycall'
+        )
+
+        total_luciano = float(df_seg[df_seg['equipe']=='luciano']['valor_proporcional'].sum())
+        total_amitycall = float(df_seg[df_seg['equipe']=='amitycall']['valor_proporcional'].sum())
+        total_geral = total_luciano + total_amitycall
+        n_eleg = len(df_eleg)
+        n_boletos = len(df_pagos)
+
+        resultado = {
+            'total_luciano': total_luciano,
+            'total_amitycall': total_amitycall,
+            'total_geral': total_geral,
+            'n_elegivel': n_eleg,
+            'n_boletos': n_boletos,
+            'df_agentes': df_seg,
+            'ma': ma
+        }
+        return resultado, None
+
+    except Exception as e:
+        import traceback
+        return None, f"Erro: {e}\n{traceback.format_exc()}"
+
 def pagina_upload(ma):
     u=st.session_state.usuario
     header_page('Upload de Bases Mensais','Processamento automatico')
@@ -2422,6 +2587,18 @@ def pagina_upload(ma):
             except: pass
         if st.button('PROCESSAR',use_container_width=True):
             if not arq: st.error('Selecione a base de pagos antes de processar!'); return
+
+            # Luciano: processar divisão proporcional Luciano/Amitycall
+            if eq=='luciano' and arq_interacoes is not None:
+                arq.seek(0); arq_interacoes.seek(0)
+                with st.spinner('Calculando divisão proporcional...'):
+                    res_div, erro_div = calcular_divisao_proporcional_luciano(arq, arq_interacoes, ma)
+                if erro_div:
+                    st.error(erro_div)
+                else:
+                    st.session_state['div_prop_resultado'] = res_div
+                return
+
             arq.seek(0)
             with st.spinner('Processando...'):
                 df_res,erros,abas=processar_base_unica(arq,eq,ma)
@@ -2509,6 +2686,36 @@ def pagina_upload(ma):
                     mime='text/csv',
                     use_container_width=True
                 )
+
+    # Mostrar resultado da divisão proporcional Luciano (aguarda confirmação)
+    if 'div_prop_resultado' in st.session_state and st.session_state['div_prop_resultado']:
+        res = st.session_state['div_prop_resultado']
+        st.markdown("---")
+        st.markdown("### 📊 Resultado da Divisão Proporcional")
+        st.markdown(f"**Mês:** {res['ma']} | **Boletos:** {res['n_boletos']} | **Elegíveis:** {res['n_elegivel']}")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("Equipe Luciano", fmt_brl(res['total_luciano']))
+        with c2:
+            st.metric("Amitycall", fmt_brl(res['total_amitycall']))
+        with c3:
+            st.metric("Total Geral", fmt_brl(res['total_geral']))
+        st.markdown("**⚠️ Confirme os valores antes de salvar no Quadro:**")
+        col_ok, col_cancel = st.columns(2)
+        with col_ok:
+            if st.button("✅ Confirmar e Salvar", use_container_width=True, key="btn_confirmar_div"):
+                # Salvar recGeral do Luciano no processamento
+                salvar_processamento(res['ma'], 'luciano', res['total_luciano'], 0, {}, 0)
+                # Salvar recGeral da Amitycall
+                salvar_processamento(res['ma'], 'amitycall', res['total_amitycall'], 0, {}, 0)
+                buscar_ultimo_processamento.clear()
+                st.session_state['div_prop_resultado'] = None
+                st.success("✅ Valores salvos no Quadro!")
+                st.rerun()
+        with col_cancel:
+            if st.button("❌ Descartar", use_container_width=True, key="btn_descartar_div"):
+                st.session_state['div_prop_resultado'] = None
+                st.rerun()
 
     with col_hist:
         st.markdown('<p style="color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">HISTORICO DE BASES PROCESSADAS</p>',unsafe_allow_html=True)
