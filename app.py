@@ -2431,26 +2431,30 @@ def calcular_divisao_proporcional_luciano(arq_pagos, arq_interacoes, ma):
             cols_norm = {norm(str(c)): c for c in df_raw.columns}
             # CPF
             col_cpf = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['CPF','IDENTIFICAD','CLIENTE'])), df_raw.columns[0])
-            # Agente
-            col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','USUARIO','USER','COLLABORATOR'])), None)
             # Data
             col_data = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['DATA','DT','DATE'])), None)
-            # Tempo (só para ligações)
-            col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME'])), None)
-
-            if col_agente is None or col_data is None:
+            if col_data is None:
                 return pd.DataFrame()
+
+            # Agente — opcional (chat e disparo não têm)
+            col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','USUARIO','USER','COLLABORATOR'])), None)
+            # Tempo — só para ligações
+            col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME'])), None)
 
             df_out = pd.DataFrame()
             df_out['uc_cpf'] = df_raw[col_cpf].apply(normalizar_cpf)
-            df_out['agente'] = df_raw[col_agente].astype(str).str.strip().str.upper()
             df_out['data_contato'] = parse_data_inteligente(df_raw[col_data])
             df_out['meio'] = meio
+
+            # Agente: se não tem coluna de agente = LUCIANO (chat/disparo são todos do Luciano)
+            if col_agente is not None:
+                df_out['agente'] = df_raw[col_agente].astype(str).str.strip().str.upper()
+            else:
+                df_out['agente'] = 'LUCIANO'
 
             if segundos_fixos is not None:
                 df_out['segundos'] = segundos_fixos
             elif col_tempo is not None:
-                # Converter tempo HH:MM:SS para segundos
                 def tempo_para_segundos(t):
                     try:
                         s = str(t).strip()
@@ -2495,7 +2499,9 @@ def calcular_divisao_proporcional_luciano(arq_pagos, arq_interacoes, ma):
                 contatos.append(df_c)
 
         if not contatos:
-            return None, "Nenhuma interação encontrada no arquivo."
+            # Debug: mostrar abas encontradas
+            abas_encontradas = xls_int.sheet_names if xls_int else "arquivo não é Excel"
+            return None, f"Nenhuma interação encontrada. Abas no arquivo: {abas_encontradas}. Verifique se as abas têm colunas de CPF e Agente."
 
         df_int = pd.concat(contatos, ignore_index=True)
 
