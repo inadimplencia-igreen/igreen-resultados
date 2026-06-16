@@ -2610,7 +2610,7 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
                 df_pagos['valor'].astype(str).str.replace('R$','').str.replace(' ','')
                 .str.replace('.','').str.replace(',','.').str.strip(), errors='coerce').fillna(0)
 
-        # 2. Ler interações — arquivo único com múltiplas abas ou arquivo separado
+        # 2. Ler interações — identifica abas automaticamente
         contatos = []
         if arq_interacoes is not None:
             arq_interacoes.seek(0)
@@ -2618,19 +2618,26 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
                 xls_int = pd.ExcelFile(arq_interacoes)
                 for aba in xls_int.sheet_names:
                     aba_n = norm(aba)
-                    df_aba = pd.read_excel(xls_int, sheet_name=aba, dtype=str)
+                    # Pular aba de pagos
+                    if any(x in aba_n for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA','RESULT']):
+                        continue
+                    df_aba = pd.read_excel(xls_int, sheet_name=aba)
                     if 'DISPAR' in aba_n:
-                        dd = processar_contatos(df_aba)
+                        dd = processar_contatos_com_agente(df_aba)
                         if not dd.empty:
                             dd['segundos'] = 1
                             contatos.append(dd)
                     elif 'CHAT' in aba_n:
-                        dd = processar_contatos(df_aba)
+                        dd = processar_contatos_com_agente(df_aba)
                         if not dd.empty:
                             dd['segundos'] = 5
                             contatos.append(dd)
+                    elif any(x in aba_n for x in ['LIG','LIGAC']):
+                        dd = processar_contatos_com_agente(df_aba)
+                        if not dd.empty:
+                            contatos.append(dd)
                     else:
-                        # Ligações ou outra aba — usar tempo real
+                        # Aba desconhecida — tentar como ligação
                         dd = processar_contatos_com_agente(df_aba)
                         if not dd.empty:
                             contatos.append(dd)
@@ -2782,10 +2789,18 @@ def pagina_upload(ma):
             # Resultado por Atendente
             if tipo_proc == "Resultado por Atendente":
                 arq.seek(0)
-                arq_int = arq_interacoes
-                if arq_int: arq_int.seek(0)
+                # Se tem arquivo de interações separado usa ele, senão usa o próprio arq (arquivo único com abas)
+                if arq_interacoes is not None:
+                    arq_interacoes.seek(0)
+                    arq_int = arq_interacoes
+                    arq_pagos_at = arq
+                else:
+                    # Arquivo único — pagos em aba PAGOS, interações nas outras abas
+                    arq.seek(0)
+                    arq_int = arq
+                    arq_pagos_at = arq
                 with st.spinner('Calculando resultado por atendente...'):
-                    res_at, erro_at = calcular_resultado_atendentes(arq, arq_int, eq, ma)
+                    res_at, erro_at = calcular_resultado_atendentes(arq_pagos_at, arq_int, eq, ma)
                 if erro_at:
                     st.error(erro_at)
                 else:
