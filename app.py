@@ -2553,8 +2553,10 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
 
         # 5. Separar Luciano vs Amitycall
+        # Agentes vazios/nan que vieram das ligações sem agente identificado
+        df_seg['agente'] = df_seg['agente'].fillna('DESCONHECIDO').replace('', 'DESCONHECIDO').replace('NAN', 'DESCONHECIDO')
         df_seg['equipe'] = df_seg['agente'].apply(
-            lambda a: 'luciano' if a.upper().strip() in AGENTES_LUCIANO else 'metcool'
+            lambda a: 'luciano' if str(a).upper().strip() in AGENTES_LUCIANO else 'metcool'
         )
 
         # Debug — agentes únicos e classificação
@@ -2745,6 +2747,30 @@ def pagina_upload(ma):
             st.metric("Meet Call", fmt_brl(res['total_metcool']))
         with c3:
             st.metric("Total Geral", fmt_brl(res['total_geral']))
+
+        # Tabelas por agente separadas
+        if 'df_agentes' in res and res['df_agentes'] is not None:
+            df_ag = res['df_agentes']
+            col_l, col_m = st.columns(2)
+            with col_l:
+                st.markdown(f"**🟢 Equipe Luciano** — {fmt_brl(res['total_luciano'])}")
+                df_luc = df_ag[df_ag['equipe']=='luciano'][['agente','valor_proporcional']].copy()
+                df_luc = df_luc.sort_values('valor_proporcional', ascending=False)
+                df_luc['valor_proporcional'] = df_luc['valor_proporcional'].apply(fmt_brl)
+                df_luc.columns = ['Agente', 'Valor']
+                df_luc = df_luc.reset_index(drop=True)
+                df_luc.index += 1
+                st.dataframe(df_luc, use_container_width=True)
+            with col_m:
+                st.markdown(f"**🔵 Meet Call** — {fmt_brl(res['total_metcool'])}")
+                df_mc = df_ag[df_ag['equipe']=='metcool'][['agente','valor_proporcional']].copy()
+                df_mc = df_mc.sort_values('valor_proporcional', ascending=False)
+                df_mc['valor_proporcional'] = df_mc['valor_proporcional'].apply(fmt_brl)
+                df_mc.columns = ['Agente', 'Valor']
+                df_mc = df_mc.reset_index(drop=True)
+                df_mc.index += 1
+                st.dataframe(df_mc, use_container_width=True)
+
         st.markdown("**⚠️ Confirme os valores antes de salvar no Quadro:**")
         col_ok, col_cancel = st.columns(2)
         with col_ok:
