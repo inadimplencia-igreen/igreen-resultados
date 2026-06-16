@@ -2663,19 +2663,23 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
 
         df_int = pd.concat(contatos_ag, ignore_index=True)
 
-        # 5. Divisão proporcional — TODAS as interações dos CPFs elegíveis
+        # 5. Divisão proporcional — igual à planilha: linha por linha
         df_int_eleg = df_int[df_int['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
-        df_seg = df_int_eleg.groupby(['uc_cpf','agente'])['segundos'].sum().reset_index()
-        df_seg_total = df_seg.groupby('uc_cpf')['segundos'].sum().reset_index().rename(columns={'segundos':'total_seg'})
-        df_seg = df_seg.merge(df_seg_total, on='uc_cpf')
-        df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
-        df_valor = df_eleg.groupby('uc_cpf')['valor'].sum().reset_index()
-        # inner join — só CPFs que têm valor pago (elegíveis)
-        df_seg = df_seg.merge(df_valor, on='uc_cpf', how='inner')
-        df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
 
-        # 6. Agrupar por agente — nome exato como vem no arquivo
-        df_result = df_seg.groupby('agente')['valor_proporcional'].sum().reset_index()
+        # Total de segundos por CPF (soma de TODOS os contatos)
+        df_seg_total = df_int_eleg.groupby('uc_cpf')['segundos'].sum().reset_index().rename(columns={'segundos':'total_seg'})
+        df_int_eleg = df_int_eleg.merge(df_seg_total, on='uc_cpf')
+
+        # Valor total por CPF
+        df_valor = df_eleg.groupby('uc_cpf')['valor'].sum().reset_index()
+        df_int_eleg = df_int_eleg.merge(df_valor, on='uc_cpf', how='inner')
+
+        # Calcular proporcional linha por linha — igual à planilha
+        df_int_eleg['proporcao'] = df_int_eleg['segundos'] / df_int_eleg['total_seg']
+        df_int_eleg['valor_proporcional'] = df_int_eleg['valor'] * df_int_eleg['proporcao']
+
+        # 6. Somar por agente
+        df_result = df_int_eleg.groupby('agente')['valor_proporcional'].sum().reset_index()
         df_result = df_result.sort_values('valor_proporcional', ascending=False)
         df_result.columns = ['agente', 'valor']
 
