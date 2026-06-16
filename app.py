@@ -1859,18 +1859,20 @@ def pagina_quadro(ma):
         for l in lancs:
             if l.get("recGeral",0)>0:
                 rec_manual=float(l["recGeral"])
-                dt_manual=l.get("criadoEm")
+                _cm=l.get("criadoEm")
+                dt_manual=_cm.isoformat() if hasattr(_cm,'isoformat') else str(_cm or "")
                 break
         rec_base=float(up.get("valorElegivel",0)) if up else 0
         dt_base=up.get("atualizadoEm") if up else None
-        # Usar o mais recente
-        if rec_manual>0 and rec_base>0:
+        # Usar o mais recente — converter tudo para string segura
+        def _to_str_dt(v):
+            if v is None: return ""
             try:
-                _dm=str(dt_manual) if dt_manual else ""
-                _db=str(dt_base) if dt_base else ""
-                rec_geral=rec_manual if _dm>_db else rec_base
-            except:
-                rec_geral=rec_manual
+                if hasattr(v,'isoformat'): return v.isoformat()
+                return str(v)
+            except: return ""
+        if rec_manual>0 and rec_base>0:
+            rec_geral=rec_manual if _to_str_dt(dt_manual)>_to_str_dt(dt_base) else rec_base
         elif rec_manual>0:
             rec_geral=rec_manual
         elif rec_base>0:
