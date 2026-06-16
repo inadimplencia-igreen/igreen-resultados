@@ -2616,15 +2616,23 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
             arq_interacoes.seek(0)
             try:
                 xls_int = pd.ExcelFile(arq_interacoes)
+                abas_processadas = []
                 for aba in xls_int.sheet_names:
                     aba_n = norm(aba)
                     df_aba = pd.read_excel(xls_int, sheet_name=aba)
                     cols_n = [norm(str(c)) for c in df_aba.columns]
+                    cols_orig = list(df_aba.columns)
 
                     # Pular aba de pagos — detecta pelo nome ou pelas colunas
+                    cols_joined = ' '.join(cols_n)
                     is_pagos = (
                         any(x in aba_n for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA','RESULT']) or
-                        any(x in ' '.join(cols_n) for x in ['VENCIMENTO','FORNECEDORA','VALORAPAGAR','VALOR TOTAL','VALORTOTAL','DTPAGAMENTO','DTPAG'])
+                        'VENCIMENTO' in cols_joined or
+                        'FORNECEDORA' in cols_joined or
+                        'VALORAPAGAR' in cols_joined or
+                        'VALORTOTAL' in cols_joined or
+                        'DTPAGAMENTO' in cols_joined or
+                        ('DATAVENCIMENTO' in cols_joined and 'DATAPAGAMENTO' in cols_joined)
                     )
                     if is_pagos:
                         continue
@@ -2696,7 +2704,8 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
             'n_elegivel': n_eleg,
             'n_boletos': n_boletos,
             'eq': eq,
-            'ma': ma
+            'ma': ma,
+            'debug_abas': abas_processadas if 'abas_processadas' in dir() else []
         }, None
 
     except Exception as e:
@@ -2941,6 +2950,10 @@ def pagina_upload(ma):
         st.markdown("---")
         st.markdown("### 👥 Resultado por Atendente")
         st.markdown(f"**Mês:** {res_at['ma']} | **Boletos:** {res_at['n_boletos']} | **Elegíveis:** {res_at['n_elegivel']} | **Total:** {fmt_brl(res_at['total'])}")
+        if res_at.get('debug_abas'):
+            with st.expander("🔍 Debug abas processadas"):
+                for d in res_at['debug_abas']:
+                    st.write(d)
         df_show = res_at['df_result'].copy()
         df_show['valor'] = df_show['valor'].apply(fmt_brl)
         df_show.columns = ['Atendente', 'Valor Proporcional']
