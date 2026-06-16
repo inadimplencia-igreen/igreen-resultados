@@ -2703,52 +2703,48 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         return None, f"Erro: {e}\n{traceback.format_exc()}"
 
 
-def processar_contatos_com_agente(df_raw):
-    """Extrai CPF, agente, data e segundos de um dataframe com coluna de agente."""
-    import unicodedata
+def processar_contatos_com_agente(df_raw, segundos_fixos=None):
+    """Usa processar_contatos existente e adiciona agente e segundos."""
+    import unicodedata, datetime
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
+
+    # Usar processar_contatos que já funciona para CPF e data
+    dd = processar_contatos(df_raw)
+    if dd.empty:
+        return dd
 
     cols_norm = {norm(str(c)): c for c in df_raw.columns}
 
-    col_cpf = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['CPF','IDENTIFICAD','CLIENTE'])), df_raw.columns[0])
-    col_data = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['DATA','DT','DATE','DIA'])), None)
+    # Agente
     col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','USUARIO','USER','AGENT'])), None)
-    col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO'])), None)
+    if col_agente:
+        dd['agente'] = df_raw[col_agente].iloc[:len(dd)].astype(str).str.strip().str.upper().values
+    else:
+        dd['agente'] = 'DESCONHECIDO'
 
-    if col_data is None:
-        col_data = df_raw.columns[1] if len(df_raw.columns) > 1 else None
-    if col_data is None:
-        return pd.DataFrame()
+    # Segundos
+    if segundos_fixos is not None:
+        dd['segundos'] = segundos_fixos
+    else:
+        col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO'])), None)
+        if col_tempo:
+            def t2s(t):
+                try:
+                    if isinstance(t, datetime.time): return t.hour*3600+t.minute*60+t.second
+                    if isinstance(t, datetime.datetime): return t.hour*3600+t.minute*60+t.second
+                    s=str(t).strip()
+                    if ':' in s:
+                        p=s.split(':')
+                        if len(p)==3: return int(p[0])*3600+int(p[1])*60+int(p[2])
+                        if len(p)==2: return int(p[0])*60+int(p[1])
+                    f=float(s)
+                    return max(1,int(round(f*86400))) if 0<f<1 else max(1,int(f))
+                except: return 1
+            dd['segundos'] = df_raw[col_tempo].iloc[:len(dd)].apply(t2s).values
+        else:
+            dd['segundos'] = 1
 
-    def tempo_para_segundos(t):
-        try:
-            s = str(t).strip()
-            # Formato HH:MM:SS
-            if ':' in s:
-                partes = s.split(':')
-                if len(partes) == 3:
-                    return int(partes[0])*3600 + int(partes[1])*60 + int(partes[2])
-                elif len(partes) == 2:
-                    return int(partes[0])*60 + int(partes[1])
-            # Número float (timestamp do Excel) — converter para segundos do dia
-            f = float(s)
-            if f > 1:  # É um timestamp, não segundos
-                # Pegar só a parte decimal (fração do dia)
-                f = f - int(f)
-            return max(1, int(round(f * 86400)))
-        except:
-            return 1
-
-    df_out = pd.DataFrame()
-    df_out['uc_cpf'] = df_raw[col_cpf].apply(normalizar_cpf)
-    df_out['data_contato'] = parse_data_inteligente(df_raw[col_data])
-    df_out['agente'] = df_raw[col_agente].astype(str).str.strip().str.upper() if col_agente else 'DESCONHECIDO'
-    df_out['segundos'] = df_raw[col_tempo].apply(tempo_para_segundos) if col_tempo else 1
-
-    df_out = df_out.dropna(subset=['data_contato'])
-    df_out = df_out[df_out['uc_cpf'].str.len() >= 8]
-    df_out = df_out[df_out['uc_cpf'] != 'nan']
-    return df_out
+    return dd
 
 def pagina_upload(ma):
     u=st.session_state.usuario
@@ -2927,6 +2923,12 @@ def pagina_upload(ma):
                     mime='text/csv',
                     use_container_width=True
                 )
+
+    # Limpar resultados de outras equipes se equipe mudou
+    if st.session_state.get('div_prop_resultado') and eq != 'luciano':
+        st.session_state['div_prop_resultado'] = None
+    if st.session_state.get('resultado_atendentes') and st.session_state['resultado_atendentes'].get('eq') != eq:
+        st.session_state['resultado_atendentes'] = None
 
     # Mostrar resultado por atendente (aguarda confirmação)
     if 'resultado_atendentes' in st.session_state and st.session_state['resultado_atendentes']:
