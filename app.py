@@ -2585,6 +2585,158 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         import traceback
         return None, f"Erro: {e}\n{traceback.format_exc()}"
 
+
+def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
+    """Calcula resultado por atendente via divisão proporcional."""
+    import unicodedata
+    def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
+
+    try:
+        # 1. Ler pagos
+        if arq_pagos is not None:
+            arq_pagos.seek(0)
+            df_pagos = ler_arquivo(arq_pagos)
+        else:
+            return None, "Base de pagos não encontrada."
+
+        df_pagos = mapear_colunas_pagos(df_pagos)
+        if 'uc_cpf' in df_pagos.columns:
+            df_pagos['uc_cpf'] = df_pagos['uc_cpf'].apply(normalizar_cpf)
+        if 'data_pagamento' in df_pagos.columns:
+            df_pagos['data_pagamento'] = parse_data_inteligente(df_pagos['data_pagamento'])
+            df_pagos = df_pagos[df_pagos['data_pagamento'].notna()].copy()
+        if 'valor' in df_pagos.columns:
+            df_pagos['valor'] = pd.to_numeric(
+                df_pagos['valor'].astype(str).str.replace('R$','').str.replace(' ','')
+                .str.replace('.','').str.replace(',','.').str.strip(), errors='coerce').fillna(0)
+
+        # 2. Ler interações — arquivo único com múltiplas abas ou arquivo separado
+        contatos = []
+        if arq_interacoes is not None:
+            arq_interacoes.seek(0)
+            try:
+                xls_int = pd.ExcelFile(arq_interacoes)
+                for aba in xls_int.sheet_names:
+                    aba_n = norm(aba)
+                    df_aba = pd.read_excel(xls_int, sheet_name=aba, dtype=str)
+                    if 'DISPAR' in aba_n:
+                        dd = processar_contatos(df_aba)
+                        if not dd.empty:
+                            dd['segundos'] = 1
+                            contatos.append(dd)
+                    elif 'CHAT' in aba_n:
+                        dd = processar_contatos(df_aba)
+                        if not dd.empty:
+                            dd['segundos'] = 5
+                            contatos.append(dd)
+                    else:
+                        # Ligações ou outra aba — usar tempo real
+                        dd = processar_contatos_com_agente(df_aba)
+                        if not dd.empty:
+                            contatos.append(dd)
+            except:
+                arq_interacoes.seek(0)
+                df_int_raw = ler_arquivo(arq_interacoes)
+                dd = processar_contatos_com_agente(df_int_raw)
+                if not dd.empty:
+                    contatos.append(dd)
+        else:
+            return None, "Base de interações não encontrada."
+
+        if not contatos:
+            return None, "Nenhuma interação encontrada no arquivo."
+
+        df_int = pd.concat(contatos, ignore_index=True)
+
+        # 3. Primeiro contato por CPF
+        df_primeiro = df_int.sort_values('data_contato').drop_duplicates(subset=['uc_cpf'], keep='first')[['uc_cpf','data_contato']]
+        df_pagos['data_pagamento'] = pd.to_datetime(df_pagos['data_pagamento'], errors='coerce').dt.normalize()
+        df_pagos['primeiro_contato'] = df_pagos['uc_cpf'].map(dict(zip(df_primeiro['uc_cpf'], df_primeiro['data_contato'])))
+        df_pagos['primeiro_contato'] = pd.to_datetime(df_pagos['primeiro_contato'], errors='coerce').dt.normalize()
+        df_pagos['diferenca'] = (df_pagos['data_pagamento'] - df_pagos['primeiro_contato']).dt.days
+        df_eleg = df_pagos[df_pagos['diferenca'] >= 0].copy()
+
+        if df_eleg.empty:
+            return None, "Nenhum registro elegível encontrado."
+
+        # 4. Divisão proporcional — TODAS as interações dos CPFs elegíveis
+        df_int_eleg = df_int[df_int['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
+
+        # Agrupar segundos por CPF + agente
+        df_seg = df_int_eleg.groupby(['uc_cpf','agente'])['segundos'].sum().reset_index()
+        df_seg_total = df_seg.groupby('uc_cpf')['segundos'].sum().reset_index().rename(columns={'segundos':'total_seg'})
+        df_seg = df_seg.merge(df_seg_total, on='uc_cpf')
+        df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
+
+        # Valor por CPF
+        df_valor = df_eleg.groupby('uc_cpf')['valor'].sum().reset_index()
+        df_seg = df_seg.merge(df_valor, on='uc_cpf', how='left')
+        df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
+
+        # 5. Agrupar por agente
+        df_result = df_seg.groupby('agente')['valor_proporcional'].sum().reset_index()
+        df_result = df_result.sort_values('valor_proporcional', ascending=False)
+        df_result.columns = ['agente', 'valor']
+
+        total = float(df_result['valor'].sum())
+        n_eleg = len(df_eleg)
+        n_boletos = len(df_pagos)
+
+        return {
+            'df_result': df_result,
+            'total': total,
+            'n_elegivel': n_eleg,
+            'n_boletos': n_boletos,
+            'eq': eq,
+            'ma': ma
+        }, None
+
+    except Exception as e:
+        import traceback
+        return None, f"Erro: {e}\n{traceback.format_exc()}"
+
+
+def processar_contatos_com_agente(df_raw):
+    """Extrai CPF, agente, data e segundos de um dataframe com coluna de agente."""
+    import unicodedata
+    def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
+
+    cols_norm = {norm(str(c)): c for c in df_raw.columns}
+
+    col_cpf = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['CPF','IDENTIFICAD','CLIENTE'])), df_raw.columns[0])
+    col_data = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['DATA','DT','DATE','DIA'])), None)
+    col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','USUARIO','USER','AGENT'])), None)
+    col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO'])), None)
+
+    if col_data is None:
+        col_data = df_raw.columns[1] if len(df_raw.columns) > 1 else None
+    if col_data is None:
+        return pd.DataFrame()
+
+    def tempo_para_segundos(t):
+        try:
+            s = str(t).strip()
+            if ':' in s:
+                partes = s.split(':')
+                if len(partes) == 3:
+                    return int(partes[0])*3600 + int(partes[1])*60 + int(partes[2])
+                elif len(partes) == 2:
+                    return int(partes[0])*60 + int(partes[1])
+            return max(1, float(s))
+        except:
+            return 1
+
+    df_out = pd.DataFrame()
+    df_out['uc_cpf'] = df_raw[col_cpf].apply(normalizar_cpf)
+    df_out['data_contato'] = parse_data_inteligente(df_raw[col_data])
+    df_out['agente'] = df_raw[col_agente].astype(str).str.strip().str.upper() if col_agente else 'DESCONHECIDO'
+    df_out['segundos'] = df_raw[col_tempo].apply(tempo_para_segundos) if col_tempo else 1
+
+    df_out = df_out.dropna(subset=['data_contato'])
+    df_out = df_out[df_out['uc_cpf'].str.len() >= 8]
+    df_out = df_out[df_out['uc_cpf'] != 'nan']
+    return df_out
+
 def pagina_upload(ma):
     u=st.session_state.usuario
     header_page('Upload de Bases Mensais','Processamento automatico')
@@ -2619,8 +2771,27 @@ def pagina_upload(ma):
                 arq.seek(0)
                 st.markdown(f'<div style="background:#0a1a0a;border:1px solid #1e3a1e;border-radius:6px;padding:8px 12px;margin:8px 0;color:#5a9a70;font-size:12px"><strong style="color:#e8f5e9">{arq.name}</strong><br>Abas: {ah}</div>',unsafe_allow_html=True)
             except: pass
+        # Seletor tipo de processamento
+        tipo_proc = st.radio("Tipo de processamento:",
+            ["Recebido Geral", "Resultado por Atendente"],
+            key=f"tipo_proc_{eq}_{ma}", horizontal=True)
+
         if st.button('PROCESSAR',use_container_width=True):
             if not arq: st.error('Selecione a base de pagos antes de processar!'); return
+
+            # Resultado por Atendente
+            if tipo_proc == "Resultado por Atendente":
+                arq.seek(0)
+                arq_int = arq_interacoes
+                if arq_int: arq_int.seek(0)
+                with st.spinner('Calculando resultado por atendente...'):
+                    res_at, erro_at = calcular_resultado_atendentes(arq, arq_int, eq, ma)
+                if erro_at:
+                    st.error(erro_at)
+                else:
+                    st.session_state['resultado_atendentes'] = res_at
+                    st.rerun()
+                st.stop()
 
 
 
@@ -2734,6 +2905,64 @@ def pagina_upload(ma):
                     mime='text/csv',
                     use_container_width=True
                 )
+
+    # Mostrar resultado por atendente (aguarda confirmação)
+    if 'resultado_atendentes' in st.session_state and st.session_state['resultado_atendentes']:
+        res_at = st.session_state['resultado_atendentes']
+        st.markdown("---")
+        st.markdown("### 👥 Resultado por Atendente")
+        st.markdown(f"**Mês:** {res_at['ma']} | **Boletos:** {res_at['n_boletos']} | **Elegíveis:** {res_at['n_elegivel']} | **Total:** {fmt_brl(res_at['total'])}")
+        df_show = res_at['df_result'].copy()
+        df_show['valor'] = df_show['valor'].apply(fmt_brl)
+        df_show.columns = ['Atendente', 'Valor Proporcional']
+        df_show = df_show.reset_index(drop=True)
+        df_show.index += 1
+        st.dataframe(df_show, use_container_width=True)
+        st.markdown("**⚠️ Confirme os valores antes de salvar:**")
+        col_ok2, col_cancel2 = st.columns(2)
+        with col_ok2:
+            if st.button("✅ Confirmar e Salvar", use_container_width=True, key="btn_confirmar_at"):
+                from datetime import datetime as _dt
+                _ts = _dt.now().strftime("%Y%m%d%H%M%S%f")
+                eq_at = res_at['eq']
+                ma_at = res_at['ma']
+                # Buscar operadores cadastrados para mapear por nome
+                ops_eq = buscar_operadores(eq_at)
+                ops_map = {op['nome'].upper().strip(): op['_id'] for op in ops_eq}
+                # Montar agentes dict
+                agentes_dict = {}
+                tc_total = 0.0
+                for _, row in res_at['df_result'].iterrows():
+                    nome = str(row['agente']).strip()
+                    valor = float(row['valor'])
+                    op_id = ops_map.get(nome.upper(), f"auto-{nome.lower().replace(' ','-')}")
+                    agentes_dict[op_id] = {"valorRecebido": valor, "nome": nome}
+                    tc_total += valor
+                # Salvar lançamento com resultado por atendente
+                lancs_eq = buscar_lancamentos(ma_at, eq_at)
+                dt_eq = int(lancs_eq[0].get('diasTrabalhados',0)) if lancs_eq else 0
+                td_eq = int(lancs_eq[0].get('totalDias',21)) if lancs_eq else 21
+                get_db().lancamentos.insert_one({
+                    "_id": f"lanc__{ma_at}__{eq_at}__{_ts}",
+                    "mesAno": ma_at, "equipeId": eq_at,
+                    "dataRef": str(_dt.now().date()),
+                    "label": _dt.now().strftime("%d/%m/%Y"),
+                    "agentes": agentes_dict,
+                    "totalEquipe": tc_total,
+                    "semInteracao": 0,
+                    "diasTrabalhados": dt_eq, "totalDias": td_eq,
+                    "recGeral": 0,
+                    "criadoEm": _dt.now().isoformat()
+                })
+                buscar_lancamentos.clear()
+                buscar_metas_equipe.clear()
+                st.session_state['resultado_atendentes'] = None
+                st.success(f"✅ Resultado salvo! Com Interação: {fmt_brl(tc_total)}")
+                st.rerun()
+        with col_cancel2:
+            if st.button("❌ Descartar", use_container_width=True, key="btn_descartar_at"):
+                st.session_state['resultado_atendentes'] = None
+                st.rerun()
 
     # Mostrar resultado da divisão proporcional Luciano (aguarda confirmação)
     if 'div_prop_resultado' in st.session_state and st.session_state['div_prop_resultado']:
