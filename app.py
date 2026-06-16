@@ -1709,15 +1709,18 @@ def pagina_quadro(ma):
                     for l in lancs_r:
                         if l.get("recGeral",0)>0:
                             rec_manual_r=float(l["recGeral"])
-                            dt_manual_r=l.get("criadoEm")
+                            _cm_r=l.get("criadoEm")
+                            dt_manual_r=_cm_r.isoformat() if hasattr(_cm_r,'isoformat') else str(_cm_r or "")
                             break
                     rec_base_r=float(up_r.get("valorElegivel",0)) if up_r else 0
                     dt_base_r=up_r.get("atualizadoEm") if up_r else None
                     if rec_manual_r>0 and rec_base_r>0:
-                        if dt_manual_r and dt_base_r and str(dt_manual_r)>str(dt_base_r):
+                        try:
+                            _dm=dt_manual_r.isoformat() if hasattr(dt_manual_r,'isoformat') else str(dt_manual_r or "")
+                            _db=dt_base_r.isoformat() if hasattr(dt_base_r,'isoformat') else str(dt_base_r or "")
+                            rg_r=rec_manual_r if _dm>_db else rec_base_r
+                        except:
                             rg_r=rec_manual_r
-                        else:
-                            rg_r=rec_base_r
                     elif rec_manual_r>0:
                         rg_r=rec_manual_r
                     elif rec_base_r>0:
