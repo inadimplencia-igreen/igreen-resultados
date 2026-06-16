@@ -2475,7 +2475,7 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
                     return pd.DataFrame()
 
             # Agente — opcional (disparo e chat não têm)
-            col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','USUARIO','USER','AGENT'])), None)
+            col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','COLABORADOR','USUARIO','USER','AGENT'])), None)
 
             # Tempo — só ligações
             col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO'])), None)
@@ -2706,7 +2706,7 @@ def processar_contatos_com_agente(df_raw, segundos_fixos=None):
     # Data
     col_data = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['DATA','DT_','BAIXA','CONTATO','INTERAC','LIGAC','CHAT','DISPAR','PAGAM','DIA'])), df_raw.columns[1] if len(df_raw.columns)>1 else df_raw.columns[0])
     # Agente
-    col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','USUARIO','USER','AGENT'])), None)
+    col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','COLABORADOR','USUARIO','USER','AGENT'])), None)
     # Tempo
     col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO'])), None)
 
