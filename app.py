@@ -2550,7 +2550,8 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         # Valor por CPF — soma de todos os boletos elegíveis
         df_valor = df_pagos.groupby('uc_cpf')['valor'].sum().reset_index()
-        df_seg = df_seg.merge(df_valor, on='uc_cpf', how='left')
+        # inner join — só CPFs que têm valor pago (elegíveis)
+        df_seg = df_seg.merge(df_valor, on='uc_cpf', how='inner')
         df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
 
         # 5. Separar Luciano vs Amitycall
@@ -2669,19 +2670,12 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         df_seg = df_seg.merge(df_seg_total, on='uc_cpf')
         df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
         df_valor = df_eleg.groupby('uc_cpf')['valor'].sum().reset_index()
-        df_seg = df_seg.merge(df_valor, on='uc_cpf', how='left')
+        # inner join — só CPFs que têm valor pago (elegíveis)
+        df_seg = df_seg.merge(df_valor, on='uc_cpf', how='inner')
         df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
 
-        # 6. Normalizar nomes — usar primeiro nome + segundo nome para deduplicar
-        # Ex: "WYNARA DOS REIS PARREIRA" e "WYNARA DOS REIS" → "WYNARA DOS REIS"
-        def normalizar_nome(n):
-            partes = str(n).strip().upper().split()
-            # Usar no máximo 3 palavras para evitar nomes completos diferentes
-            return ' '.join(partes[:3]) if len(partes) >= 3 else ' '.join(partes)
-        df_seg['agente_norm'] = df_seg['agente'].apply(normalizar_nome)
-
-        # Agrupar por agente normalizado — soma valores de abas diferentes
-        df_result = df_seg.groupby('agente_norm')['valor_proporcional'].sum().reset_index()
+        # 6. Agrupar por agente — nome exato como vem no arquivo
+        df_result = df_seg.groupby('agente')['valor_proporcional'].sum().reset_index()
         df_result = df_result.sort_values('valor_proporcional', ascending=False)
         df_result.columns = ['agente', 'valor']
 
