@@ -1336,7 +1336,7 @@ def processar_contatos(dc):
     import unicodedata
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
     cc=next((c for c in dc.columns if norm(str(c)) in ["CPF","IDENTIFICADOR","IDENTIF","IDENTIFICACAO"]),dc.columns[0])
-    cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
+    cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM","DIA"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
     dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":parse_data_inteligente(dc[cd])}).dropna(subset=["data_contato"])
     dd=dd[dd["uc_cpf"].str.len()>=8]
     dd=dd[~dd["uc_cpf"].str.match(r"^0+$")]
