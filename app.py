@@ -2592,10 +2592,21 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
 
     try:
-        # 1. Ler pagos
+        # 1. Ler pagos — pode estar em arquivo separado ou em aba "pagos" do arquivo de interações
         if arq_pagos is not None:
             arq_pagos.seek(0)
-            df_pagos = ler_arquivo(arq_pagos)
+            try:
+                # Tentar ler como Excel e procurar aba de pagos
+                xls_pag = pd.ExcelFile(arq_pagos)
+                aba_pag = next((a for a in xls_pag.sheet_names if any(x in norm(a) for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA'])), None)
+                if aba_pag:
+                    df_pagos = pd.read_excel(xls_pag, sheet_name=aba_pag)
+                else:
+                    arq_pagos.seek(0)
+                    df_pagos = ler_arquivo(arq_pagos)
+            except:
+                arq_pagos.seek(0)
+                df_pagos = ler_arquivo(arq_pagos)
         else:
             return None, "Base de pagos não encontrada."
 
@@ -2619,23 +2630,11 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
                 abas_processadas = []
                 for aba in xls_int.sheet_names:
                     aba_n = norm(aba)
+                    # Pular aba de pagos
+                    if any(x in aba_n for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA']):
+                        continue
                     df_aba = pd.read_excel(xls_int, sheet_name=aba)
                     cols_n = [norm(str(c)) for c in df_aba.columns]
-                    cols_orig = list(df_aba.columns)
-
-                    # Pular aba de pagos — detecta pelo nome ou pelas colunas
-                    cols_joined = ' '.join(cols_n)
-                    is_pagos = (
-                        any(x in aba_n for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA','RESULT']) or
-                        'VENCIMENTO' in cols_joined or
-                        'FORNECEDORA' in cols_joined or
-                        'VALORAPAGAR' in cols_joined or
-                        'VALORTOTAL' in cols_joined or
-                        'DTPAGAMENTO' in cols_joined or
-                        ('DATAVENCIMENTO' in cols_joined and 'DATAPAGAMENTO' in cols_joined)
-                    )
-                    if is_pagos:
-                        continue
 
                     # Só processa se tiver coluna de agente
                     tem_agente = any(any(x in c for x in ['AGENTE','ATENDENTE','OPERADOR','COLABORADOR','USER']) for c in cols_n)
@@ -2732,15 +2731,18 @@ def processar_contatos_com_agente(df_raw, segundos_fixos=None):
 
     def t2s(t):
         try:
-            if isinstance(t, datetime.time): return t.hour*3600+t.minute*60+t.second
-            if isinstance(t, datetime.datetime): return t.hour*3600+t.minute*60+t.second
+            import datetime as _dt
+            if isinstance(t, _dt.time): return t.hour*3600+t.minute*60+t.second
+            if isinstance(t, _dt.datetime): return t.hour*3600+t.minute*60+t.second
             s=str(t).strip()
             if ':' in s:
                 p=s.split(':')
                 if len(p)==3: return int(p[0])*3600+int(p[1])*60+int(p[2])
                 if len(p)==2: return int(p[0])*60+int(p[1])
             f=float(s)
-            return max(1,int(round(f*86400))) if 0<f<1 else max(1,int(f))
+            # Sempre pegar só a parte decimal (fração do dia = hora)
+            f = f - int(f)
+            return max(1,int(round(f*86400)))
         except: return 1
 
     dd = pd.DataFrame()
