@@ -2663,23 +2663,49 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
 
         df_int = pd.concat(contatos_ag, ignore_index=True)
 
-        # 5. Divisão proporcional — igual à planilha: linha por linha
-        df_int_eleg = df_int[df_int['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
+        # 5. Divisão proporcional — por boleto, linha por linha
+        # Para cada boleto, divide pelos agentes que contataram ANTES ou NO DIA do pagamento
+        df_int_todos = df_int[df_int['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
+        df_int_todos['data_contato'] = pd.to_datetime(df_int_todos['data_contato'], errors='coerce').dt.normalize()
 
-        # Total de segundos por CPF (soma de TODOS os contatos)
-        df_seg_total = df_int_eleg.groupby('uc_cpf')['segundos'].sum().reset_index().rename(columns={'segundos':'total_seg'})
-        df_int_eleg = df_int_eleg.merge(df_seg_total, on='uc_cpf')
+        resultados = []
+        # Iterar por boleto
+        for _, boleto in df_eleg.iterrows():
+            cpf = boleto['uc_cpf']
+            valor = float(boleto['valor'])
+            dt_pag = pd.to_datetime(boleto['data_pagamento'], errors='coerce')
+            if pd.isna(dt_pag) or valor <= 0:
+                continue
+            dt_pag = dt_pag.normalize()
 
-        # Valor total por CPF
-        df_valor = df_eleg.groupby('uc_cpf')['valor'].sum().reset_index()
-        df_int_eleg = df_int_eleg.merge(df_valor, on='uc_cpf', how='inner')
+            # Contatos desse CPF até a data do pagamento
+            contatos_boleto = df_int_todos[
+                (df_int_todos['uc_cpf'] == cpf) &
+                (df_int_todos['data_contato'] <= dt_pag)
+            ].copy()
 
-        # Calcular proporcional linha por linha — igual à planilha
-        df_int_eleg['proporcao'] = df_int_eleg['segundos'] / df_int_eleg['total_seg']
-        df_int_eleg['valor_proporcional'] = df_int_eleg['valor'] * df_int_eleg['proporcao']
+            if contatos_boleto.empty:
+                continue
+
+            total_seg = contatos_boleto['segundos'].sum()
+            if total_seg == 0:
+                continue
+
+            # Calcular proporcional linha por linha
+            for _, linha in contatos_boleto.iterrows():
+                prop = linha['segundos'] / total_seg
+                resultados.append({
+                    'agente': linha['agente'],
+                    'valor_proporcional': valor * prop
+                })
+
+        if not resultados:
+            return None, "Nenhum resultado calculado."
+
+        df_calc = pd.DataFrame(resultados)
 
         # 6. Somar por agente
-        df_result = df_int_eleg.groupby('agente')['valor_proporcional'].sum().reset_index()
+        df_result = df_calc.groupby('agente')['valor_proporcional'].sum().reset_index()
         df_result = df_result.sort_values('valor_proporcional', ascending=False)
         df_result.columns = ['agente', 'valor']
 
