@@ -2609,8 +2609,20 @@ def pagina_upload(ma):
                 if arq_interacoes is not None and df_res is not None:
                     try:
                         arq_interacoes.seek(0)
-                        df_int=ler_arquivo(arq_interacoes)
-                        dd_int=processar_contatos(df_int)
+                        # Ler todas as abas do Excel de interações
+                        try:
+                            xls_tmp=pd.ExcelFile(arq_interacoes)
+                            dfs_tmp=[]
+                            for aba in xls_tmp.sheet_names:
+                                df_aba=pd.read_excel(xls_tmp,sheet_name=aba,dtype={"cpf":str,"CPF":str})
+                                dd_aba=processar_contatos(df_aba)
+                                if not dd_aba.empty:
+                                    dfs_tmp.append(dd_aba)
+                            dd_int=pd.concat(dfs_tmp,ignore_index=True) if dfs_tmp else pd.DataFrame()
+                        except:
+                            arq_interacoes.seek(0)
+                            df_int=ler_arquivo(arq_interacoes)
+                            dd_int=processar_contatos(df_int)
                         if not dd_int.empty:
                             pc=dd_int.groupby("uc_cpf",as_index=False)["data_contato"].min()
                             df_res["primeiro_contato"]=pd.to_datetime(
