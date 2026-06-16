@@ -2704,46 +2704,50 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
 
 
 def processar_contatos_com_agente(df_raw, segundos_fixos=None):
-    """Usa processar_contatos existente e adiciona agente e segundos."""
+    """Extrai CPF, data, agente e segundos — igual ao processar_contatos mas com agente."""
     import unicodedata, datetime
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
 
-    # Usar processar_contatos que já funciona para CPF e data
-    dd = processar_contatos(df_raw)
-    if dd.empty:
-        return dd
-
+    df_raw = df_raw.reset_index(drop=True)
     cols_norm = {norm(str(c)): c for c in df_raw.columns}
 
+    # CPF
+    col_cpf = next((cols_norm[k] for k in cols_norm if k in ['CPF','IDENTIFICADOR','IDENTIF','IDENTIFICACAO']), df_raw.columns[0])
+    # Data
+    col_data = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['DATA','DT_','BAIXA','CONTATO','INTERAC','LIGAC','CHAT','DISPAR','PAGAM','DIA'])), df_raw.columns[1] if len(df_raw.columns)>1 else df_raw.columns[0])
     # Agente
     col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','USUARIO','USER','AGENT'])), None)
-    if col_agente:
-        dd['agente'] = df_raw[col_agente].iloc[:len(dd)].astype(str).str.strip().str.upper().values
-    else:
-        dd['agente'] = 'DESCONHECIDO'
+    # Tempo
+    col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO'])), None)
 
-    # Segundos
+    def t2s(t):
+        try:
+            if isinstance(t, datetime.time): return t.hour*3600+t.minute*60+t.second
+            if isinstance(t, datetime.datetime): return t.hour*3600+t.minute*60+t.second
+            s=str(t).strip()
+            if ':' in s:
+                p=s.split(':')
+                if len(p)==3: return int(p[0])*3600+int(p[1])*60+int(p[2])
+                if len(p)==2: return int(p[0])*60+int(p[1])
+            f=float(s)
+            return max(1,int(round(f*86400))) if 0<f<1 else max(1,int(f))
+        except: return 1
+
+    dd = pd.DataFrame()
+    dd['uc_cpf'] = df_raw[col_cpf].apply(normalizar_cpf)
+    dd['data_contato'] = parse_data_inteligente(df_raw[col_data])
+    dd['agente'] = df_raw[col_agente].astype(str).str.strip().str.upper() if col_agente else 'DESCONHECIDO'
+
     if segundos_fixos is not None:
         dd['segundos'] = segundos_fixos
+    elif col_tempo:
+        dd['segundos'] = df_raw[col_tempo].apply(t2s)
     else:
-        col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO'])), None)
-        if col_tempo:
-            def t2s(t):
-                try:
-                    if isinstance(t, datetime.time): return t.hour*3600+t.minute*60+t.second
-                    if isinstance(t, datetime.datetime): return t.hour*3600+t.minute*60+t.second
-                    s=str(t).strip()
-                    if ':' in s:
-                        p=s.split(':')
-                        if len(p)==3: return int(p[0])*3600+int(p[1])*60+int(p[2])
-                        if len(p)==2: return int(p[0])*60+int(p[1])
-                    f=float(s)
-                    return max(1,int(round(f*86400))) if 0<f<1 else max(1,int(f))
-                except: return 1
-            dd['segundos'] = df_raw[col_tempo].iloc[:len(dd)].apply(t2s).values
-        else:
-            dd['segundos'] = 1
+        dd['segundos'] = 1
 
+    dd = dd.dropna(subset=['data_contato'])
+    dd = dd[dd['uc_cpf'].str.len()>=8]
+    dd = dd[dd['uc_cpf']!='nan']
     return dd
 
 def pagina_upload(ma):
