@@ -2672,8 +2672,16 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         df_seg = df_seg.merge(df_valor, on='uc_cpf', how='left')
         df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
 
-        # 6. Agrupar por agente
-        df_result = df_seg.groupby('agente')['valor_proporcional'].sum().reset_index()
+        # 6. Normalizar nomes — usar primeiro nome + segundo nome para deduplicar
+        # Ex: "WYNARA DOS REIS PARREIRA" e "WYNARA DOS REIS" → "WYNARA DOS REIS"
+        def normalizar_nome(n):
+            partes = str(n).strip().upper().split()
+            # Usar no máximo 3 palavras para evitar nomes completos diferentes
+            return ' '.join(partes[:3]) if len(partes) >= 3 else ' '.join(partes)
+        df_seg['agente_norm'] = df_seg['agente'].apply(normalizar_nome)
+
+        # Agrupar por agente normalizado — soma valores de abas diferentes
+        df_result = df_seg.groupby('agente_norm')['valor_proporcional'].sum().reset_index()
         df_result = df_result.sort_values('valor_proporcional', ascending=False)
         df_result.columns = ['agente', 'valor']
 
@@ -2782,6 +2790,14 @@ def pagina_upload(ma):
             ["Recebido Geral", "Resultado por Atendente"],
             key=f"tipo_proc_{eq}_{ma}", horizontal=True)
 
+        # Dias trabalhados — só para Resultado por Atendente
+        if tipo_proc == "Resultado por Atendente":
+            col_dt1, col_dt2 = st.columns(2)
+            with col_dt1:
+                dias_trab_at = st.number_input("Dias Trabalhados", min_value=0, max_value=31, value=0, key=f"dt_at_{eq}_{ma}")
+            with col_dt2:
+                total_dias_at = st.number_input("Total Dias do Mês", min_value=0, max_value=31, value=21, key=f"td_at_{eq}_{ma}")
+
         if st.button('PROCESSAR',use_container_width=True):
             if not arq: st.error('Selecione a base de pagos antes de processar!'); return
 
@@ -2795,8 +2811,10 @@ def pagina_upload(ma):
                 if erro_at:
                     st.error(erro_at)
                 else:
+                    res_at['dias_trab'] = dias_trab_at
+                    res_at['total_dias'] = total_dias_at
                     st.session_state['resultado_atendentes'] = res_at
-                    st.session_state['div_prop_resultado'] = None  # Limpar resultado Luciano
+                    st.session_state['div_prop_resultado'] = None
                     st.rerun()
                 st.stop()
 
@@ -2956,9 +2974,8 @@ def pagina_upload(ma):
                     agentes_dict[op_id] = {"valorRecebido": valor, "nome": nome}
                     tc_total += valor
                 # Salvar lançamento com resultado por atendente
-                lancs_eq = buscar_lancamentos(ma_at, eq_at)
-                dt_eq = int(lancs_eq[0].get('diasTrabalhados',0)) if lancs_eq else 0
-                td_eq = int(lancs_eq[0].get('totalDias',21)) if lancs_eq else 21
+                dt_eq = int(res_at.get('dias_trab', 0))
+                td_eq = int(res_at.get('total_dias', 21))
                 get_db().lancamentos.insert_one({
                     "_id": f"lanc__{ma_at}__{eq_at}__{_ts}",
                     "mesAno": ma_at, "equipeId": eq_at,
