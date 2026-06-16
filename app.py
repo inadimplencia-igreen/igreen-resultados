@@ -1865,10 +1865,12 @@ def pagina_quadro(ma):
         dt_base=up.get("atualizadoEm") if up else None
         # Usar o mais recente
         if rec_manual>0 and rec_base>0:
-            if dt_manual and dt_base and dt_manual>dt_base:
+            try:
+                _dm=str(dt_manual) if dt_manual else ""
+                _db=str(dt_base) if dt_base else ""
+                rec_geral=rec_manual if _dm>_db else rec_base
+            except:
                 rec_geral=rec_manual
-            else:
-                rec_geral=rec_base
         elif rec_manual>0:
             rec_geral=rec_manual
         elif rec_base>0:
