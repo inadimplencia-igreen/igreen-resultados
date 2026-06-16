@@ -2991,15 +2991,43 @@ def pagina_upload(ma):
                 ma_at = res_at['ma']
                 # Buscar operadores cadastrados para mapear por nome
                 ops_eq = buscar_operadores(eq_at)
-                ops_map = {op['nome'].upper().strip(): op['_id'] for op in ops_eq}
+
+                # Criar mapa por primeiro nome — se duplicado, usar primeiro + sobrenome
+                from collections import Counter
+                primeiros_nomes = [op['nome'].strip().upper().split()[0] for op in ops_eq]
+                duplicados = {n for n, c in Counter(primeiros_nomes).items() if c > 1}
+
+                def match_operador(nome_base, ops):
+                    """Encontra operador pelo primeiro nome, ou primeiro+último se duplicado."""
+                    partes_base = nome_base.strip().upper().split()
+                    primeiro_base = partes_base[0] if partes_base else ""
+                    ultimo_base = partes_base[-1] if len(partes_base) > 1 else ""
+
+                    for op in ops:
+                        partes_op = op['nome'].strip().upper().split()
+                        primeiro_op = partes_op[0] if partes_op else ""
+                        ultimo_op = partes_op[-1] if len(partes_op) > 1 else ""
+
+                        if primeiro_op in duplicados:
+                            # Precisa bater primeiro + último nome
+                            if primeiro_base == primeiro_op and ultimo_base == ultimo_op:
+                                return op['_id'], op['nome']
+                        else:
+                            # Só primeiro nome
+                            if primeiro_base == primeiro_op:
+                                return op['_id'], op['nome']
+                    return None, nome_base
+
                 # Montar agentes dict
                 agentes_dict = {}
                 tc_total = 0.0
                 for _, row in res_at['df_result'].iterrows():
                     nome = str(row['agente']).strip()
                     valor = float(row['valor'])
-                    op_id = ops_map.get(nome.upper(), f"auto-{nome.lower().replace(' ','-')}")
-                    agentes_dict[op_id] = {"valorRecebido": valor, "nome": nome}
+                    op_id, op_nome = match_operador(nome, ops_eq)
+                    if op_id is None:
+                        op_id = f"auto-{nome.lower().replace(' ','-')}"
+                    agentes_dict[op_id] = {"valorRecebido": valor, "nome": op_nome}
                     tc_total += valor
                 # Salvar lançamento com resultado por atendente
                 dt_eq = int(res_at.get('dias_trab', 0))
