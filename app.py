@@ -2803,9 +2803,13 @@ def pagina_upload(ma):
 
             # Resultado por Atendente
             if tipo_proc == "Resultado por Atendente":
+                if dias_trab_at == 0:
+                    st.error("⚠️ Preencha os Dias Trabalhados antes de processar.")
+                    st.stop()
+                if total_dias_at == 0:
+                    st.error("⚠️ Preencha o Total Dias do Mês antes de processar.")
+                    st.stop()
                 arq.seek(0)
-                # Arquivo único com abas pagos/ligações/chat
-                # Passa o mesmo arquivo — a função identifica cada aba automaticamente
                 with st.spinner('Calculando resultado por atendente...'):
                     res_at, erro_at = calcular_resultado_atendentes(arq, arq, eq, ma)
                 if erro_at:
