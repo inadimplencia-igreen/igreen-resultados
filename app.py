@@ -2618,29 +2618,30 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
                 xls_int = pd.ExcelFile(arq_interacoes)
                 for aba in xls_int.sheet_names:
                     aba_n = norm(aba)
-                    # Pular aba de pagos
-                    if any(x in aba_n for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA','RESULT']):
-                        continue
                     df_aba = pd.read_excel(xls_int, sheet_name=aba)
+                    cols_n = [norm(str(c)) for c in df_aba.columns]
+
+                    # Pular aba de pagos — detecta pelo nome ou pelas colunas
+                    is_pagos = (
+                        any(x in aba_n for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA','RESULT']) or
+                        any(x in ' '.join(cols_n) for x in ['VENCIMENTO','FORNECEDORA','VALORAPAGAR','VALOR TOTAL','VALORTOTAL','DTPAGAMENTO','DTPAG'])
+                    )
+                    if is_pagos:
+                        continue
+
+                    # Só processa se tiver coluna de agente
+                    tem_agente = any(any(x in c for x in ['AGENTE','ATENDENTE','OPERADOR','COLABORADOR','USER']) for c in cols_n)
+                    if not tem_agente:
+                        continue
+
                     if 'DISPAR' in aba_n:
-                        dd = processar_contatos_com_agente(df_aba)
-                        if not dd.empty:
-                            dd['segundos'] = 1
-                            contatos.append(dd)
+                        dd = processar_contatos_com_agente(df_aba, segundos_fixos=1)
                     elif 'CHAT' in aba_n:
-                        dd = processar_contatos_com_agente(df_aba)
-                        if not dd.empty:
-                            dd['segundos'] = 5
-                            contatos.append(dd)
-                    elif any(x in aba_n for x in ['LIG','LIGAC']):
-                        dd = processar_contatos_com_agente(df_aba)
-                        if not dd.empty:
-                            contatos.append(dd)
+                        dd = processar_contatos_com_agente(df_aba, segundos_fixos=5)
                     else:
-                        # Aba desconhecida — tentar como ligação
                         dd = processar_contatos_com_agente(df_aba)
-                        if not dd.empty:
-                            contatos.append(dd)
+                    if not dd.empty:
+                        contatos.append(dd)
             except:
                 arq_interacoes.seek(0)
                 df_int_raw = ler_arquivo(arq_interacoes)
