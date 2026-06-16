@@ -2730,11 +2730,33 @@ def pagina_upload(ma):
         col_ok, col_cancel = st.columns(2)
         with col_ok:
             if st.button("✅ Confirmar e Salvar", use_container_width=True, key="btn_confirmar_div"):
-                # Salvar recGeral do Luciano no processamento
-                salvar_processamento(res['ma'], 'luciano', res['total_luciano'], 0, {}, 0)
-                # Salvar recGeral da Amitycall
-                salvar_processamento(res['ma'], 'metcool', res['total_metcool'], 0, {}, 0)
+                # Salvar recGeral do Luciano — usar lancamento manual
+                from datetime import datetime as _dt
+                _ts = _dt.now().strftime("%Y%m%d%H%M%S%f")
+                get_db().lancamentos.insert_one({
+                    "_id": f"lanc__{res['ma']}__luciano__{_ts}",
+                    "mesAno": res['ma'], "equipeId": "luciano",
+                    "dataRef": str(_dt.now().date()), "label": "Divisão Proporcional",
+                    "agentes": {}, "totalEquipe": 0, "semInteracao": 0,
+                    "diasTrabalhados": 0, "totalDias": 0,
+                    "recGeral": res['total_luciano'],
+                    "criadoEm": _dt.now().isoformat()
+                })
+                # Salvar recGeral da Meet Call
+                mc_doc = buscar_lancamento_meetcall(res['ma']) or {}
+                get_db().lancamento_meetcall.update_one(
+                    {"_id": f"mc__{res['ma']}"},
+                    {"$set": {
+                        "mesAno": res['ma'],
+                        "recGeralTotal": res['total_metcool'],
+                        "recGeral": res['total_metcool'],
+                        "atualizadoEm": _dt.now().isoformat()
+                    }},
+                    upsert=True
+                )
+                buscar_lancamentos.clear()
                 buscar_ultimo_processamento.clear()
+                buscar_lancamento_meetcall.clear()
                 st.session_state['div_prop_resultado'] = None
                 st.success("✅ Valores salvos no Quadro!")
                 st.rerun()
