@@ -1856,9 +1856,11 @@ def pagina_quadro(ma):
         mg_doc=buscar_meta_gestora(ma,eq); mops=buscar_metas_equipe(ma,eq)
         mg=float(mg_doc.get("metaGestora",0))
         ul=lancs[0] if lancs else {}
+        # Para Com Interação, usar o lançamento que tem agentes preenchidos
+        ul_agentes=next((l for l in lancs if l.get("agentes")), ul)
         # Com Interação: para Luciano exclui Meet Call; para metcool só Meet Call
         if eq=="luciano":
-            tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict) and v.get("nome","") not in OPERADORES_MEETCALL)
+            tc=sum(float(v.get("valorRecebido",0)) for v in ul_agentes.get("agentes",{}).values() if isinstance(v,dict) and v.get("nome","") not in OPERADORES_MEETCALL)
         elif eq=="metcool":
             tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict))
         else:
@@ -2747,28 +2749,23 @@ def pagina_upload(ma):
         col_ok, col_cancel = st.columns(2)
         with col_ok:
             if st.button("✅ Confirmar e Salvar", use_container_width=True, key="btn_confirmar_div"):
-                # Salvar APENAS o recGeral do Luciano — sem mexer em nada mais
+                # Salvar APENAS o recGeral do Luciano — criar novo lançamento sem apagar o existente
                 from datetime import datetime as _dt
-                # Atualizar recGeral no lançamento mais recente do Luciano
+                _ts = _dt.now().strftime("%Y%m%d%H%M%S%f")
                 lancs_luc = buscar_lancamentos(res['ma'], 'luciano')
-                if lancs_luc:
-                    # Atualizar o lançamento mais recente
-                    get_db().lancamentos.update_one(
-                        {"_id": lancs_luc[0]["_id"]},
-                        {"$set": {"recGeral": res['total_luciano']}}
-                    )
-                else:
-                    # Criar lançamento mínimo só com recGeral
-                    _ts = _dt.now().strftime("%Y%m%d%H%M%S%f")
-                    get_db().lancamentos.insert_one({
-                        "_id": f"lanc__{res['ma']}__luciano__{_ts}",
-                        "mesAno": res['ma'], "equipeId": "luciano",
-                        "dataRef": str(_dt.now().date()), "label": "Fechamento do Mês",
-                        "agentes": {}, "totalEquipe": 0, "semInteracao": 0,
-                        "diasTrabalhados": 0, "totalDias": 21,
-                        "recGeral": res['total_luciano'],
-                        "criadoEm": _dt.now().isoformat()
-                    })
+                # Preservar dias trabalhados do lançamento existente
+                dt_luc = int(lancs_luc[0].get('diasTrabalhados',0)) if lancs_luc else 0
+                td_luc = int(lancs_luc[0].get('totalDias',21)) if lancs_luc else 21
+                # Inserir novo lançamento só com recGeral — não apaga nada
+                get_db().lancamentos.insert_one({
+                    "_id": f"lanc__{res['ma']}__luciano__{_ts}",
+                    "mesAno": res['ma'], "equipeId": "luciano",
+                    "dataRef": str(_dt.now().date()), "label": "Recebido Geral",
+                    "agentes": {}, "totalEquipe": 0, "semInteracao": 0,
+                    "diasTrabalhados": dt_luc, "totalDias": td_luc,
+                    "recGeral": res['total_luciano'],
+                    "criadoEm": _dt.now().isoformat()
+                })
                 # Salvar APENAS recGeral da Meet Call — sem mexer em Com Interação
                 get_db().lancamento_meetcall.update_one(
                     {"_id": f"mc__{res['ma']}"},
