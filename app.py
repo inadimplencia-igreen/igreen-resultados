@@ -2539,9 +2539,10 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             return None, "Nenhum registro elegível encontrado na base processada."
 
         # 4. Divisão proporcional por CPF
+        # Usar TODAS as interações dos CPFs elegíveis — sem filtrar por data
         df_int_eleg = df_int[df_int['uc_cpf'].isin(df_pagos['uc_cpf'].unique())].copy()
 
-        # Agrupar segundos por CPF + agente
+        # Agrupar segundos por CPF + agente (soma todos os contatos do agente com aquele CPF)
         df_seg = df_int_eleg.groupby(['uc_cpf','agente'])['segundos'].sum().reset_index()
         df_seg_total = df_seg.groupby('uc_cpf')['segundos'].sum().reset_index().rename(columns={'segundos':'total_seg'})
         df_seg = df_seg.merge(df_seg_total, on='uc_cpf')
@@ -2786,7 +2787,7 @@ def pagina_upload(ma):
                 get_db().lancamentos.insert_one({
                     "_id": f"lanc__{res['ma']}__luciano__{_ts}",
                     "mesAno": res['ma'], "equipeId": "luciano",
-                    "dataRef": str(_dt.now().date()), "label": "Recebido Geral",
+                    "dataRef": str(_dt.now().date()), "label": "Fechamento do Mês",
                     "agentes": {}, "totalEquipe": 0, "semInteracao": 0,
                     "diasTrabalhados": dt_luc, "totalDias": td_luc,
                     "recGeral": res['total_luciano'],
