@@ -2807,18 +2807,10 @@ def pagina_upload(ma):
             # Resultado por Atendente
             if tipo_proc == "Resultado por Atendente":
                 arq.seek(0)
-                # Se tem arquivo de interações separado usa ele, senão usa o próprio arq (arquivo único com abas)
-                if arq_interacoes is not None:
-                    arq_interacoes.seek(0)
-                    arq_int = arq_interacoes
-                    arq_pagos_at = arq
-                else:
-                    # Arquivo único — pagos em aba PAGOS, interações nas outras abas
-                    arq.seek(0)
-                    arq_int = arq
-                    arq_pagos_at = arq
+                # Arquivo único com abas pagos/ligações/chat
+                # Passa o mesmo arquivo — a função identifica cada aba automaticamente
                 with st.spinner('Calculando resultado por atendente...'):
-                    res_at, erro_at = calcular_resultado_atendentes(arq_pagos_at, arq_int, eq, ma)
+                    res_at, erro_at = calcular_resultado_atendentes(arq, arq, eq, ma)
                 if erro_at:
                     st.error(erro_at)
                 else:
