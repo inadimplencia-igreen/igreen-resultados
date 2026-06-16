@@ -1714,7 +1714,7 @@ def pagina_quadro(ma):
                     rec_base_r=float(up_r.get("valorElegivel",0)) if up_r else 0
                     dt_base_r=up_r.get("atualizadoEm") if up_r else None
                     if rec_manual_r>0 and rec_base_r>0:
-                        if dt_manual_r and dt_base_r and dt_manual_r>dt_base_r:
+                        if dt_manual_r and dt_base_r and str(dt_manual_r)>str(dt_base_r):
                             rg_r=rec_manual_r
                         else:
                             rg_r=rec_base_r
