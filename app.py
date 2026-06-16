@@ -1833,9 +1833,11 @@ def pagina_quadro(ma):
         st.markdown("---")
     for eq in eqs:
         try:
-            ops=buscar_operadores(eq); lancs=buscar_lancamentos(ma,eq)
-        except:
-            st.error("Erro ao conectar ao banco. Tente recarregar."); continue
+            ops=buscar_operadores(eq)
+            lancs=buscar_lancamentos(ma,eq)
+        except Exception as _e_lanc:
+            st.error(f"Erro ao conectar ao banco ({eq}): {_e_lanc}. Tente recarregar.")
+            continue
         # Mostrar card se tiver lançamento OU base processada no mês
         up=buscar_ultimo_processamento(ma,eq)
         tem_base_mes = up and float(up.get("valorElegivel",0)) > 0 and up.get("mesAno")==ma
