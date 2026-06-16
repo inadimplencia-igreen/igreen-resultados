@@ -2535,21 +2535,21 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         # 5. Separar Luciano vs Amitycall
         df_seg['equipe'] = df_seg['agente'].apply(
-            lambda a: 'luciano' if a.upper().strip() in AGENTES_LUCIANO else 'amitycall'
+            lambda a: 'luciano' if a.upper().strip() in AGENTES_LUCIANO else 'metcool'
         )
 
         # Debug — agentes únicos e classificação
         agentes_unicos = df_seg[['agente','equipe']].drop_duplicates().to_dict('records')
 
         total_luciano = float(df_seg[df_seg['equipe']=='luciano']['valor_proporcional'].sum())
-        total_amitycall = float(df_seg[df_seg['equipe']=='amitycall']['valor_proporcional'].sum())
+        total_amitycall = float(df_seg[df_seg['equipe']=='metcool']['valor_proporcional'].sum())
         total_geral = total_luciano + total_amitycall
         n_eleg = len(df_pagos)
         n_boletos = len(df_eleg)
 
         resultado = {
             'total_luciano': total_luciano,
-            'total_amitycall': total_amitycall,
+            'total_metcool': total_amitycall,
             'total_geral': total_geral,
             'n_elegivel': n_eleg,
             'n_boletos': n_boletos,
@@ -2723,7 +2723,7 @@ def pagina_upload(ma):
         with c1:
             st.metric("Equipe Luciano", fmt_brl(res['total_luciano']))
         with c2:
-            st.metric("Amitycall", fmt_brl(res['total_amitycall']))
+            st.metric("Meet Call", fmt_brl(res['total_metcool']))
         with c3:
             st.metric("Total Geral", fmt_brl(res['total_geral']))
         st.markdown("**⚠️ Confirme os valores antes de salvar no Quadro:**")
@@ -2733,7 +2733,7 @@ def pagina_upload(ma):
                 # Salvar recGeral do Luciano no processamento
                 salvar_processamento(res['ma'], 'luciano', res['total_luciano'], 0, {}, 0)
                 # Salvar recGeral da Amitycall
-                salvar_processamento(res['ma'], 'amitycall', res['total_amitycall'], 0, {}, 0)
+                salvar_processamento(res['ma'], 'metcool', res['total_metcool'], 0, {}, 0)
                 buscar_ultimo_processamento.clear()
                 st.session_state['div_prop_resultado'] = None
                 st.success("✅ Valores salvos no Quadro!")
