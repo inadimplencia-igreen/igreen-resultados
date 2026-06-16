@@ -2723,13 +2723,19 @@ def processar_contatos_com_agente(df_raw):
     def tempo_para_segundos(t):
         try:
             s = str(t).strip()
+            # Formato HH:MM:SS
             if ':' in s:
                 partes = s.split(':')
                 if len(partes) == 3:
                     return int(partes[0])*3600 + int(partes[1])*60 + int(partes[2])
                 elif len(partes) == 2:
                     return int(partes[0])*60 + int(partes[1])
-            return max(1, float(s))
+            # Número float (timestamp do Excel) — converter para segundos do dia
+            f = float(s)
+            if f > 1:  # É um timestamp, não segundos
+                # Pegar só a parte decimal (fração do dia)
+                f = f - int(f)
+            return max(1, int(round(f * 86400)))
         except:
             return 1
 
@@ -2805,6 +2811,7 @@ def pagina_upload(ma):
                     st.error(erro_at)
                 else:
                     st.session_state['resultado_atendentes'] = res_at
+                    st.session_state['div_prop_resultado'] = None  # Limpar resultado Luciano
                     st.rerun()
                 st.stop()
 
