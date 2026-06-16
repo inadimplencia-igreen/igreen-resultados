@@ -2587,129 +2587,110 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
 
 def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
-    """Calcula resultado por atendente via divisão proporcional."""
+    """Calcula resultado por atendente — usa o mesmo fluxo do processamento normal."""
     import unicodedata
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
 
     try:
-        # 1. Ler pagos — pode estar em arquivo separado ou em aba "pagos" do arquivo de interações
-        if arq_pagos is not None:
-            arq_pagos.seek(0)
-            try:
-                # Tentar ler como Excel e procurar aba de pagos
-                xls_pag = pd.ExcelFile(arq_pagos)
-                aba_pag = next((a for a in xls_pag.sheet_names if any(x in norm(a) for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA'])), None)
-                if aba_pag:
-                    df_pagos = pd.read_excel(xls_pag, sheet_name=aba_pag)
-                else:
-                    arq_pagos.seek(0)
-                    df_pagos = ler_arquivo(arq_pagos)
-            except:
-                arq_pagos.seek(0)
-                df_pagos = ler_arquivo(arq_pagos)
-        else:
-            return None, "Base de pagos não encontrada."
+        # 1. Processar base igual ao fluxo normal (pagos + elegibilidade)
+        arq_pagos.seek(0)
+        df_res, erros, abas = processar_base_unica(arq_pagos, eq, ma)
 
-        df_pagos = mapear_colunas_pagos(df_pagos)
-        if 'uc_cpf' in df_pagos.columns:
-            df_pagos['uc_cpf'] = df_pagos['uc_cpf'].apply(normalizar_cpf)
-        if 'data_pagamento' in df_pagos.columns:
-            df_pagos['data_pagamento'] = parse_data_inteligente(df_pagos['data_pagamento'])
-            df_pagos = df_pagos[df_pagos['data_pagamento'].notna()].copy()
-        if 'valor' in df_pagos.columns:
-            df_pagos['valor'] = pd.to_numeric(
-                df_pagos['valor'].astype(str).str.replace('R$','').str.replace(' ','')
-                .str.replace('.','').str.replace(',','.').str.strip(), errors='coerce').fillna(0)
+        if df_res is None or df_res.empty:
+            return None, f"Erro no processamento: {erros}"
 
-        # 2. Ler interações — identifica abas automaticamente
-        contatos = []
-        if arq_interacoes is not None:
-            arq_interacoes.seek(0)
-            try:
-                xls_int = pd.ExcelFile(arq_interacoes)
-                abas_processadas = []
-                for aba in xls_int.sheet_names:
-                    aba_n = norm(aba)
-                    # Pular aba de pagos
-                    if any(x in aba_n for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA']):
-                        continue
-                    df_aba = pd.read_excel(xls_int, sheet_name=aba)
-                    cols_n = [norm(str(c)) for c in df_aba.columns]
-
-                    # Só processa se tiver coluna de agente
-                    tem_agente = any(any(x in c for x in ['AGENTE','ATENDENTE','OPERADOR','COLABORADOR','USER']) for c in cols_n)
-                    if not tem_agente:
-                        continue
-
-                    if 'DISPAR' in aba_n:
-                        dd = processar_contatos_com_agente(df_aba, segundos_fixos=1)
-                    elif 'CHAT' in aba_n:
-                        dd = processar_contatos_com_agente(df_aba, segundos_fixos=5)
-                    else:
-                        dd = processar_contatos_com_agente(df_aba)
-                    if not dd.empty:
-                        contatos.append(dd)
-            except:
-                arq_interacoes.seek(0)
-                df_int_raw = ler_arquivo(arq_interacoes)
-                dd = processar_contatos_com_agente(df_int_raw)
+        # 2. Cruzar com interações para elegibilidade — igual ao fluxo normal
+        arq_interacoes.seek(0)
+        try:
+            xls_int = pd.ExcelFile(arq_interacoes)
+            contatos_tmp = []
+            for aba in xls_int.sheet_names:
+                aba_n = norm(aba)
+                if any(x in aba_n for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA']):
+                    continue
+                df_aba = pd.read_excel(xls_int, sheet_name=aba)
+                dd = processar_contatos(df_aba)
                 if not dd.empty:
-                    contatos.append(dd)
-        else:
-            return None, "Base de interações não encontrada."
+                    contatos_tmp.append(dd)
+            if contatos_tmp:
+                pc = pd.concat(contatos_tmp, ignore_index=True).groupby('uc_cpf', as_index=False)['data_contato'].min()
+                df_res['primeiro_contato'] = df_res['uc_cpf'].map(dict(zip(pc['uc_cpf'], pc['data_contato'])))
+                df_res['primeiro_contato'] = pd.to_datetime(df_res['primeiro_contato'], errors='coerce').dt.normalize()
+                df_res['data_pagamento'] = pd.to_datetime(df_res['data_pagamento'], errors='coerce').dt.normalize()
+                df_res['diferenca_dias'] = (df_res['data_pagamento'] - df_res['primeiro_contato']).dt.days
+                def classif(row):
+                    if pd.isna(row.get('primeiro_contato')): return 'ND'
+                    d = row.get('diferenca_dias')
+                    if pd.isna(d): return 'ND'
+                    return 'Elegível' if int(d) >= 0 else 'Não Elegível'
+                df_res['elegibilidade'] = df_res.apply(classif, axis=1)
+        except Exception as e:
+            return None, f"Erro ao processar interações: {e}"
 
-        if not contatos:
-            return None, "Nenhuma interação encontrada no arquivo."
-
-        df_int = pd.concat(contatos, ignore_index=True)
-
-        # 3. Primeiro contato por CPF
-        df_primeiro = df_int.sort_values('data_contato').drop_duplicates(subset=['uc_cpf'], keep='first')[['uc_cpf','data_contato']]
-        df_pagos['data_pagamento'] = pd.to_datetime(df_pagos['data_pagamento'], errors='coerce').dt.normalize()
-        df_pagos['primeiro_contato'] = df_pagos['uc_cpf'].map(dict(zip(df_primeiro['uc_cpf'], df_primeiro['data_contato'])))
-        df_pagos['primeiro_contato'] = pd.to_datetime(df_pagos['primeiro_contato'], errors='coerce').dt.normalize()
-        df_pagos['diferenca'] = (df_pagos['data_pagamento'] - df_pagos['primeiro_contato']).dt.days
-        df_eleg = df_pagos[df_pagos['diferenca'] >= 0].copy()
-
+        # 3. Filtrar elegíveis
+        df_eleg = df_res[df_res['elegibilidade'] == 'Elegível'].copy()
         if df_eleg.empty:
             return None, "Nenhum registro elegível encontrado."
 
-        # 4. Divisão proporcional — TODAS as interações dos CPFs elegíveis
-        df_int_eleg = df_int[df_int['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
+        # 4. Ler interações com agente para divisão proporcional
+        arq_interacoes.seek(0)
+        contatos_ag = []
+        try:
+            xls_int2 = pd.ExcelFile(arq_interacoes)
+            for aba in xls_int2.sheet_names:
+                aba_n = norm(aba)
+                if any(x in aba_n for x in ['PAGO','PAGAM','RECEB','BASE','BAIXA']):
+                    continue
+                df_aba = pd.read_excel(xls_int2, sheet_name=aba)
+                cols_n = [norm(str(c)) for c in df_aba.columns]
+                tem_agente = any(any(x in c for x in ['AGENTE','ATENDENTE','OPERADOR','COLABORADOR','USER']) for c in cols_n)
+                if not tem_agente:
+                    continue
+                if 'DISPAR' in aba_n:
+                    dd = processar_contatos_com_agente(df_aba, segundos_fixos=1)
+                elif 'CHAT' in aba_n:
+                    dd = processar_contatos_com_agente(df_aba, segundos_fixos=5)
+                else:
+                    dd = processar_contatos_com_agente(df_aba)
+                if not dd.empty:
+                    contatos_ag.append(dd)
+        except Exception as e:
+            return None, f"Erro ao ler interações com agente: {e}"
 
-        # Agrupar segundos por CPF + agente
+        if not contatos_ag:
+            return None, "Nenhuma interação com agente encontrada."
+
+        df_int = pd.concat(contatos_ag, ignore_index=True)
+
+        # 5. Divisão proporcional — TODAS as interações dos CPFs elegíveis
+        df_int_eleg = df_int[df_int['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
         df_seg = df_int_eleg.groupby(['uc_cpf','agente'])['segundos'].sum().reset_index()
         df_seg_total = df_seg.groupby('uc_cpf')['segundos'].sum().reset_index().rename(columns={'segundos':'total_seg'})
         df_seg = df_seg.merge(df_seg_total, on='uc_cpf')
         df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
-
-        # Valor por CPF
         df_valor = df_eleg.groupby('uc_cpf')['valor'].sum().reset_index()
         df_seg = df_seg.merge(df_valor, on='uc_cpf', how='left')
         df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
 
-        # 5. Agrupar por agente
+        # 6. Agrupar por agente
         df_result = df_seg.groupby('agente')['valor_proporcional'].sum().reset_index()
         df_result = df_result.sort_values('valor_proporcional', ascending=False)
         df_result.columns = ['agente', 'valor']
 
         total = float(df_result['valor'].sum())
-        n_eleg = len(df_eleg)
-        n_boletos = len(df_pagos)
-
         return {
             'df_result': df_result,
             'total': total,
-            'n_elegivel': n_eleg,
-            'n_boletos': n_boletos,
+            'n_elegivel': len(df_eleg),
+            'n_boletos': len(df_res),
             'eq': eq,
-            'ma': ma,
-            'debug_abas': abas_processadas if 'abas_processadas' in dir() else []
+            'ma': ma
         }, None
 
     except Exception as e:
         import traceback
         return None, f"Erro: {e}\n{traceback.format_exc()}"
+
 
 
 def processar_contatos_com_agente(df_raw, segundos_fixos=None):
