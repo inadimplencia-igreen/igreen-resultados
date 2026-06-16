@@ -2755,7 +2755,6 @@ def pagina_upload(ma):
                     upsert=True
                 )
                 buscar_lancamentos.clear()
-                buscar_ultimo_processamento.clear()
                 buscar_lancamento_meetcall.clear()
                 st.session_state['div_prop_resultado'] = None
                 st.success("✅ Valores salvos no Quadro!")
