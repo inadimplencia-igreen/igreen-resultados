@@ -449,7 +449,11 @@ def buscar_lancamentos(ma, eq):
     for d in get_db().resultados.find({"mesAno":ma,"equipeId":eq}):
         antigos.append({"_id":d["_id"],"mesAno":d["mesAno"],"equipeId":d["equipeId"],"label":d.get("semanaId","Registro anterior"),"dataRef":d.get("atualizadoEm",""),"agentes":d.get("agentes",{}),"totalEquipe":d.get("totalEquipe",0),"valorGeral":d.get("valorGeral",0),"semInteracao":d.get("semInteracao",0),"diasTrabalhados":d.get("diasTrabalhados",0),"totalDias":d.get("totalDias",22),"criadoEm":d.get("atualizadoEm",datetime.now())})
     todos = novos + antigos
-    todos.sort(key=lambda x: x.get("criadoEm",datetime.now()), reverse=True)
+    def _sort_key(x):
+        v = x.get("criadoEm", "")
+        if hasattr(v, 'isoformat'): return v.isoformat()
+        return str(v or "")
+    todos.sort(key=_sort_key, reverse=True)
     return todos
 
 def excluir_lancamento(did):
@@ -636,7 +640,11 @@ def buscar_historico_geral(mes_ano=None, equipe_id=None):
     except: pass
 
     todos = novos + antigos
-    todos.sort(key=lambda x: x.get("criadoEm", datetime.now()), reverse=True)
+    def _sort_key2(x):
+        v = x.get("criadoEm", "")
+        if hasattr(v, 'isoformat'): return v.isoformat()
+        return str(v or "")
+    todos.sort(key=_sort_key2, reverse=True)
     return todos
 
 def salvar_inadimplencia(ma, eq, dados):
