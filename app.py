@@ -1388,7 +1388,9 @@ def processar_base_unica(arquivo, eq, ma):
         df = mapear_colunas_pagos(df)
         df["_row_id"]=df.index
         if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
-        if "data_pagamento" in df.columns: df["data_pagamento"]=parse_data_inteligente(df["data_pagamento"])
+        if "data_pagamento" in df.columns:
+            df["data_pagamento"]=parse_data_inteligente(df["data_pagamento"])
+            df=df[df["data_pagamento"].notna()].copy()  # Só boletos pagos
         if "data_vencimento" in df.columns: df["data_vencimento"]=parse_data_inteligente(df["data_vencimento"])
         if "valor" in df.columns:
             def cv(v):
@@ -1419,7 +1421,9 @@ def processar_base_unica(arquivo, eq, ma):
         df["_row_id"]=df.index
         df = mapear_colunas_pagos(df)
         if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
-        if "data_pagamento" in df.columns: df["data_pagamento"]=parse_data_inteligente(df["data_pagamento"])
+        if "data_pagamento" in df.columns:
+            df["data_pagamento"]=parse_data_inteligente(df["data_pagamento"])
+            df=df[df["data_pagamento"].notna()].copy()  # Só boletos pagos
         if "data_vencimento" in df.columns: df["data_vencimento"]=parse_data_inteligente(df["data_vencimento"])
         if "valor" in df.columns:
             def cv(v):
@@ -2596,12 +2600,7 @@ def pagina_upload(ma):
         if st.button('PROCESSAR',use_container_width=True):
             if not arq: st.error('Selecione a base de pagos antes de processar!'); return
 
-            # Luciano: usa exatamente o mesmo fluxo normal, depois divide proporcional
-            if eq=='luciano' and arq_interacoes is not None:
-                # Processar igual ao fluxo normal (pagos + interações)
-                # O df_res vai ter elegibilidade calculada corretamente
-                # Depois só divide o total entre Luciano e Amitycall
-                pass  # continua no fluxo normal abaixo
+
 
             arq.seek(0)
             with st.spinner('Processando...'):
