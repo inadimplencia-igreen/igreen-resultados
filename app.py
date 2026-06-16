@@ -2754,19 +2754,19 @@ def pagina_upload(ma):
             col_l, col_m = st.columns(2)
             with col_l:
                 st.markdown(f"**🟢 Equipe Luciano** — {fmt_brl(res['total_luciano'])}")
-                df_luc = df_ag[df_ag['equipe']=='luciano'][['agente','valor_proporcional']].copy()
+                df_luc = df_ag[df_ag['equipe']=='luciano'].groupby('agente')['valor_proporcional'].sum().reset_index()
                 df_luc = df_luc.sort_values('valor_proporcional', ascending=False)
                 df_luc['valor_proporcional'] = df_luc['valor_proporcional'].apply(fmt_brl)
-                df_luc.columns = ['Agente', 'Valor']
+                df_luc.columns = ['Agente', 'Total Recebido']
                 df_luc = df_luc.reset_index(drop=True)
                 df_luc.index += 1
                 st.dataframe(df_luc, use_container_width=True)
             with col_m:
                 st.markdown(f"**🔵 Meet Call** — {fmt_brl(res['total_metcool'])}")
-                df_mc = df_ag[df_ag['equipe']=='metcool'][['agente','valor_proporcional']].copy()
+                df_mc = df_ag[df_ag['equipe']=='metcool'].groupby('agente')['valor_proporcional'].sum().reset_index()
                 df_mc = df_mc.sort_values('valor_proporcional', ascending=False)
                 df_mc['valor_proporcional'] = df_mc['valor_proporcional'].apply(fmt_brl)
-                df_mc.columns = ['Agente', 'Valor']
+                df_mc.columns = ['Agente', 'Total Recebido']
                 df_mc = df_mc.reset_index(drop=True)
                 df_mc.index += 1
                 st.dataframe(df_mc, use_container_width=True)
