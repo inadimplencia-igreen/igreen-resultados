@@ -1864,7 +1864,7 @@ def pagina_quadro(ma):
         elif eq=="metcool":
             tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict))
         else:
-            tc=sum(float(v.get("valorRecebido",0)) for v in ul.get("agentes",{}).values() if isinstance(v,dict))
+            tc=sum(float(v.get("valorRecebido",0)) for v in ul_agentes.get("agentes",{}).values() if isinstance(v,dict))
         dt=int(ul.get("diasTrabalhados",0)); td=int(ul.get("totalDias",22))
         # Usar o mais recente: comparar data do lançamento manual vs base processada
         rec_geral=0.0
@@ -3028,8 +3028,12 @@ def pagina_upload(ma):
                     if op_id is None:
                         op_id = f"auto-{nome.lower().replace(' ','-')}"
                         op_nome = nome
-                    agentes_dict[op_id] = {"valorRecebido": valor, "nome": op_nome}
-                    tc_total += valor  # Sempre soma — independente de encontrar operador
+                    # Se já existe somar (mesmo operador com nomes diferentes)
+                    if op_id in agentes_dict:
+                        agentes_dict[op_id]["valorRecebido"] += valor
+                    else:
+                        agentes_dict[op_id] = {"valorRecebido": valor, "nome": op_nome}
+                    tc_total += valor
                 # Salvar lançamento com resultado por atendente
                 dt_eq = int(res_at.get('dias_trab', 0))
                 td_eq = int(res_at.get('total_dias', 21))
