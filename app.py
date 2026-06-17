@@ -3027,8 +3027,9 @@ def pagina_upload(ma):
                     op_id, op_nome = match_operador(nome, ops_eq)
                     if op_id is None:
                         op_id = f"auto-{nome.lower().replace(' ','-')}"
+                        op_nome = nome
                     agentes_dict[op_id] = {"valorRecebido": valor, "nome": op_nome}
-                    tc_total += valor
+                    tc_total += valor  # Sempre soma — independente de encontrar operador
                 # Salvar lançamento com resultado por atendente
                 dt_eq = int(res_at.get('dias_trab', 0))
                 td_eq = int(res_at.get('total_dias', 21))
