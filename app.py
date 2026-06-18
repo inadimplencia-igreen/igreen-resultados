@@ -2416,12 +2416,28 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
 
     AGENTES_LUCIANO = {n.upper().strip() for n in [
-        'JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA',
-        'MICHELLE BATISTA','LORENZZO PEREIRA','EDUARDA SANQUETA','MARIA CLARA',
-        'HEVERTON TAVARES','DIOGO OLIVEIRA','GRASIELLE DA SILVA SANTOS',
-        'EMANUEL FERREIRA','KETLE SILVA','CAUA ALVES','VICTORIA SILVA',
-        'PAULO ROBERTO','GABRIELLE MARTINS','JENNIFER ARIELLE','SAMIRES BARROS',
-        'LUCIANO'
+        'JHENIFFER SANTOS',
+        'JUNIOR OTAIDES',
+        'MARCOS MARTINS',
+        'CAMILA NARA',
+        'HEVERTON TAVARES',
+        'MARIA CLARA',
+        'LORENZZO PEREIRA',
+        'GRASIELLE DA SILVA SANTOS',
+        'DIOGO OLIVEIRA',
+        'MICHELLE BATISTA',
+        'KETLE SILVA',
+        'EMANUEL FERREIRA',
+        'EDUARDA SANQUETA',
+        'GABRIELLE MARTINS',
+        'VICTORIA SILVA',
+        'CAUA ALVES',
+        'PAULO ROBERTO',
+        'SAMIRES BARROS',
+        'JENNIFER ARIELLE',
+        'LUCIANO',
+        'MAYCOW GABRIEL',
+        'LAURA SILVA',
     ]}
 
     try:
