@@ -1343,6 +1343,9 @@ def processar_contatos(dc):
     """Extrai CPF e data de contato de um dataframe."""
     import unicodedata
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
+    # Remover espaços dos nomes das colunas
+    dc = dc.copy()
+    dc.columns = [str(c).strip() for c in dc.columns]
     cc=next((c for c in dc.columns if norm(str(c)) in ["CPF","IDENTIFICADOR","IDENTIF","IDENTIFICACAO"]),dc.columns[0])
     cd=next((c for c in dc.columns if any(x in norm(str(c)) for x in ["DATA","DT_","BAIXA","CONTATO","INTERAC","LIGAC","CHAT","DISPAR","PAGAM","DIA"])),dc.columns[1] if len(dc.columns)>1 else dc.columns[0])
     dd=pd.DataFrame({"uc_cpf":dc[cc].apply(normalizar_cpf),"data_contato":parse_data_inteligente(dc[cd])}).dropna(subset=["data_contato"])
