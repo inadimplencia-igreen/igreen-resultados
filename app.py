@@ -3185,16 +3185,20 @@ def pagina_upload(ma):
                         {"$set": {"porFornecedora": {"COMERC": {"valor": res['total_metcool'], "boletos": res['n_elegivel'], "porUF": res['por_uf_metcool']}}, "valorElegivel": res['total_metcool'], "mesAno": res['ma'], "equipeId": "metcool", "atualizadoEm": _dt.now()}},
                         upsert=True
                     )
-                get_db().lancamento_meetcall.update_one(
-                    {"_id": f"mc__{res['ma']}"},
-                    {"$set": {
-                        "mesAno": res['ma'],
-                        "recGeralTotal": res['total_metcool'],
-                        "recGeral": res['total_metcool'],
-                        "atualizadoEm": _dt.now().isoformat()
-                    }},
-                    upsert=True
-                )
+                try:
+                    # Salvar na coleção correta que o Quadro lê
+                    get_db().metas.update_one(
+                        {"_id": f"meetcall__{res['ma']}"},
+                        {"$set": {
+                            "mesAno": res['ma'],
+                            "recGeralTotal": res['total_metcool'],
+                            "recGeral": res['total_metcool'],
+                            "atualizadoEm": _dt.now().isoformat()
+                        }},
+                        upsert=True
+                    )
+                except Exception as e_mc:
+                    st.error(f"Erro ao salvar Meet Call: {e_mc}")
                 buscar_lancamentos.clear()
                 buscar_metas_equipe.clear()
                 st.session_state['div_prop_resultado'] = None
