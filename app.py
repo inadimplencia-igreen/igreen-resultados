@@ -2655,6 +2655,7 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         arq_interacoes.seek(0)
         contatos_ag = []
         try:
+            arq_interacoes.seek(0)
             xls_int2 = pd.ExcelFile(arq_interacoes)
             for aba in xls_int2.sheet_names:
                 aba_n = norm(aba)
