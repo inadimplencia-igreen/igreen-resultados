@@ -2411,68 +2411,42 @@ def pagina_dashboard_executivo():
 
 
 def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
-    """Calcula divisão proporcional Luciano vs Meet Call.
-    Aceita qualquer estrutura de arquivo: uma aba só ou múltiplas abas,
-    qualquer nome de aba. Regra: 1º contato por CPF determina elegibilidade,
-    divisão proporcional por segundos de interação.
-    """
+    """Calcula divisão proporcional Luciano vs Amitycall usando df já processado."""
     import unicodedata
     def norm(s): return unicodedata.normalize('NFKD',str(s).upper().strip()).encode('ascii','ignore').decode()
 
     AGENTES_LUCIANO = {n.upper().strip() for n in [
-        'JHENIFFER SANTOS',
-        'JUNIOR OTAIDES',
-        'MARCOS MARTINS',
-        'CAMILA NARA',
-        'HEVERTON TAVARES',
-        'MARIA CLARA',
-        'LORENZZO PEREIRA',
-        'GRASIELLE DA SILVA SANTOS',
-        'DIOGO OLIVEIRA',
-        'MICHELLE BATISTA',
-        'KETLE SILVA',
-        'EMANUEL FERREIRA',
-        'EDUARDA SANQUETA',
-        'GABRIELLE MARTINS',
-        'VICTORIA SILVA',
-        'CAUA ALVES',
-        'PAULO ROBERTO',
-        'SAMIRES BARROS',
-        'JENNIFER ARIELLE',
-        'LUCIANO',
-        'MAYCOW GABRIEL',
-        'LAURA SILVA',
+        'JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA',
+        'MICHELLE BATISTA','LORENZZO PEREIRA','EDUARDA SANQUETA','MARIA CLARA',
+        'HEVERTON TAVARES','DIOGO OLIVEIRA','GRASIELLE DA SILVA SANTOS',
+        'EMANUEL FERREIRA','KETLE SILVA','CAUA ALVES','VICTORIA SILVA',
+        'PAULO ROBERTO','GABRIELLE MARTINS','JENNIFER ARIELLE','SAMIRES BARROS',
+        'LUCIANO'
     ]}
 
     try:
-        # 1. Pegar elegíveis do df já processado
+        # 1. df_eleg já vem processado com elegíveis — apenas pegar CPF e valor
+        # Colunas esperadas: uc_cpf, valor, data_pagamento
         df_pagos = df_eleg[df_eleg['elegibilidade']=='Elegível'].copy() if 'elegibilidade' in df_eleg.columns else df_eleg.copy()
         if 'uc_cpf' not in df_pagos.columns:
             return None, "Coluna uc_cpf não encontrada no resultado processado."
         if 'valor' not in df_pagos.columns:
             return None, "Coluna valor não encontrada no resultado processado."
-        if df_pagos.empty:
-            return None, "Nenhum registro elegível encontrado."
 
-        # 2. Ler arquivo de interações — aceita qualquer estrutura
+        # 2. Ler interações — pode ter abas CHAT, LIGACOES, DISPAROS
         arq_interacoes.seek(0)
-        dfs_interacao = []
-
         try:
             xls_int = pd.ExcelFile(arq_interacoes)
-            abas = xls_int.sheet_names
+            abas_norm = {norm(a): a for a in xls_int.sheet_names}
         except:
+            arq_interacoes.seek(0)
             xls_int = None
-            abas = []
+            abas_norm = {}
+
+        contatos = []
 
         def tempo_para_segundos(t):
-            """Converte tempo (HH:MM:SS, MM:SS, número) para segundos."""
             try:
-                import datetime as _dt
-                if isinstance(t, _dt.time):
-                    return t.hour*3600 + t.minute*60 + t.second
-                if isinstance(t, _dt.datetime):
-                    return t.hour*3600 + t.minute*60 + t.second
                 s = str(t).strip()
                 if ':' in s:
                     partes = s.split(':')
@@ -2480,69 +2454,44 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
                         return int(partes[0])*3600 + int(partes[1])*60 + int(partes[2])
                     elif len(partes) == 2:
                         return int(partes[0])*60 + int(partes[1])
-                f = float(s)
-                # Se for fração de dia (Excel guarda tempo assim)
-                if 0 < f < 1:
-                    return max(1, int(round(f * 86400)))
-                return max(1, int(f))
+                return float(s)
             except:
                 return 1
 
-        def processar_aba_interacoes(df_raw, segundos_fixos=None):
-            """Processa qualquer aba de interações — detecta colunas automaticamente."""
-            if df_raw.empty or len(df_raw.columns) < 2:
-                return pd.DataFrame()
-
+        def extrair_cpf_agente_data(df_raw, meio, segundos_fixos=None):
+            """Extrai CPF, agente, data e segundos de um dataframe."""
             cols_norm = {norm(str(c)): c for c in df_raw.columns}
 
-            # CPF — detecta por nome da coluna
-            col_cpf = None
-            for k, v in cols_norm.items():
-                if any(x in k for x in ['CPF','IDENTIFICAD','CLIENTE','UC_CPF']):
-                    col_cpf = v; break
-            if col_cpf is None:
-                col_cpf = df_raw.columns[0]
+            # CPF — primeira coluna que pareça CPF
+            col_cpf = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['CPF','IDENTIFICAD','CLIENTE'])), df_raw.columns[0])
 
-            # Data — detecta por nome da coluna
-            col_data = None
-            for k, v in cols_norm.items():
-                if any(x in k for x in ['DATA','DT','DATE','DIA','CONTATO']):
-                    col_data = v; break
+            # Data — qualquer coluna com data
+            col_data = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['DATA','DT','DATE','DIA'])), None)
             if col_data is None:
-                # Pegar primeira coluna que pareça data
-                for c in df_raw.columns:
-                    if c == col_cpf: continue
-                    try:
-                        pd.to_datetime(df_raw[c].dropna().iloc[0])
-                        col_data = c; break
-                    except: pass
-            if col_data is None:
-                col_data = df_raw.columns[1] if len(df_raw.columns) > 1 else df_raw.columns[0]
+                # Tentar segunda coluna como data
+                if len(df_raw.columns) > 1:
+                    col_data = df_raw.columns[1]
+                else:
+                    return pd.DataFrame()
 
-            # Agente — detecta por nome da coluna
-            col_agente = None
-            for k, v in cols_norm.items():
-                if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','COLABORADOR','USUARIO','USER','AGENT','NOME']):
-                    col_agente = v; break
+            # Agente — opcional (disparo e chat não têm)
+            col_agente = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['AGENTE','ATENDENTE','OPERADOR','COLABORADOR','USUARIO','USER','AGENT'])), None)
 
-            # Tempo — detecta por nome da coluna
-            col_tempo = None
-            for k, v in cols_norm.items():
-                if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO','TEMPODELIGACAO','DURLIGACAO']):
-                    col_tempo = v; break
+            # Tempo — só ligações
+            col_tempo = next((cols_norm[k] for k in cols_norm if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO'])), None)
 
-            # Montar dataframe de saída
             df_out = pd.DataFrame()
             df_out['uc_cpf'] = df_raw[col_cpf].apply(normalizar_cpf)
             df_out['data_contato'] = parse_data_inteligente(df_raw[col_data])
+            df_out['meio'] = meio
 
-            # Agente: usa coluna se existir, senão LUCIANO (disparo sem agente)
+            # Agente: disparo e chat = LUCIANO, ligação = nome do agente
             if col_agente is not None:
                 df_out['agente'] = df_raw[col_agente].astype(str).str.strip().str.upper()
             else:
                 df_out['agente'] = 'LUCIANO'
 
-            # Segundos: fixo > coluna tempo > default 1
+            # Segundos
             if segundos_fixos is not None:
                 df_out['segundos'] = segundos_fixos
             elif col_tempo is not None:
@@ -2550,121 +2499,85 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             else:
                 df_out['segundos'] = 1
 
-            # Limpar
             df_out = df_out.dropna(subset=['data_contato'])
             df_out = df_out[df_out['uc_cpf'].str.len() >= 8]
-            df_out = df_out[~df_out['uc_cpf'].isin(['nan','NAN',''])]
-            df_out = df_out[df_out['segundos'] > 0]
+            df_out = df_out[df_out['uc_cpf'] != 'nan']
             return df_out
 
-        if xls_int and abas:
-            for aba_orig in abas:
+        # Processar cada aba
+        if xls_int:
+            for aba_orig in xls_int.sheet_names:
                 aba_n = norm(aba_orig)
-                try:
-                    df_raw = pd.read_excel(xls_int, sheet_name=aba_orig)
-                    if df_raw.empty: continue
-
-                    # Detectar tipo da aba pelo nome para aplicar segundos fixos corretos
-                    if 'DISPAR' in aba_n:
-                        seg_fixo = 1
-                    elif 'CHAT' in aba_n:
-                        seg_fixo = 5
-                    else:
-                        # Ligação ou aba genérica — usar tempo real da coluna se existir
-                        seg_fixo = None
-
-                    df_c = processar_aba_interacoes(df_raw, segundos_fixos=seg_fixo)
-                    if not df_c.empty:
-                        dfs_interacao.append(df_c)
-                except Exception as e:
-                    continue
-        else:
-            # Arquivo único (CSV ou Excel sem abas identificadas)
-            arq_interacoes.seek(0)
-            try:
-                df_raw = ler_arquivo(arq_interacoes)
-                df_c = processar_aba_interacoes(df_raw)
+                df_raw = pd.read_excel(xls_int, sheet_name=aba_orig)
+                if 'DISPAR' in aba_n:
+                    df_c = extrair_cpf_agente_data(df_raw, 'DISPARO', segundos_fixos=1)
+                elif 'CHAT' in aba_n:
+                    df_c = extrair_cpf_agente_data(df_raw, 'CHAT', segundos_fixos=5)
+                elif 'LIG' in aba_n or 'LIGAC' in aba_n:
+                    df_c = extrair_cpf_agente_data(df_raw, 'LIGACAO', segundos_fixos=None)
+                else:
+                    df_c = extrair_cpf_agente_data(df_raw, 'OUTRO', segundos_fixos=1)
                 if not df_c.empty:
-                    dfs_interacao.append(df_c)
-            except: pass
+                    contatos.append(df_c)
+        else:
+            # Arquivo único — tentar ler como CSV de interações
+            arq_interacoes.seek(0)
+            df_raw = ler_arquivo(arq_interacoes)
+            df_c = extrair_cpf_agente_data(df_raw, 'OUTRO', segundos_fixos=1)
+            if not df_c.empty:
+                contatos.append(df_c)
 
-        if not dfs_interacao:
-            return None, "Nenhuma interação encontrada no arquivo. Verifique se tem colunas de CPF, Agente e Data."
+        if not contatos:
+            # Debug: mostrar abas encontradas
+            abas_encontradas = xls_int.sheet_names if xls_int else "arquivo não é Excel"
+            return None, f"Nenhuma interação encontrada. Abas no arquivo: {abas_encontradas}. Verifique se as abas têm colunas de CPF e Agente."
 
-        df_int = pd.concat(dfs_interacao, ignore_index=True)
+        df_int = pd.concat(contatos, ignore_index=True)
 
-        # 3. Filtrar só CPFs elegíveis
-        cpfs_elegiveis = set(df_pagos['uc_cpf'].unique())
-        df_int_eleg = df_int[df_int['uc_cpf'].isin(cpfs_elegiveis)].copy()
+        # 3. Elegíveis já vêm do df processado — apenas garantir que temos dados
+        if df_pagos.empty:
+            return None, "Nenhum registro elegível encontrado na base processada."
 
-        if df_int_eleg.empty:
-            return None, "Nenhuma interação encontrada para os CPFs elegíveis."
+        # 4. Divisão proporcional por CPF
+        # Usar TODAS as interações dos CPFs elegíveis — sem filtrar por data
+        df_int_eleg = df_int[df_int['uc_cpf'].isin(df_pagos['uc_cpf'].unique())].copy()
 
-        # 4. REGRA DO 1º CONTATO:
-        # Para cada boleto, só participam da divisão os agentes que fizeram
-        # contato ANTES ou NO DIA do pagamento daquele boleto.
-        df_pagos_calc = df_pagos.copy()
-        df_pagos_calc['data_pagamento'] = pd.to_datetime(df_pagos_calc['data_pagamento'], errors='coerce').dt.normalize()
-        df_int_eleg['data_contato'] = pd.to_datetime(df_int_eleg['data_contato'], errors='coerce').dt.normalize()
+        # Agrupar segundos por CPF + agente (soma todos os contatos do agente com aquele CPF)
+        df_seg = df_int_eleg.groupby(['uc_cpf','agente'])['segundos'].sum().reset_index()
+        df_seg_total = df_seg.groupby('uc_cpf')['segundos'].sum().reset_index().rename(columns={'segundos':'total_seg'})
+        df_seg = df_seg.merge(df_seg_total, on='uc_cpf')
+        df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
 
-        resultados = []
-        for _, boleto in df_pagos_calc.iterrows():
-            cpf = boleto['uc_cpf']
-            valor = float(boleto['valor'])
-            dt_pag = boleto['data_pagamento']
+        # Valor por CPF — soma de todos os boletos elegíveis
+        df_valor = df_pagos.groupby('uc_cpf')['valor'].sum().reset_index()
+        # inner join — só CPFs que têm valor pago (elegíveis)
+        df_seg = df_seg.merge(df_valor, on='uc_cpf', how='inner')
+        df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
 
-            if pd.isna(dt_pag) or valor <= 0:
-                continue
-
-            # Contatos desse CPF até a data do pagamento (inclusive)
-            contatos_boleto = df_int_eleg[
-                (df_int_eleg['uc_cpf'] == cpf) &
-                (df_int_eleg['data_contato'] <= dt_pag)
-            ].copy()
-
-            if contatos_boleto.empty:
-                continue
-
-            total_seg = contatos_boleto['segundos'].sum()
-            if total_seg <= 0:
-                continue
-
-            # Calcular proporcional linha por linha (cada linha independente)
-            for _, linha in contatos_boleto.iterrows():
-                prop = linha['segundos'] / total_seg
-                resultados.append({
-                    'agente': linha['agente'],
-                    'valor_proporcional': valor * prop
-                })
-
-        if not resultados:
-            return None, "Nenhum resultado calculado. Verifique se as datas de contato são anteriores às datas de pagamento."
-
-        df_calc = pd.DataFrame(resultados)
-
-        # 5. Somar por agente e classificar Luciano vs Meet Call
-        df_por_agente = df_calc.groupby('agente')['valor_proporcional'].sum().reset_index()
-        df_por_agente['equipe'] = df_por_agente['agente'].apply(
+        # 5. Separar Luciano vs Amitycall
+        # Agentes vazios/nan que vieram das ligações sem agente identificado
+        df_seg['agente'] = df_seg['agente'].fillna('DESCONHECIDO').replace('', 'DESCONHECIDO').replace('NAN', 'DESCONHECIDO')
+        df_seg['equipe'] = df_seg['agente'].apply(
             lambda a: 'luciano' if str(a).upper().strip() in AGENTES_LUCIANO else 'metcool'
         )
 
-        total_luciano = float(df_por_agente[df_por_agente['equipe']=='luciano']['valor_proporcional'].sum())
-        total_metcool = float(df_por_agente[df_por_agente['equipe']=='metcool']['valor_proporcional'].sum())
-        total_geral = total_luciano + total_metcool
+        # Debug — agentes únicos e classificação
+        agentes_unicos = df_seg[['agente','equipe']].drop_duplicates().to_dict('records')
 
-        # df_agentes para exibição (com coluna equipe)
-        df_seg_display = df_por_agente.rename(columns={'valor_proporcional': 'valor_proporcional'})
-        df_seg_display['equipe'] = df_seg_display['agente'].apply(
-            lambda a: 'luciano' if str(a).upper().strip() in AGENTES_LUCIANO else 'metcool'
-        )
+        total_luciano = float(df_seg[df_seg['equipe']=='luciano']['valor_proporcional'].sum())
+        total_amitycall = float(df_seg[df_seg['equipe']=='metcool']['valor_proporcional'].sum())
+        total_geral = total_luciano + total_amitycall
+        n_eleg = len(df_pagos)
+        n_boletos = len(df_eleg)
 
         resultado = {
             'total_luciano': total_luciano,
-            'total_metcool': total_metcool,
+            'total_metcool': total_amitycall,
             'total_geral': total_geral,
-            'n_elegivel': len(df_pagos),
-            'n_boletos': len(df_eleg),
-            'df_agentes': df_seg_display,
+            'n_elegivel': n_eleg,
+            'n_boletos': n_boletos,
+            'df_agentes': df_seg,
+            'agentes_debug': agentes_unicos,
             'ma': ma
         }
         return resultado, None
@@ -2951,12 +2864,18 @@ def pagina_upload(ma):
                                 dd_aba=processar_contatos(df_aba)
                                 if not dd_aba.empty:
                                     dfs_tmp.append(dd_aba)
+                                else:
+                                    st.warning(f"Aba '{aba}' não retornou contatos. Colunas: {list(df_aba.columns)}")
                             dd_int=pd.concat(dfs_tmp,ignore_index=True) if dfs_tmp else pd.DataFrame()
-                        except:
+                        except Exception as e_int:
+                            st.warning(f"Erro ao ler interações: {e_int}")
                             arq_interacoes.seek(0)
                             df_int=ler_arquivo(arq_interacoes)
                             dd_int=processar_contatos(df_int)
                         if not dd_int.empty:
+                            # Garantir CPF normalizado nos dois lados
+                            dd_int["uc_cpf"]=dd_int["uc_cpf"].apply(normalizar_cpf)
+                            df_res["uc_cpf"]=df_res["uc_cpf"].apply(normalizar_cpf)
                             pc=dd_int.groupby("uc_cpf",as_index=False)["data_contato"].min()
                             df_res["primeiro_contato"]=pd.to_datetime(
                                 df_res["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"]))),
