@@ -1401,7 +1401,6 @@ def processar_base_unica(arquivo, eq, ma):
         if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
         if "data_pagamento" in df.columns:
             df["data_pagamento"]=parse_data_inteligente(df["data_pagamento"])
-            df=df[df["data_pagamento"].notna()].copy()  # Só boletos pagos
         if "data_vencimento" in df.columns: df["data_vencimento"]=parse_data_inteligente(df["data_vencimento"])
         if "valor" in df.columns:
             def cv(v):
@@ -1434,7 +1433,6 @@ def processar_base_unica(arquivo, eq, ma):
         if "uc_cpf" in df.columns: df["uc_cpf"]=df["uc_cpf"].apply(normalizar_cpf)
         if "data_pagamento" in df.columns:
             df["data_pagamento"]=parse_data_inteligente(df["data_pagamento"])
-            df=df[df["data_pagamento"].notna()].copy()  # Só boletos pagos
         if "data_vencimento" in df.columns: df["data_vencimento"]=parse_data_inteligente(df["data_vencimento"])
         if "valor" in df.columns:
             def cv(v):
@@ -2884,6 +2882,11 @@ def pagina_upload(ma):
                             # Normalizar datas (remover hora)
                             dd_int["data_contato"]=pd.to_datetime(dd_int["data_contato"],errors="coerce").dt.normalize()
                             pc=dd_int.groupby("uc_cpf",as_index=False)["data_contato"].min()
+                            # Debug: CPFs em comum
+                            cpfs_pagos=set(df_res["uc_cpf"].unique())
+                            cpfs_int=set(pc["uc_cpf"].unique())
+                            cpfs_comum=cpfs_pagos & cpfs_int
+                            st.info(f"CPFs pagos: {len(cpfs_pagos)} | CPFs interações: {len(cpfs_int)} | Em comum: {len(cpfs_comum)} | Ex. pago: {list(cpfs_pagos)[:2]} | Ex. int: {list(cpfs_int)[:2]}")
                             df_res["primeiro_contato"]=pd.to_datetime(
                                 df_res["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"]))),
                                 errors="coerce").dt.normalize()
@@ -3119,24 +3122,39 @@ def pagina_upload(ma):
         col_ok, col_cancel = st.columns(2)
         with col_ok:
             if st.button("✅ Confirmar e Salvar", use_container_width=True, key="btn_confirmar_div"):
-                # Salvar APENAS o recGeral do Luciano — criar novo lançamento sem apagar o existente
                 from datetime import datetime as _dt
                 _ts = _dt.now().strftime("%Y%m%d%H%M%S%f")
+
+                # Salvar Luciano — novo lançamento com recGeral
                 lancs_luc = buscar_lancamentos(res['ma'], 'luciano')
-                # Preservar dias trabalhados do lançamento existente
                 dt_luc = int(lancs_luc[0].get('diasTrabalhados',0)) if lancs_luc else 0
                 td_luc = int(lancs_luc[0].get('totalDias',21)) if lancs_luc else 21
-                # Inserir novo lançamento só com recGeral — não apaga nada
                 get_db().lancamentos.insert_one({
                     "_id": f"lanc__{res['ma']}__luciano__{_ts}",
                     "mesAno": res['ma'], "equipeId": "luciano",
-                    "dataRef": str(_dt.now().date()), "label": "Fechamento do Mês",
+                    "dataRef": str(_dt.now().date()),
+                    "label": _dt.now().strftime("%d/%m/%Y"),
                     "agentes": {}, "totalEquipe": 0, "semInteracao": 0,
                     "diasTrabalhados": dt_luc, "totalDias": td_luc,
                     "recGeral": res['total_luciano'],
                     "criadoEm": _dt.now().isoformat()
                 })
-                # Salvar APENAS recGeral da Meet Call — sem mexer em Com Interação
+
+                # Salvar Meet Call — novo lançamento + lancamento_meetcall
+                _ts2 = _dt.now().strftime("%Y%m%d%H%M%S%f") + "mc"
+                lancs_mc = buscar_lancamentos(res['ma'], 'metcool')
+                dt_mc = int(lancs_mc[0].get('diasTrabalhados',0)) if lancs_mc else 0
+                td_mc = int(lancs_mc[0].get('totalDias',21)) if lancs_mc else 21
+                get_db().lancamentos.insert_one({
+                    "_id": f"lanc__{res['ma']}__metcool__{_ts2}",
+                    "mesAno": res['ma'], "equipeId": "metcool",
+                    "dataRef": str(_dt.now().date()),
+                    "label": _dt.now().strftime("%d/%m/%Y"),
+                    "agentes": {}, "totalEquipe": 0, "semInteracao": 0,
+                    "diasTrabalhados": dt_mc, "totalDias": td_mc,
+                    "recGeral": res['total_metcool'],
+                    "criadoEm": _dt.now().isoformat()
+                })
                 get_db().lancamento_meetcall.update_one(
                     {"_id": f"mc__{res['ma']}"},
                     {"$set": {
@@ -3150,7 +3168,7 @@ def pagina_upload(ma):
                 buscar_lancamentos.clear()
                 buscar_metas_equipe.clear()
                 st.session_state['div_prop_resultado'] = None
-                st.success("✅ Recebido Geral salvo! Luciano: " + fmt_brl(res['total_luciano']) + " | Meet Call: " + fmt_brl(res['total_metcool']))
+                st.success("✅ Salvo! Luciano: " + fmt_brl(res['total_luciano']) + " | Meet Call: " + fmt_brl(res['total_metcool']))
                 st.rerun()
         with col_cancel:
             if st.button("❌ Descartar", use_container_width=True, key="btn_descartar_div"):
