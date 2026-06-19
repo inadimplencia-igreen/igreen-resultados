@@ -2571,6 +2571,20 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         n_eleg = len(df_pagos)
         n_boletos = len(df_eleg)
 
+        # Breakdown por UF para Luciano e Meet Call
+        por_uf_luciano = {}
+        por_uf_metcool = {}
+        if 'uf' in df_pagos.columns:
+            # Merge df_seg com df_pagos para pegar UF
+            df_seg_uf = df_seg.merge(df_pagos[['uc_cpf','uf','valor']].drop_duplicates('uc_cpf'), on='uc_cpf', how='left', suffixes=('','_pag'))
+            for equipe, por_uf in [('luciano', por_uf_luciano), ('metcool', por_uf_metcool)]:
+                df_eq = df_seg_uf[df_seg_uf['equipe']==equipe]
+                for uf, grp in df_eq.groupby('uf'):
+                    por_uf[str(uf)] = {
+                        'valor': float(grp['valor_proporcional'].sum()),
+                        'boletos': int(grp['uc_cpf'].nunique())
+                    }
+
         resultado = {
             'total_luciano': total_luciano,
             'total_metcool': total_amitycall,
@@ -2580,6 +2594,8 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             'df_agentes': df_seg,
             'agentes_debug': agentes_unicos,
             'df_eleg': df_eleg,
+            'por_uf_luciano': por_uf_luciano,
+            'por_uf_metcool': por_uf_metcool,
             'ma': ma
         }
         return resultado, None
@@ -3139,6 +3155,13 @@ def pagina_upload(ma):
                     "recGeral": res['total_luciano'],
                     "criadoEm": _dt.now().isoformat()
                 })
+                # Salvar breakdown por UF do Luciano no processamento
+                if res.get('por_uf_luciano'):
+                    get_db().processamentos.update_one(
+                        {"_id": f"proc__{res['ma']}__luciano"},
+                        {"$set": {"porFornecedora": {"COMERC": {"valor": res['total_luciano'], "boletos": res['n_elegivel'], "porUF": res['por_uf_luciano']}}, "valorElegivel": res['total_luciano'], "mesAno": res['ma'], "equipeId": "luciano", "atualizadoEm": _dt.now()}},
+                        upsert=True
+                    )
 
                 # Salvar Meet Call — novo lançamento + lancamento_meetcall
                 _ts2 = _dt.now().strftime("%Y%m%d%H%M%S%f") + "mc"
@@ -3155,6 +3178,13 @@ def pagina_upload(ma):
                     "recGeral": res['total_metcool'],
                     "criadoEm": _dt.now().isoformat()
                 })
+                # Salvar breakdown por UF da Meet Call
+                if res.get('por_uf_metcool'):
+                    get_db().processamentos.update_one(
+                        {"_id": f"proc__{res['ma']}__metcool"},
+                        {"$set": {"porFornecedora": {"COMERC": {"valor": res['total_metcool'], "boletos": res['n_elegivel'], "porUF": res['por_uf_metcool']}}, "valorElegivel": res['total_metcool'], "mesAno": res['ma'], "equipeId": "metcool", "atualizadoEm": _dt.now()}},
+                        upsert=True
+                    )
                 get_db().lancamento_meetcall.update_one(
                     {"_id": f"mc__{res['ma']}"},
                     {"$set": {
