@@ -2578,6 +2578,7 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             'n_boletos': n_boletos,
             'df_agentes': df_seg,
             'agentes_debug': agentes_unicos,
+            'df_eleg': df_eleg,
             'ma': ma
         }
         return resultado, None
@@ -2864,6 +2865,7 @@ def pagina_upload(ma):
                                 dd_aba=processar_contatos(df_aba)
                                 if not dd_aba.empty:
                                     dfs_tmp.append(dd_aba)
+                                    st.info(f"Aba '{aba}': {len(dd_aba)} contatos encontrados. Colunas: {list(df_aba.columns)}")
                                 else:
                                     st.warning(f"Aba '{aba}' não retornou contatos. Colunas: {list(df_aba.columns)}")
                             dd_int=pd.concat(dfs_tmp,ignore_index=True) if dfs_tmp else pd.DataFrame()
@@ -3078,6 +3080,13 @@ def pagina_upload(ma):
             st.metric("Meet Call", fmt_brl(res['total_metcool']))
         with c3:
             st.metric("Total Geral", fmt_brl(res['total_geral']))
+
+        # Download elegíveis
+        if res.get('df_eleg') is not None and not res['df_eleg'].empty:
+            csv_eleg = res['df_eleg'].to_csv(index=False).encode('utf-8')
+            st.download_button("⬇️ Baixar Elegíveis", csv_eleg, 
+                             file_name=f"elegiveis_luciano_{res['ma']}.csv",
+                             mime="text/csv", key="dl_eleg_luciano")
 
         # Tabelas por agente separadas
         if 'df_agentes' in res and res['df_agentes'] is not None:
