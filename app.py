@@ -2881,13 +2881,14 @@ def pagina_upload(ma):
                             # Garantir CPF normalizado nos dois lados
                             dd_int["uc_cpf"]=dd_int["uc_cpf"].apply(normalizar_cpf)
                             df_res["uc_cpf"]=df_res["uc_cpf"].apply(normalizar_cpf)
+                            # Normalizar datas (remover hora)
+                            dd_int["data_contato"]=pd.to_datetime(dd_int["data_contato"],errors="coerce").dt.normalize()
                             pc=dd_int.groupby("uc_cpf",as_index=False)["data_contato"].min()
                             df_res["primeiro_contato"]=pd.to_datetime(
                                 df_res["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"]))),
                                 errors="coerce").dt.normalize()
-                            df_res["diferenca_dias"]=(
-                                pd.to_datetime(df_res["data_pagamento"],errors="coerce").dt.normalize()-
-                                df_res["primeiro_contato"]).dt.days
+                            df_res["data_pagamento"]=pd.to_datetime(df_res["data_pagamento"],errors="coerce").dt.normalize()
+                            df_res["diferenca_dias"]=(df_res["data_pagamento"]-df_res["primeiro_contato"]).dt.days
                             def classif2(row):
                                 if pd.isna(row.get("primeiro_contato")): return "ND"
                                 d=row.get("diferenca_dias")
