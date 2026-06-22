@@ -1222,6 +1222,29 @@ def pagina_operadores():
     eq=seletor_equipe(u["equipe"])
     if 'op_vincular' not in st.session_state:
         st.session_state['op_vincular'] = None
+    # Confirmar vinculação de operador existente — antes do expander para ficar visível
+    if st.session_state.get('op_vincular'):
+        op_v = st.session_state['op_vincular']
+        st.warning(f"⚠️ **{op_v['op']['nome']}** já está cadastrado em outra equipe. Vincular o mesmo (mantém histórico) ou criar novo?")
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            if st.button("🔗 Vincular mesmo operador", use_container_width=True, key="btn_vincular_op"):
+                get_db().operadores.update_one(
+                    {"_id": op_v['op']['_id']},
+                    {"$set": {"equipeId": op_v['eq']}}
+                )
+                buscar_operadores.cache_clear()
+                st.session_state['op_vincular'] = None
+                st.success(f"✅ {op_v['op']['nome']} vinculado!")
+                st.rerun()
+        with col_v2:
+            if st.button("➕ Criar novo operador", use_container_width=True, key="btn_criar_novo_op"):
+                salvar_operador(op_v['eq'], op_v['op']['nome'], op_v['pleno'])
+                buscar_operadores.cache_clear()
+                st.session_state['op_vincular'] = None
+                st.success(f"✅ Novo operador criado!")
+                st.rerun()
+
     with st.expander("Cadastrar Novo Operador",expanded=False):
         c1,c2,c3=st.columns([3,1,1])
         with c1: nn=st.text_input("Nome",placeholder="Nome completo")
@@ -1246,42 +1269,18 @@ def pagina_operadores():
                         if op_existente: break
                     if op_existente:
                         st.session_state['op_vincular'] = {'op': op_existente, 'eq': eq, 'pleno': np}
+                        st.rerun()
                     else:
+                        # Verificar quantos operadores foram buscados
+                        total_buscados = sum(len(list(get_db().operadores.find({"equipeId": eq_b}))) for eq_b in todas_equipes if eq_b != eq)
+                        st.warning(f"Não encontrado '{primeiro_digitado}' em {total_buscados} operadores de outras equipes. Cadastrando novo...")
                         salvar_operador(eq,nn.strip(),np)
                         buscar_operadores.cache_clear()
-                        st.success(f"{nn} cadastrado!")
-                    st.rerun()
+                        st.rerun()
                 else: st.error("Digite o nome.")
             st.markdown("</div>",unsafe_allow_html=True)
 
-    # Confirmar vinculação de operador existente
-    if st.session_state.get('op_vincular'):
-        op_v = st.session_state['op_vincular']
-        st.warning(f"⚠️ **{op_v['op']['nome']}** já está cadastrado em outra equipe. Quer vincular o mesmo operador (mantém histórico) ou criar um novo?")
-        col_v1, col_v2 = st.columns(2)
-        with col_v1:
-            if st.button("🔗 Vincular mesmo operador", use_container_width=True):
-                # Adicionar o mesmo _id na nova equipe
-                get_db().operadores.update_one(
-                    {"_id": op_v['op']['_id']},
-                    {"$addToSet": {"equipes": op_v['eq']}}
-                )
-                # Se não tiver campo equipes, salvar normalmente mas com mesmo _id
-                get_db().operadores.update_one(
-                    {"_id": op_v['op']['_id']},
-                    {"$set": {"equipeId": op_v['eq']}}
-                ) if not op_v['op'].get('equipes') else None
-                buscar_operadores.cache_clear()
-                st.session_state['op_vincular'] = None
-                st.success(f"✅ {op_v['op']['nome']} vinculado à equipe!")
-                st.rerun()
-        with col_v2:
-            if st.button("➕ Criar novo operador", use_container_width=True):
-                salvar_operador(op_v['eq'], op_v['op']['nome'], op_v['pleno'])
-                buscar_operadores.cache_clear()
-                st.session_state['op_vincular'] = None
-                st.success(f"✅ Novo operador criado!")
-                st.rerun()
+
     st.markdown("---")
     ops=buscar_operadores(eq)
     if not ops:
