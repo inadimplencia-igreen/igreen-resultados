@@ -1220,6 +1220,8 @@ def pagina_operadores():
     u=st.session_state.usuario
     header_page("Operadores","Gerencie os operadores da equipe")
     eq=seletor_equipe(u["equipe"])
+    if 'op_vincular' not in st.session_state:
+        st.session_state['op_vincular'] = None
     with st.expander("Cadastrar Novo Operador",expanded=False):
         c1,c2,c3=st.columns([3,1,1])
         with c1: nn=st.text_input("Nome",placeholder="Nome completo")
