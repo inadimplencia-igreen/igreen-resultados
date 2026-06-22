@@ -2729,8 +2729,37 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         df_result.columns = ['agente', 'valor']
 
         total = float(df_result['valor'].sum())
+        # Montar planilha de detalhe por agente/boleto
+        df_detalhe = df_int_todos.copy()
+        df_detalhe = df_detalhe[df_detalhe['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
+        df_detalhe['data_contato'] = pd.to_datetime(df_detalhe['data_contato'], errors='coerce').dt.normalize()
+        # Adicionar valor e data pagamento
+        df_val_pag = df_eleg[['uc_cpf','valor','data_pagamento']].copy()
+        df_val_pag['data_pagamento'] = pd.to_datetime(df_val_pag['data_pagamento'], errors='coerce').dt.normalize()
+        df_val_pag = df_val_pag.groupby('uc_cpf').agg({'valor':'sum','data_pagamento':'max'}).reset_index()
+        df_detalhe = df_detalhe.merge(df_val_pag, on='uc_cpf', how='inner')
+        # Total segundos por CPF
+        tot_seg = df_detalhe.groupby('uc_cpf')['segundos'].sum().reset_index().rename(columns={'segundos':'total_seg'})
+        df_detalhe = df_detalhe.merge(tot_seg, on='uc_cpf')
+        df_detalhe['valor_proporcional'] = df_detalhe['valor'] * (df_detalhe['segundos'] / df_detalhe['total_seg'])
+        df_detalhe = df_detalhe.rename(columns={
+            'uc_cpf':'CPF','agente':'Agente','data_contato':'Data Contato',
+            'segundos':'Segundos Cada','total_seg':'Segundos Totais',
+            'valor':'Valor Recebido','valor_proporcional':'Valor Proporcional',
+            'data_pagamento':'Data Pagamento'
+        })
+        # Tempo formatado HH:MM:SS
+        def seg_to_hms(s):
+            try:
+                s=int(s); return f"{s//3600:02d}:{(s%3600)//60:02d}:{s%60:02d}"
+            except: return "00:00:00"
+        df_detalhe['Tempo'] = df_detalhe['Segundos Cada'].apply(seg_to_hms)
+        df_detalhe['Tempo Total'] = df_detalhe['Segundos Totais'].apply(seg_to_hms)
+        df_detalhe = df_detalhe[['CPF','Agente','Data Contato','Data Pagamento','Tempo','Tempo Total','Segundos Cada','Segundos Totais','Valor Recebido','Valor Proporcional']]
+
         return {
             'df_result': df_result,
+            'df_detalhe': df_detalhe,
             'total': total,
             'n_elegivel': len(df_eleg),
             'n_boletos': len(df_res),
@@ -3041,6 +3070,17 @@ def pagina_upload(ma):
             df_show.columns = ['Atendente', 'Valor Proporcional']
             df_show = df_show.reset_index(drop=True); df_show.index += 1
             st.dataframe(df_show, use_container_width=True)
+        # Download detalhe
+        if res_at.get('df_detalhe') is not None:
+            import io
+            buf = io.BytesIO()
+            res_at['df_detalhe'].to_excel(buf, index=False, sheet_name='Detalhamento')
+            buf.seek(0)
+            st.download_button("⬇️ Baixar Detalhamento", buf.getvalue(),
+                file_name=f"detalhe_atendentes_{res_at['ma']}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_detalhe_at")
+
         st.markdown("**⚠️ Confirme os valores antes de salvar:**")
         col_ok2, col_cancel2 = st.columns(2)
         with col_ok2:
@@ -3187,9 +3227,27 @@ def pagina_upload(ma):
         # Download elegíveis
         if res.get('df_eleg') is not None and not res['df_eleg'].empty:
             csv_eleg = res['df_eleg'].to_csv(index=False).encode('utf-8')
-            st.download_button("⬇️ Baixar Elegíveis", csv_eleg, 
+            st.download_button("⬇️ Baixar Elegíveis", csv_eleg,
                              file_name=f"elegiveis_luciano_{res['ma']}.csv",
                              mime="text/csv", key="dl_eleg_luciano")
+        # Download detalhe divisão proporcional
+        if res.get('df_agentes') is not None and not res['df_agentes'].empty:
+            try:
+                import io
+                df_det = res['df_agentes'].copy()
+                # Adicionar equipe
+                _ags = ["JHENIFFER","JUNIOR","MARCOS","CAMILA","HEVERTON","MARIA","LORENZZO","GRASIELLE","DIOGO","MICHELLE","KETLE","EMANUEL","EDUARDA","GABRIELLE","VICTORIA","CAUA","PAULO","SAMIRES","JENNIFER","LUCIANO","MAYCOW","LAURA"]
+                df_det['Equipe'] = df_det['agente'].str.upper().str.strip().apply(
+                    lambda n: 'Luciano' if any(n.startswith(ag) for ag in _ags) else 'Meet Call'
+                )
+                buf2 = io.BytesIO()
+                df_det.to_excel(buf2, index=False, sheet_name='Divisão Proporcional')
+                buf2.seek(0)
+                st.download_button("⬇️ Baixar Detalhamento", buf2.getvalue(),
+                    file_name=f"detalhe_divisao_{res['ma']}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_det_div")
+            except: pass
 
         # Tabelas por agente separadas
         if 'df_agentes' in res and res['df_agentes'] is not None:
