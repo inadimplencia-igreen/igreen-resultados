@@ -1227,9 +1227,56 @@ def pagina_operadores():
         with c3:
             st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
             if st.button("Cadastrar",use_container_width=True):
-                if nn.strip(): salvar_operador(eq,nn.strip(),np); st.success(f"{nn} cadastrado!"); st.rerun()
+                if nn.strip():
+                    # Buscar se já existe em outra equipe
+                    todas_equipes = ['tamires','luciano','deborah','metcool']
+                    op_existente = None
+                    for eq_busca in todas_equipes:
+                        if eq_busca == eq: continue
+                        ops_busca = buscar_operadores(eq_busca)
+                        for op in ops_busca:
+                            if op['nome'].strip().upper() == nn.strip().upper():
+                                op_existente = op
+                                break
+                        if op_existente: break
+                    if op_existente:
+                        st.session_state['op_vincular'] = {'op': op_existente, 'eq': eq, 'pleno': np}
+                        st.rerun()
+                    else:
+                        salvar_operador(eq,nn.strip(),np)
+                        st.success(f"{nn} cadastrado!")
+                        st.rerun()
                 else: st.error("Digite o nome.")
             st.markdown("</div>",unsafe_allow_html=True)
+
+    # Confirmar vinculação de operador existente
+    if st.session_state.get('op_vincular'):
+        op_v = st.session_state['op_vincular']
+        st.warning(f"⚠️ **{op_v['op']['nome']}** já está cadastrado em outra equipe. Quer vincular o mesmo operador (mantém histórico) ou criar um novo?")
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            if st.button("🔗 Vincular mesmo operador", use_container_width=True):
+                # Adicionar o mesmo _id na nova equipe
+                get_db().operadores.update_one(
+                    {"_id": op_v['op']['_id']},
+                    {"$addToSet": {"equipes": op_v['eq']}}
+                )
+                # Se não tiver campo equipes, salvar normalmente mas com mesmo _id
+                get_db().operadores.update_one(
+                    {"_id": op_v['op']['_id']},
+                    {"$set": {"equipeId": op_v['eq']}}
+                ) if not op_v['op'].get('equipes') else None
+                buscar_operadores.cache_clear()
+                st.session_state['op_vincular'] = None
+                st.success(f"✅ {op_v['op']['nome']} vinculado à equipe!")
+                st.rerun()
+        with col_v2:
+            if st.button("➕ Criar novo operador", use_container_width=True):
+                salvar_operador(op_v['eq'], op_v['op']['nome'], op_v['pleno'])
+                buscar_operadores.cache_clear()
+                st.session_state['op_vincular'] = None
+                st.success(f"✅ Novo operador criado!")
+                st.rerun()
     st.markdown("---")
     ops=buscar_operadores(eq)
     if not ops:
@@ -3132,20 +3179,34 @@ def pagina_upload(ma):
                 from collections import Counter
                 from datetime import datetime as _dt2
 
+                # Palavras ignoradas no match
+                _STOP = {'DE','DA','DO','DAS','DOS','DI','DU'}
+
+                def _palavras_sig(nome):
+                    """Retorna palavras significativas (sem DE/DA/DOS etc)"""
+                    return [p for p in nome.strip().upper().split() if p not in _STOP]
+
                 def match_operador(nome_base, ops):
-                    primeiros_nomes = [op['nome'].strip().upper().split()[0] for op in ops]
-                    duplicados = {n for n, c in Counter(primeiros_nomes).items() if c > 1}
-                    partes_base = nome_base.strip().upper().split()
-                    primeiro_base = partes_base[0] if partes_base else ""
-                    ultimo_base = partes_base[-1] if len(partes_base) > 1 else ""
+                    from collections import Counter as _Counter
+                    # Usar primeiro nome para detectar duplicados
+                    primeiros = [_palavras_sig(op['nome'])[0] if _palavras_sig(op['nome']) else '' for op in ops]
+                    duplicados = {n for n, c in _Counter(primeiros).items() if c > 1}
+                    
+                    palavras_base = _palavras_sig(nome_base)
+                    primeiro_base = palavras_base[0] if palavras_base else ""
+                    
                     for op in ops:
-                        partes_op = op['nome'].strip().upper().split()
-                        primeiro_op = partes_op[0] if partes_op else ""
-                        ultimo_op = partes_op[-1] if len(partes_op) > 1 else ""
+                        palavras_op = _palavras_sig(op['nome'])
+                        primeiro_op = palavras_op[0] if palavras_op else ""
+                        
                         if primeiro_op in duplicados:
-                            if primeiro_base == primeiro_op and ultimo_base == ultimo_op:
+                            # Duplicado — bate as duas primeiras palavras significativas
+                            segundo_base = palavras_base[1] if len(palavras_base) > 1 else ""
+                            segundo_op = palavras_op[1] if len(palavras_op) > 1 else ""
+                            if primeiro_base == primeiro_op and segundo_base == segundo_op:
                                 return op['_id'], op['nome']
                         else:
+                            # Único — bate só primeiro nome significativo
                             if primeiro_base == primeiro_op:
                                 return op['_id'], op['nome']
                     return None, nome_base
