@@ -2729,37 +2729,81 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         df_result.columns = ['agente', 'valor']
 
         total = float(df_result['valor'].sum())
-        # Montar planilha de detalhe por agente/boleto
-        df_detalhe = df_int_todos.copy()
-        df_detalhe = df_detalhe[df_detalhe['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
-        df_detalhe['data_contato'] = pd.to_datetime(df_detalhe['data_contato'], errors='coerce').dt.normalize()
-        # Adicionar valor e data pagamento
-        df_val_pag = df_eleg[['uc_cpf','valor','data_pagamento']].copy()
-        df_val_pag['data_pagamento'] = pd.to_datetime(df_val_pag['data_pagamento'], errors='coerce').dt.normalize()
-        df_val_pag = df_val_pag.groupby('uc_cpf').agg({'valor':'sum','data_pagamento':'max'}).reset_index()
-        df_detalhe = df_detalhe.merge(df_val_pag, on='uc_cpf', how='inner')
-        # Total segundos por CPF
-        tot_seg = df_detalhe.groupby('uc_cpf')['segundos'].sum().reset_index().rename(columns={'segundos':'total_seg'})
-        df_detalhe = df_detalhe.merge(tot_seg, on='uc_cpf')
-        df_detalhe['valor_proporcional'] = df_detalhe['valor'] * (df_detalhe['segundos'] / df_detalhe['total_seg'])
-        df_detalhe = df_detalhe.rename(columns={
-            'uc_cpf':'CPF','agente':'Agente','data_contato':'Data Contato',
-            'segundos':'Segundos Cada','total_seg':'Segundos Totais',
-            'valor':'Valor Recebido','valor_proporcional':'Valor Proporcional',
-            'data_pagamento':'Data Pagamento'
-        })
-        # Tempo formatado HH:MM:SS
+        # Montar planilha de detalhe — TODOS os contatos (elegíveis e não elegíveis)
         def seg_to_hms(s):
             try:
                 s=int(s); return f"{s//3600:02d}:{(s%3600)//60:02d}:{s%60:02d}"
             except: return "00:00:00"
-        df_detalhe['Tempo'] = df_detalhe['Segundos Cada'].apply(seg_to_hms)
-        df_detalhe['Tempo Total'] = df_detalhe['Segundos Totais'].apply(seg_to_hms)
-        df_detalhe = df_detalhe[['CPF','Agente','Data Contato','Data Pagamento','Tempo','Tempo Total','Segundos Cada','Segundos Totais','Valor Recebido','Valor Proporcional']]
+
+        # Pegar TODAS as interações — não só elegíveis
+        df_todos_int = df_int.copy()
+        df_todos_int['data_contato'] = pd.to_datetime(df_todos_int['data_contato'], errors='coerce').dt.normalize()
+
+        # Mapa CPF -> boletos (pode ter vários boletos por CPF)
+        df_boletos = df_eleg[['uc_cpf','valor','data_pagamento']].copy()
+        df_boletos['data_pagamento'] = pd.to_datetime(df_boletos['data_pagamento'], errors='coerce').dt.normalize()
+
+        # Construir detalhe linha por linha
+        det_rows = []
+        for _, contato in df_todos_int.iterrows():
+            cpf = contato['uc_cpf']
+            agente = contato['agente']
+            dt_contato = contato['data_contato']
+            seg = contato['segundos']
+
+            # Verificar se esse CPF tem boletos pagos
+            boletos_cpf = df_boletos[df_boletos['uc_cpf'] == cpf]
+
+            if boletos_cpf.empty:
+                # Sem pagamento — inclui mas sem valor proporcional
+                det_rows.append({
+                    'CPF': cpf, 'Agente': agente,
+                    'Data Contato': dt_contato, 'Data Pagamento': None,
+                    'Valor Boleto': 0, 'Tempo': seg_to_hms(seg),
+                    'Segundos Cada': seg, 'Segundos Totais (até dt pag)': 0,
+                    'Valor Proporcional': 0
+                })
+            else:
+                # Para cada boleto do CPF
+                for _, boleto in boletos_cpf.iterrows():
+                    dt_pag = boleto['data_pagamento']
+                    val = boleto['valor']
+                    # Contatos até a data do pagamento
+                    cont_ate_pag = df_todos_int[
+                        (df_todos_int['uc_cpf'] == cpf) &
+                        (df_todos_int['data_contato'] <= dt_pag)
+                    ]
+                    total_seg_boleto = cont_ate_pag['segundos'].sum()
+                    # Calcular valor proporcional só se contato foi antes do pagamento
+                    if pd.notna(dt_contato) and dt_contato <= dt_pag and total_seg_boleto > 0:
+                        val_prop = val * (seg / total_seg_boleto)
+                    else:
+                        val_prop = 0
+                    det_rows.append({
+                        'CPF': cpf, 'Agente': agente,
+                        'Data Contato': dt_contato, 'Data Pagamento': dt_pag,
+                        'Valor Boleto': val, 'Tempo': seg_to_hms(seg),
+                        'Segundos Cada': seg, 'Segundos Totais (até dt pag)': int(total_seg_boleto),
+                        'Valor Proporcional': round(val_prop, 2)
+                    })
+
+        df_detalhe = pd.DataFrame(det_rows)
+
+        # Aba 2 — Pagos elegíveis
+        df_eleg_out = df_eleg.copy()
+        if 'primeiro_contato' not in df_eleg_out.columns:
+            pc_map = df_int.groupby('uc_cpf')['data_contato'].min()
+            df_eleg_out['primeiro_contato'] = df_eleg_out['uc_cpf'].map(pc_map)
+        df_eleg_out['diferenca_dias'] = (
+            pd.to_datetime(df_eleg_out['data_pagamento'], errors='coerce').dt.normalize() -
+            pd.to_datetime(df_eleg_out['primeiro_contato'], errors='coerce').dt.normalize()
+        ).dt.days
+        df_eleg_out = df_eleg_out.rename(columns={'uc_cpf':'CPF','valor':'Valor','data_pagamento':'Data Pagamento','primeiro_contato':'Primeiro Contato','diferenca_dias':'Diferença Dias'})
 
         return {
             'df_result': df_result,
             'df_detalhe': df_detalhe,
+            'df_eleg_out': df_eleg_out,
             'total': total,
             'n_elegivel': len(df_eleg),
             'n_boletos': len(df_res),
@@ -3070,11 +3114,14 @@ def pagina_upload(ma):
             df_show.columns = ['Atendente', 'Valor Proporcional']
             df_show = df_show.reset_index(drop=True); df_show.index += 1
             st.dataframe(df_show, use_container_width=True)
-        # Download detalhe
+        # Download detalhe — duas abas
         if res_at.get('df_detalhe') is not None:
             import io
             buf = io.BytesIO()
-            res_at['df_detalhe'].to_excel(buf, index=False, sheet_name='Detalhamento')
+            with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+                res_at['df_detalhe'].to_excel(writer, index=False, sheet_name='Todos os Contatos')
+                if res_at.get('df_eleg_out') is not None:
+                    res_at['df_eleg_out'].to_excel(writer, index=False, sheet_name='Pagos Elegíveis')
             buf.seek(0)
             st.download_button("⬇️ Baixar Detalhamento", buf.getvalue(),
                 file_name=f"detalhe_atendentes_{res_at['ma']}.xlsx",
