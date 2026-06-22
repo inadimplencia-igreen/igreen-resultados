@@ -1260,7 +1260,8 @@ def pagina_operadores():
                 op_existente = None
                 primeiro_digitado = nn.strip().upper().split()[0]
                 # Buscar em TODAS as equipes direto no banco (sem cache)
-                todos_ops = list(get_db().operadores.find({"equipeId": {"$in": todas_equipes, "$ne": eq}}))
+                equipes_busca = [e for e in todas_equipes if e != eq]
+                todos_ops = list(get_db().operadores.find({"equipeId": {"$in": equipes_busca}}))
                 for op in todos_ops:
                     primeiro_op = op['nome'].strip().upper().split()[0]
                     if primeiro_digitado == primeiro_op:
