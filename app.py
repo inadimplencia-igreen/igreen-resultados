@@ -1259,15 +1259,13 @@ def pagina_operadores():
                 todas_equipes = ['tamires','luciano','deborah','metcool']
                 op_existente = None
                 primeiro_digitado = nn.strip().upper().split()[0]
-                for eq_busca in todas_equipes:
-                    if eq_busca == eq: continue
-                    ops_busca = list(get_db().operadores.find({"equipeId": eq_busca}))
-                    for op in ops_busca:
-                        primeiro_op = op['nome'].strip().upper().split()[0]
-                        if primeiro_digitado == primeiro_op:
-                            op_existente = op
-                            break
-                    if op_existente: break
+                # Buscar em TODAS as equipes direto no banco (sem cache)
+                todos_ops = list(get_db().operadores.find({"equipeId": {"$in": todas_equipes, "$ne": eq}}))
+                for op in todos_ops:
+                    primeiro_op = op['nome'].strip().upper().split()[0]
+                    if primeiro_digitado == primeiro_op:
+                        op_existente = op
+                        break
                 if op_existente:
                     st.session_state['op_vincular'] = {'op': op_existente, 'eq': eq, 'pleno': np}
                 else:
