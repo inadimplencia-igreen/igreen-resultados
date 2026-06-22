@@ -1236,7 +1236,8 @@ def pagina_operadores():
                     primeiro_digitado = nn.strip().upper().split()[0] if nn.strip() else ""
                     for eq_busca in todas_equipes:
                         if eq_busca == eq: continue
-                        ops_busca = buscar_operadores(eq_busca)
+                        # Buscar direto no banco sem filtro de cache
+                        ops_busca = list(get_db().operadores.find({"equipeId": eq_busca}))
                         for op in ops_busca:
                             primeiro_op = op['nome'].strip().upper().split()[0]
                             if primeiro_digitado == primeiro_op:
@@ -1244,9 +1245,11 @@ def pagina_operadores():
                                 break
                         if op_existente: break
                     if op_existente:
+                        st.info(f"Encontrado: {op_existente['nome']} na equipe {op_existente.get('equipeId','?')}")
                         st.session_state['op_vincular'] = {'op': op_existente, 'eq': eq, 'pleno': np}
                         st.rerun()
                     else:
+                        st.warning(f"Não encontrado '{primeiro_digitado}' em outras equipes — criando novo")
                         salvar_operador(eq,nn.strip(),np)
                         st.success(f"{nn} cadastrado!")
                         st.rerun()
