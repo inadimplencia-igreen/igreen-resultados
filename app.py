@@ -1246,39 +1246,37 @@ def pagina_operadores():
                 st.rerun()
 
     with st.expander("Cadastrar Novo Operador",expanded=False):
-        c1,c2,c3=st.columns([3,1,1])
-        with c1: nn=st.text_input("Nome",placeholder="Nome completo")
-        with c2: np=st.checkbox("Pleno")
-        with c3:
-            st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
-            if st.button("Cadastrar",use_container_width=True):
-                if nn.strip():
-                    # Buscar se já existe em outra equipe — por primeiro nome
-                    todas_equipes = ['tamires','luciano','deborah','metcool']
-                    op_existente = None
-                    primeiro_digitado = nn.strip().upper().split()[0] if nn.strip() else ""
-                    for eq_busca in todas_equipes:
-                        if eq_busca == eq: continue
-                        # Buscar direto no banco sem filtro de cache
-                        ops_busca = list(get_db().operadores.find({"equipeId": eq_busca}))
-                        for op in ops_busca:
-                            primeiro_op = op['nome'].strip().upper().split()[0]
-                            if primeiro_digitado == primeiro_op:
-                                op_existente = op
-                                break
-                        if op_existente: break
-                    if op_existente:
-                        st.session_state['op_vincular'] = {'op': op_existente, 'eq': eq, 'pleno': np}
-                        st.rerun()
-                    else:
-                        # Verificar quantos operadores foram buscados
-                        total_buscados = sum(len(list(get_db().operadores.find({"equipeId": eq_b}))) for eq_b in todas_equipes if eq_b != eq)
-                        st.warning(f"Não encontrado '{primeiro_digitado}' em {total_buscados} operadores de outras equipes. Cadastrando novo...")
-                        salvar_operador(eq,nn.strip(),np)
-                        buscar_operadores.cache_clear()
-                        st.rerun()
-                else: st.error("Digite o nome.")
-            st.markdown("</div>",unsafe_allow_html=True)
+        with st.form("form_cadastrar_op"):
+            c1,c2,c3=st.columns([3,1,1])
+            with c1: nn=st.text_input("Nome",placeholder="Nome completo")
+            with c2: np=st.checkbox("Pleno")
+            with c3:
+                st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
+                submitted = st.form_submit_button("Cadastrar",use_container_width=True)
+                st.markdown("</div>",unsafe_allow_html=True)
+        if submitted:
+            if nn.strip():
+                todas_equipes = ['tamires','luciano','deborah','metcool']
+                op_existente = None
+                primeiro_digitado = nn.strip().upper().split()[0]
+                for eq_busca in todas_equipes:
+                    if eq_busca == eq: continue
+                    ops_busca = list(get_db().operadores.find({"equipeId": eq_busca}))
+                    for op in ops_busca:
+                        primeiro_op = op['nome'].strip().upper().split()[0]
+                        if primeiro_digitado == primeiro_op:
+                            op_existente = op
+                            break
+                    if op_existente: break
+                if op_existente:
+                    st.session_state['op_vincular'] = {'op': op_existente, 'eq': eq, 'pleno': np}
+                else:
+                    salvar_operador(eq,nn.strip(),np)
+                    buscar_operadores.cache_clear()
+                    st.success(f"{nn} cadastrado!")
+                st.rerun()
+            else:
+                st.error("Digite o nome.")
 
 
     st.markdown("---")
