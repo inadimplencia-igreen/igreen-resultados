@@ -1230,14 +1230,16 @@ def pagina_operadores():
             st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
             if st.button("Cadastrar",use_container_width=True):
                 if nn.strip():
-                    # Buscar se já existe em outra equipe
+                    # Buscar se já existe em outra equipe — por primeiro nome
                     todas_equipes = ['tamires','luciano','deborah','metcool']
                     op_existente = None
+                    primeiro_digitado = nn.strip().upper().split()[0] if nn.strip() else ""
                     for eq_busca in todas_equipes:
                         if eq_busca == eq: continue
                         ops_busca = buscar_operadores(eq_busca)
                         for op in ops_busca:
-                            if op['nome'].strip().upper() == nn.strip().upper():
+                            primeiro_op = op['nome'].strip().upper().split()[0]
+                            if primeiro_digitado == primeiro_op:
                                 op_existente = op
                                 break
                         if op_existente: break
