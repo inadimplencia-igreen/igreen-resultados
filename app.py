@@ -2962,9 +2962,6 @@ def pagina_upload(ma):
                                 dd_aba=processar_contatos(df_aba)
                                 if not dd_aba.empty:
                                     dfs_tmp.append(dd_aba)
-                                    st.info(f"Aba '{aba}': {len(dd_aba)} contatos encontrados. Colunas: {list(df_aba.columns)}")
-                                else:
-                                    st.warning(f"Aba '{aba}' não retornou contatos. Colunas: {list(df_aba.columns)}")
                             dd_int=pd.concat(dfs_tmp,ignore_index=True) if dfs_tmp else pd.DataFrame()
                         except Exception as e_int:
                             st.warning(f"Erro ao ler interações: {e_int}")
@@ -2978,11 +2975,7 @@ def pagina_upload(ma):
                             # Normalizar datas (remover hora)
                             dd_int["data_contato"]=pd.to_datetime(dd_int["data_contato"],errors="coerce").dt.normalize()
                             pc=dd_int.groupby("uc_cpf",as_index=False)["data_contato"].min()
-                            # Debug: CPFs em comum
-                            cpfs_pagos=set(df_res["uc_cpf"].unique())
-                            cpfs_int=set(pc["uc_cpf"].unique())
-                            cpfs_comum=cpfs_pagos & cpfs_int
-                            st.info(f"CPFs pagos: {len(cpfs_pagos)} | CPFs interações: {len(cpfs_int)} | Em comum: {len(cpfs_comum)} | Ex. pago: {list(cpfs_pagos)[:2]} | Ex. int: {list(cpfs_int)[:2]}")
+
                             df_res["primeiro_contato"]=pd.to_datetime(
                                 df_res["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"]))),
                                 errors="coerce").dt.normalize()
@@ -3169,8 +3162,9 @@ def pagina_upload(ma):
                         nome = str(row['agente']).strip()
                         valor = float(row['valor'])
                         nome_upper = nome.upper().strip()
-                        # Verificar se é agente do Luciano pela lista AGENTES_LUCIANO
-                        is_luciano = any(nome_upper.startswith(ag.split()[0]) for ag in AGENTES_LUCIANO)
+                        # Verificar se é agente do Luciano pela lista
+                        _ags_luc_save = ["JHENIFFER","JUNIOR","MARCOS","CAMILA","HEVERTON","MARIA","LORENZZO","GRASIELLE","DIOGO","MICHELLE","KETLE","EMANUEL","EDUARDA","GABRIELLE","VICTORIA","CAUA","PAULO","SAMIRES","JENNIFER","LUCIANO","MAYCOW","LAURA"]
+                        is_luciano = any(nome_upper.startswith(ag) for ag in _ags_luc_save)
                         if is_luciano:
                             op_id, op_nome = match_operador(nome, ops_luc)
                             if op_id is None:
