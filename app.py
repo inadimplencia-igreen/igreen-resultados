@@ -3012,12 +3012,13 @@ def pagina_upload(ma):
 
         # Para Luciano — mostrar separado por equipe
         if res_at.get('eq') == 'luciano':
+            _ags_luc = ["JHENIFFER","JUNIOR","MARCOS","CAMILA","HEVERTON","MARIA","LORENZZO","GRASIELLE","DIOGO","MICHELLE","KETLE","EMANUEL","EDUARDA","GABRIELLE","VICTORIA","CAUA","PAULO","SAMIRES","JENNIFER","LUCIANO","MAYCOW","LAURA"]
             df_result = res_at['df_result'].copy()
             df_luc = df_result[df_result['agente'].str.upper().str.strip().apply(
-                lambda n: any(n.startswith(ag.split()[0]) for ag in AGENTES_LUCIANO)
+                lambda n: any(n.startswith(ag) for ag in _ags_luc)
             )].copy()
             df_mc = df_result[~df_result['agente'].str.upper().str.strip().apply(
-                lambda n: any(n.startswith(ag.split()[0]) for ag in AGENTES_LUCIANO)
+                lambda n: any(n.startswith(ag) for ag in _ags_luc)
             )].copy()
             col_l, col_m = st.columns(2)
             with col_l:
