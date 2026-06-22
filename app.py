@@ -3009,16 +3009,37 @@ def pagina_upload(ma):
         st.markdown("---")
         st.markdown("### 👥 Resultado por Atendente")
         st.markdown(f"**Mês:** {res_at['ma']} | **Boletos:** {res_at['n_boletos']} | **Elegíveis:** {res_at['n_elegivel']} | **Total:** {fmt_brl(res_at['total'])}")
-        if res_at.get('debug_abas'):
-            with st.expander("🔍 Debug abas processadas"):
-                for d in res_at['debug_abas']:
-                    st.write(d)
-        df_show = res_at['df_result'].copy()
-        df_show['valor'] = df_show['valor'].apply(fmt_brl)
-        df_show.columns = ['Atendente', 'Valor Proporcional']
-        df_show = df_show.reset_index(drop=True)
-        df_show.index += 1
-        st.dataframe(df_show, use_container_width=True)
+
+        # Para Luciano — mostrar separado por equipe
+        if res_at.get('eq') == 'luciano':
+            df_result = res_at['df_result'].copy()
+            df_luc = df_result[df_result['agente'].str.upper().str.strip().apply(
+                lambda n: any(n.startswith(ag.split()[0]) for ag in AGENTES_LUCIANO)
+            )].copy()
+            df_mc = df_result[~df_result['agente'].str.upper().str.strip().apply(
+                lambda n: any(n.startswith(ag.split()[0]) for ag in AGENTES_LUCIANO)
+            )].copy()
+            col_l, col_m = st.columns(2)
+            with col_l:
+                tc_luc_show = df_luc['valor'].sum()
+                st.markdown(f"**🟢 Equipe Luciano** — Com Interação: {fmt_brl(tc_luc_show)}")
+                df_luc['valor'] = df_luc['valor'].apply(fmt_brl)
+                df_luc.columns = ['Atendente', 'Valor']
+                df_luc = df_luc.reset_index(drop=True); df_luc.index += 1
+                st.dataframe(df_luc, use_container_width=True)
+            with col_m:
+                tc_mc_show = df_mc['valor'].sum()
+                st.markdown(f"**🔵 Meet Call** — Com Interação: {fmt_brl(tc_mc_show)}")
+                df_mc['valor'] = df_mc['valor'].apply(fmt_brl)
+                df_mc.columns = ['Atendente', 'Valor']
+                df_mc = df_mc.reset_index(drop=True); df_mc.index += 1
+                st.dataframe(df_mc, use_container_width=True)
+        else:
+            df_show = res_at['df_result'].copy()
+            df_show['valor'] = df_show['valor'].apply(fmt_brl)
+            df_show.columns = ['Atendente', 'Valor Proporcional']
+            df_show = df_show.reset_index(drop=True); df_show.index += 1
+            st.dataframe(df_show, use_container_width=True)
         st.markdown("**⚠️ Confirme os valores antes de salvar:**")
         col_ok2, col_cancel2 = st.columns(2)
         with col_ok2:
