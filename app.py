@@ -1245,14 +1245,12 @@ def pagina_operadores():
                                 break
                         if op_existente: break
                     if op_existente:
-                        st.info(f"Encontrado: {op_existente['nome']} na equipe {op_existente.get('equipeId','?')}")
                         st.session_state['op_vincular'] = {'op': op_existente, 'eq': eq, 'pleno': np}
-                        st.rerun()
                     else:
-                        st.warning(f"Não encontrado '{primeiro_digitado}' em outras equipes — criando novo")
                         salvar_operador(eq,nn.strip(),np)
+                        buscar_operadores.cache_clear()
                         st.success(f"{nn} cadastrado!")
-                        st.rerun()
+                    st.rerun()
                 else: st.error("Digite o nome.")
             st.markdown("</div>",unsafe_allow_html=True)
 
