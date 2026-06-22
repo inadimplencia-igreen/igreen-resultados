@@ -2853,8 +2853,14 @@ def pagina_upload(ma):
                     st.error("⚠️ Preencha o Total Dias do Mês antes de processar.")
                     st.stop()
                 arq.seek(0)
+                if arq_interacoes is not None:
+                    arq_interacoes.seek(0)
+                    _arq_int_at = arq_interacoes
+                else:
+                    arq.seek(0)
+                    _arq_int_at = arq
                 with st.spinner('Calculando resultado por atendente...'):
-                    res_at, erro_at = calcular_resultado_atendentes(arq, arq, eq, ma)
+                    res_at, erro_at = calcular_resultado_atendentes(arq, _arq_int_at, eq, ma)
                 if erro_at:
                     st.error(erro_at)
                 else:
