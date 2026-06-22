@@ -3027,51 +3027,84 @@ def pagina_upload(ma):
                 _ts = _dt.now().strftime("%Y%m%d%H%M%S%f")
                 eq_at = res_at['eq']
                 ma_at = res_at['ma']
-                # Buscar operadores cadastrados para mapear por nome
-                ops_eq = buscar_operadores(eq_at)
-
-                # Criar mapa por primeiro nome — se duplicado, usar primeiro + sobrenome
                 from collections import Counter
-                primeiros_nomes = [op['nome'].strip().upper().split()[0] for op in ops_eq]
-                duplicados = {n for n, c in Counter(primeiros_nomes).items() if c > 1}
+                from datetime import datetime as _dt2
 
                 def match_operador(nome_base, ops):
-                    """Encontra operador pelo primeiro nome, ou primeiro+último se duplicado."""
+                    primeiros_nomes = [op['nome'].strip().upper().split()[0] for op in ops]
+                    duplicados = {n for n, c in Counter(primeiros_nomes).items() if c > 1}
                     partes_base = nome_base.strip().upper().split()
                     primeiro_base = partes_base[0] if partes_base else ""
                     ultimo_base = partes_base[-1] if len(partes_base) > 1 else ""
-
                     for op in ops:
                         partes_op = op['nome'].strip().upper().split()
                         primeiro_op = partes_op[0] if partes_op else ""
                         ultimo_op = partes_op[-1] if len(partes_op) > 1 else ""
-
                         if primeiro_op in duplicados:
-                            # Precisa bater primeiro + último nome
                             if primeiro_base == primeiro_op and ultimo_base == ultimo_op:
                                 return op['_id'], op['nome']
                         else:
-                            # Só primeiro nome
                             if primeiro_base == primeiro_op:
                                 return op['_id'], op['nome']
                     return None, nome_base
 
-                # Montar agentes dict
-                agentes_dict = {}
-                tc_total = 0.0
-                for _, row in res_at['df_result'].iterrows():
-                    nome = str(row['agente']).strip()
-                    valor = float(row['valor'])
-                    op_id, op_nome = match_operador(nome, ops_eq)
-                    if op_id is None:
-                        op_id = f"auto-{nome.lower().replace(' ','-')}"
-                        op_nome = nome
-                    # Se já existe somar (mesmo operador com nomes diferentes)
-                    if op_id in agentes_dict:
-                        agentes_dict[op_id]["valorRecebido"] += valor
-                    else:
-                        agentes_dict[op_id] = {"valorRecebido": valor, "nome": op_nome}
-                    tc_total += valor
+                # Para Luciano — separar agentes entre Luciano e Meet Call
+                if eq_at == 'luciano':
+                    ops_luc = buscar_operadores('luciano')
+                    ops_mc = buscar_operadores('metcool')
+                    agentes_luc = {}
+                    agentes_mc = {}
+                    tc_luc = 0.0
+                    tc_mc = 0.0
+                    for _, row in res_at['df_result'].iterrows():
+                        nome = str(row['agente']).strip()
+                        valor = float(row['valor'])
+                        nome_upper = nome.upper().strip()
+                        # Verificar se é agente do Luciano pela lista AGENTES_LUCIANO
+                        is_luciano = any(nome_upper.startswith(ag.split()[0]) for ag in AGENTES_LUCIANO)
+                        if is_luciano:
+                            op_id, op_nome = match_operador(nome, ops_luc)
+                            if op_id is None:
+                                op_id = f"auto-{nome.lower().replace(' ','-')}"
+                                op_nome = nome
+                            if op_id in agentes_luc:
+                                agentes_luc[op_id]["valorRecebido"] += valor
+                            else:
+                                agentes_luc[op_id] = {"valorRecebido": valor, "nome": op_nome}
+                            tc_luc += valor
+                        else:
+                            op_id, op_nome = match_operador(nome, ops_mc)
+                            if op_id is None:
+                                op_id = f"auto-{nome.lower().replace(' ','-')}"
+                                op_nome = nome
+                            if op_id in agentes_mc:
+                                agentes_mc[op_id]["valorRecebido"] += valor
+                            else:
+                                agentes_mc[op_id] = {"valorRecebido": valor, "nome": op_nome}
+                            tc_mc += valor
+                    agentes_dict = agentes_luc
+                    tc_total = tc_luc
+                    agentes_dict_mc = agentes_mc
+                    tc_total_mc = tc_mc
+                else:
+                    # Outras equipes — não divide
+                    ops_eq = buscar_operadores(eq_at)
+                    agentes_dict = {}
+                    tc_total = 0.0
+                    agentes_dict_mc = {}
+                    tc_total_mc = 0.0
+                    for _, row in res_at['df_result'].iterrows():
+                        nome = str(row['agente']).strip()
+                        valor = float(row['valor'])
+                        op_id, op_nome = match_operador(nome, ops_eq)
+                        if op_id is None:
+                            op_id = f"auto-{nome.lower().replace(' ','-')}"
+                            op_nome = nome
+                        if op_id in agentes_dict:
+                            agentes_dict[op_id]["valorRecebido"] += valor
+                        else:
+                            agentes_dict[op_id] = {"valorRecebido": valor, "nome": op_nome}
+                        tc_total += valor
                 # Salvar lançamento com resultado por atendente
                 dt_eq = int(res_at.get('dias_trab', 0))
                 td_eq = int(res_at.get('total_dias', 21))
@@ -3087,10 +3120,28 @@ def pagina_upload(ma):
                     "recGeral": 0,
                     "criadoEm": _dt.now().isoformat()
                 })
+                # Se for Luciano, salvar Meet Call também
+                if eq_at == 'luciano' and tc_total_mc > 0:
+                    _ts_mc = _dt.now().strftime("%Y%m%d%H%M%S%f") + "at"
+                    get_db().lancamentos.insert_one({
+                        "_id": f"lanc__{ma_at}__metcool__{_ts_mc}",
+                        "mesAno": ma_at, "equipeId": "metcool",
+                        "dataRef": str(_dt.now().date()),
+                        "label": _dt.now().strftime("%d/%m/%Y"),
+                        "agentes": agentes_dict_mc,
+                        "totalEquipe": tc_total_mc,
+                        "semInteracao": 0,
+                        "diasTrabalhados": dt_eq, "totalDias": td_eq,
+                        "recGeral": 0,
+                        "criadoEm": _dt.now().isoformat()
+                    })
                 buscar_lancamentos.clear()
                 buscar_metas_equipe.clear()
                 st.session_state['resultado_atendentes'] = None
-                st.success(f"✅ Resultado salvo! Com Interação: {fmt_brl(tc_total)}")
+                if eq_at == 'luciano':
+                    st.success(f"✅ Salvo! Luciano Com Interação: {fmt_brl(tc_total)} | Meet Call Com Interação: {fmt_brl(tc_total_mc)}")
+                else:
+                    st.success(f"✅ Resultado salvo! Com Interação: {fmt_brl(tc_total)}")
                 st.rerun()
         with col_cancel2:
             if st.button("❌ Descartar", use_container_width=True, key="btn_descartar_at"):
