@@ -2800,6 +2800,22 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
                         'boletos': int(grp['uc_cpf'].nunique())
                     }
 
+        # Montar detalhe com Fornecedora, UF e Empresa
+        cols_pag = ['uc_cpf']
+        if 'fornecedora' in df_pagos.columns: cols_pag.append('fornecedora')
+        if 'uf' in df_pagos.columns: cols_pag.append('uf')
+        df_seg_det = df_seg.merge(df_pagos[cols_pag].drop_duplicates('uc_cpf'), on='uc_cpf', how='left')
+        df_seg_det['Empresa'] = df_seg_det['equipe'].map({'luciano':'iGreen','metcool':'Meet Call'})
+        rename_det = {'uc_cpf':'CPF','agente':'Agente','valor_proporcional':'Valor Proporcional'}
+        if 'fornecedora' in df_seg_det.columns: rename_det['fornecedora'] = 'Fornecedora'
+        if 'uf' in df_seg_det.columns: rename_det['uf'] = 'UF'
+        df_seg_det = df_seg_det.rename(columns=rename_det)
+        cols_det = ['CPF','Agente']
+        if 'Fornecedora' in df_seg_det.columns: cols_det.append('Fornecedora')
+        if 'UF' in df_seg_det.columns: cols_det.append('UF')
+        cols_det += ['Empresa','Valor Proporcional']
+        df_seg_det = df_seg_det[[c for c in cols_det if c in df_seg_det.columns]]
+
         resultado = {
             'total_luciano': total_luciano,
             'total_metcool': total_amitycall,
@@ -2807,6 +2823,7 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             'n_elegivel': n_eleg,
             'n_boletos': n_boletos,
             'df_agentes': df_seg,
+            'df_agentes_det': df_seg_det,
             'agentes_debug': agentes_unicos,
             'df_eleg': df_eleg,
             'por_uf_luciano': por_uf_luciano,
@@ -2974,9 +2991,9 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         )
         df_det['Tempo'] = df_det['segundos'].apply(seg_to_hms)
         # Empresa — iGreen ou Meet Call baseado no agente
-        _ags_luc = ['JHENIFFER','MARCOS','JUNIOR','CAMILA','HEVERTON','MARIA','LORENZZO','GRASIELLE','DIOGO','MICHELLE','KETLE','EMANUEL','EDUARDA','GABRIELLE','VICTORIA','CAUA','PAULO','SAMIRES','JENNIFER','LUCIANO','MAYCOW','LAURA']
+        _ags_luc_full = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
         df_det['Empresa'] = df_det['agente'].str.upper().str.strip().apply(
-            lambda a: 'iGreen' if any(a.startswith(ag) for ag in _ags_luc) else 'Meet Call'
+            lambda a: 'iGreen' if a in _ags_luc_full else 'Meet Call'
         )
         rename_map = {
             'uc_cpf':'CPF','agente':'Agente','data_contato':'Data Contato',
@@ -3284,14 +3301,10 @@ def pagina_upload(ma):
 
         # Para Luciano — mostrar separado por equipe
         if res_at.get('eq') == 'luciano':
-            _ags_luc = ["JHENIFFER","JUNIOR","MARCOS","CAMILA","HEVERTON","MARIA","LORENZZO","GRASIELLE","DIOGO","MICHELLE","KETLE","EMANUEL","EDUARDA","GABRIELLE","VICTORIA","CAUA","PAULO","SAMIRES","JENNIFER","LUCIANO","MAYCOW","LAURA"]
+            _ags_luc_full = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
             df_result = res_at['df_result'].copy()
-            df_luc = df_result[df_result['agente'].str.upper().str.strip().apply(
-                lambda n: any(n.startswith(ag) for ag in _ags_luc)
-            )].copy()
-            df_mc = df_result[~df_result['agente'].str.upper().str.strip().apply(
-                lambda n: any(n.startswith(ag) for ag in _ags_luc)
-            )].copy()
+            df_luc = df_result[df_result['agente'].str.upper().str.strip().isin(_ags_luc_full)].copy()
+            df_mc = df_result[~df_result['agente'].str.upper().str.strip().isin(_ags_luc_full)].copy()
             col_l, col_m = st.columns(2)
             with col_l:
                 tc_luc_show = df_luc['valor'].sum()
@@ -3383,8 +3396,8 @@ def pagina_upload(ma):
                         valor = float(row['valor'])
                         nome_upper = nome.upper().strip()
                         # Verificar se é agente do Luciano pela lista
-                        _ags_luc_save = ["JHENIFFER","JUNIOR","MARCOS","CAMILA","HEVERTON","MARIA","LORENZZO","GRASIELLE","DIOGO","MICHELLE","KETLE","EMANUEL","EDUARDA","GABRIELLE","VICTORIA","CAUA","PAULO","SAMIRES","JENNIFER","LUCIANO","MAYCOW","LAURA"]
-                        is_luciano = any(nome_upper.startswith(ag) for ag in _ags_luc_save)
+                        _ags_luc_save = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
+                        is_luciano = nome_upper in _ags_luc_save
                         if is_luciano:
                             op_id, op_nome = match_operador(nome, ops_luc)
                             if op_id is None:
@@ -3492,17 +3505,11 @@ def pagina_upload(ma):
                              file_name=f"elegiveis_luciano_{res['ma']}.csv",
                              mime="text/csv", key="dl_eleg_luciano")
         # Download detalhe divisão proporcional
-        if res.get('df_agentes') is not None and not res['df_agentes'].empty:
+        if res.get('df_agentes_det') is not None and not res['df_agentes_det'].empty:
             try:
                 import io
-                df_det = res['df_agentes'].copy()
-                # Adicionar equipe
-                _ags = ["JHENIFFER","JUNIOR","MARCOS","CAMILA","HEVERTON","MARIA","LORENZZO","GRASIELLE","DIOGO","MICHELLE","KETLE","EMANUEL","EDUARDA","GABRIELLE","VICTORIA","CAUA","PAULO","SAMIRES","JENNIFER","LUCIANO","MAYCOW","LAURA"]
-                df_det['Equipe'] = df_det['agente'].str.upper().str.strip().apply(
-                    lambda n: 'Luciano' if any(n.startswith(ag) for ag in _ags) else 'Meet Call'
-                )
                 buf2 = io.BytesIO()
-                df_det.to_excel(buf2, index=False, sheet_name='Divisão Proporcional')
+                res['df_agentes_det'].to_excel(buf2, index=False, sheet_name='Divisão Proporcional')
                 buf2.seek(0)
                 st.download_button("⬇️ Baixar Detalhamento", buf2.getvalue(),
                     file_name=f"detalhe_divisao_{res['ma']}.xlsx",
