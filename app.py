@@ -2821,16 +2821,19 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         _ags_luc_det = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
 
-        # Detalhe — por boleto, filtra contatos até data_pagamento (igual Resultado por Atendente)
-        # Cálculo do detalhe: valor_prop = valor_boleto * (seg_contato / total_seg_até_dt_pag)
-        # NÃO altera o cálculo principal (total_luciano/total_metcool)
+        # Detalhe — por boleto, filtra contatos com data_contato <= data_pagamento
+        # df_int_eleg tem data_contato individual (antes do groupby)
+        # total bate porque todo elegível tem contato antes do pagamento
 
         df_pagos_ord = df_pagos.copy()
         df_pagos_ord['data_pagamento'] = pd.to_datetime(df_pagos_ord['data_pagamento'], errors='coerce').dt.normalize()
         df_pagos_ord['valor'] = pd.to_numeric(df_pagos_ord['valor'], errors='coerce').fillna(0)
 
         df_int_det = df_int_eleg.copy()
-        df_int_det['data_contato'] = pd.to_datetime(df_int_det['data_contato'], errors='coerce').dt.normalize() if 'data_contato' in df_int_det.columns else pd.NaT
+        df_int_det['data_contato'] = pd.to_datetime(df_int_det['data_contato'], errors='coerce').dt.normalize()
+
+        # indexar contatos por CPF para performance
+        contatos_por_cpf = {cpf: grp for cpf, grp in df_int_det.groupby('uc_cpf')}
 
         det_rows = []
         for _, boleto in df_pagos_ord.iterrows():
@@ -2840,15 +2843,12 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             forn = boleto.get('fornecedora','') if 'fornecedora' in boleto.index else ''
             uf_val = boleto.get('uf','') if 'uf' in boleto.index else ''
 
-            # Contatos desse CPF até a data do pagamento
-            if 'data_contato' in df_int_det.columns:
-                contatos_boleto = df_int_det[
-                    (df_int_det['uc_cpf']==cpf) &
-                    (df_int_det['data_contato'] <= dt_pag)
-                ].copy()
-            else:
-                contatos_boleto = df_int_det[df_int_det['uc_cpf']==cpf].copy()
+            todos_contatos = contatos_por_cpf.get(cpf)
+            if todos_contatos is None or todos_contatos.empty:
+                continue
 
+            # Filtrar contatos até a data do pagamento deste boleto
+            contatos_boleto = todos_contatos[todos_contatos['data_contato'] <= dt_pag]
             if contatos_boleto.empty:
                 continue
 
@@ -2861,14 +2861,13 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
                 agente = linha['agente']
                 empresa = 'iGreen' if str(agente).upper().strip() in _ags_luc_det else 'Meet Call'
                 val_prop = valor_boleto * (seg / total_seg)
-                dt_contato = linha.get('data_contato', None) if 'data_contato' in linha.index else None
                 det_rows.append({
                     'CPF': cpf,
                     'Agente': agente,
                     'Fornecedora': forn,
                     'UF': uf_val,
                     'Empresa': empresa,
-                    'Data Contato': dt_contato,
+                    'Data Contato': linha['data_contato'],
                     'Data Pagamento': dt_pag,
                     'Valor Boleto': valor_boleto,
                     'Tempo': seg_to_hms_div(seg),
