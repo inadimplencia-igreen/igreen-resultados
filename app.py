@@ -1268,30 +1268,44 @@ def pagina_operadores():
             st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
             if st.button("Cadastrar",use_container_width=True, key="btn_cadastrar_op"):
                 if nn.strip():
-                    todas_equipes = ['tamires','luciano','deborah','metcool']
-                    op_existente = None
+                    # Buscar em outras equipes
+                    todos_ops = list(get_db().operadores.find({"equipeId": {"$ne": eq}}))
                     primeiro_digitado = nn.strip().upper().split()[0]
-                    # Buscar TODOS os operadores do banco — sem filtro nenhum
-                    todos_ops = list(get_db().operadores.find({}))
-                    for op in todos_ops:
-                        if op.get('equipeId') == eq: continue
-                        nome_op = op.get('nome','').strip().upper()
-                        partes = nome_op.split()
-                        primeiro_op = partes[0] if partes else ""
-                        if primeiro_digitado == primeiro_op:
-                            op_existente = op
-                            break
+                    op_existente = next((op for op in todos_ops if op.get('nome','').strip().upper().split()[0] == primeiro_digitado), None)
                     if op_existente:
                         st.session_state['op_vincular'] = {'op': op_existente, 'eq': eq, 'pleno': np}
-                        st.rerun()
                     else:
                         salvar_operador(eq,nn.strip(),np)
                         buscar_operadores.cache_clear()
-                        st.success(f"{nn} cadastrado!")
-                        st.rerun()
+                        st.session_state['op_vincular'] = None
                 else:
                     st.error("Digite o nome.")
             st.markdown("</div>",unsafe_allow_html=True)
+        
+        # Confirmação dentro do expander
+        if st.session_state.get('op_vincular'):
+            op_v = st.session_state['op_vincular']
+            st.warning(f"⚠️ **{op_v['op']['nome']}** já existe em outra equipe. Vincular (mantém histórico) ou criar novo?")
+            col_v1, col_v2 = st.columns(2)
+            with col_v1:
+                if st.button("🔗 Vincular", use_container_width=True, key="btn_vincular_op"):
+                    novo_id = f"{op_v['op']['_id']}-{op_v['eq']}"
+                    get_db().operadores.update_one(
+                        {"_id": novo_id},
+                        {"$set": {"nome": op_v['op']['nome'], "equipeId": op_v['eq'], "pleno": op_v['pleno'], "vinculadoA": op_v['op']['_id']}},
+                        upsert=True
+                    )
+                    buscar_operadores.cache_clear()
+                    st.session_state['op_vincular'] = None
+                    st.success(f"✅ {op_v['op']['nome']} vinculado!")
+                    st.rerun()
+            with col_v2:
+                if st.button("➕ Criar novo", use_container_width=True, key="btn_criar_novo_op"):
+                    salvar_operador(op_v['eq'], op_v['op']['nome'], op_v['pleno'])
+                    buscar_operadores.cache_clear()
+                    st.session_state['op_vincular'] = None
+                    st.success(f"✅ Novo operador criado!")
+                    st.rerun()
 
 
     st.markdown("---")
