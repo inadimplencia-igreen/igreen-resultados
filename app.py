@@ -2370,7 +2370,6 @@ def pagina_monitorias(ma):
                     html=gerar_pdf_monitoria(op["nome"],prot,obs,crits_r,erros_m,nota,mm,nm,ma)
                     b64=base64.b64encode(html.encode()).decode()
                     st.session_state[sk_salvo]={"nome":op["nome"],"nota":nota,"media":mm,"pontos":calc_pontos(mm),"b64":b64,"prot":prot}
-                    st.rerun()
         else:
             salvo=st.session_state[sk_salvo]
             cn2="#2e7d32" if salvo['nota']>=80 else "#f57f17" if salvo['nota']>=60 else "#c62828"
