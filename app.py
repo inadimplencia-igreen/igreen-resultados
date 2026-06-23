@@ -1229,7 +1229,7 @@ def pagina_operadores():
     if 'op_vincular' not in st.session_state:
         st.session_state['op_vincular'] = None
     # Confirmar vinculação de operador existente — antes do expander para ficar visível
-    if st.session_state.get('op_vincular'):
+    if st.session_state['op_vincular'] is not None:
         op_v = st.session_state['op_vincular']
         st.warning(f"⚠️ **{op_v['op']['nome']}** já está cadastrado em outra equipe. Vincular o mesmo (mantém histórico) ou criar novo?")
         col_v1, col_v2 = st.columns(2)
@@ -1273,13 +1273,11 @@ def pagina_operadores():
                     primeiro_digitado = nn.strip().upper().split()[0]
                     # Buscar TODOS os operadores do banco — sem filtro nenhum
                     todos_ops = list(get_db().operadores.find({}))
-                    st.write(f"Total operadores no banco: {len(todos_ops)}")
                     for op in todos_ops:
                         if op.get('equipeId') == eq: continue
                         nome_op = op.get('nome','').strip().upper()
                         partes = nome_op.split()
                         primeiro_op = partes[0] if partes else ""
-                        st.write(f"Verificando: '{primeiro_op}' vs '{primeiro_digitado}' (equipe: {op.get('equipeId')})")
                         if primeiro_digitado == primeiro_op:
                             op_existente = op
                             break
