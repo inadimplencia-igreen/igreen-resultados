@@ -2812,8 +2812,8 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
                         'boletos': int(grp['uc_cpf'].nunique())
                     }
 
-        # Montar detalhe CPF x Boleto — usa df_int_eleg com data de contato individual
-        # Mesmo padrão do Resultado por Atendente — total bate exatamente com a tela
+        # Montar detalhe CPF x Boleto — usa df_eleg (elegíveis) x df_int_eleg (contatos agrupados)
+        # Total Valor Proporcional bate exatamente com total_luciano + total_metcool
 
         def seg_to_hms_div(s):
             try:
@@ -2822,51 +2822,55 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         _ags_luc_det = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
 
-        df_int_det = df_int_eleg.copy()
-        df_int_det['data_contato'] = pd.to_datetime(df_int_det['data_contato'], errors='coerce').dt.normalize() if 'data_contato' in df_int_det.columns else pd.NaT
-        df_pagos_det = df_pagos.copy()
-        df_pagos_det['data_pagamento'] = pd.to_datetime(df_pagos_det['data_pagamento'], errors='coerce').dt.normalize()
+        # df_eleg = boletos elegíveis (fonte de verdade do valor)
+        # df_int_eleg = contatos agrupados por CPF+agente (mesma base usada no cálculo)
+        df_eleg_det = df_eleg.copy() if 'df_eleg' in dir() else df_pagos[df_pagos['uc_cpf'].isin(df_seg['uc_cpf'].unique())].copy()
+        df_eleg_det['data_pagamento'] = pd.to_datetime(df_eleg_det['data_pagamento'], errors='coerce').dt.normalize()
+        df_eleg_det['valor'] = pd.to_numeric(df_eleg_det['valor'], errors='coerce').fillna(0)
+
+        # df_int_eleg já tem uc_cpf, agente, segundos agrupados por CPF+agente
+        # total_seg por CPF = soma de todos os agentes daquele CPF
+        seg_total_cpf = df_int_eleg.groupby('uc_cpf')['segundos'].sum().reset_index()
+        seg_total_cpf.columns = ['uc_cpf', 'total_seg_cpf']
 
         det_rows = []
-        for _, boleto in df_pagos_det.iterrows():
+        for _, boleto in df_eleg_det.iterrows():
             cpf = boleto['uc_cpf']
             valor_boleto = float(boleto['valor'])
             dt_pag = boleto['data_pagamento']
-            forn = boleto.get('fornecedora','') if 'fornecedora' in boleto.index else ''
-            uf_val = boleto.get('uf','') if 'uf' in boleto.index else ''
+            forn = boleto.get('fornecedora', '') if 'fornecedora' in boleto.index else ''
+            uf_val = boleto.get('uf', '') if 'uf' in boleto.index else ''
 
-            # Contatos desse CPF — TODAS as interações (divisão proporcional não filtra por data)
-            contatos_cpf = df_int_det[df_int_det['uc_cpf'] == cpf].copy()
+            # Contatos agrupados desse CPF — mesma base do cálculo principal
+            contatos_cpf = df_int_eleg[df_int_eleg['uc_cpf'] == cpf].copy()
             if contatos_cpf.empty:
                 continue
 
-            total_seg_boleto = contatos_cpf['segundos'].sum()
-            if total_seg_boleto == 0:
+            total_seg = float(seg_total_cpf[seg_total_cpf['uc_cpf'] == cpf]['total_seg_cpf'].iloc[0]) if len(seg_total_cpf[seg_total_cpf['uc_cpf'] == cpf]) > 0 else 0
+            if total_seg == 0:
                 continue
 
             for _, linha in contatos_cpf.iterrows():
-                prop = linha['segundos'] / total_seg_boleto
+                prop = linha['segundos'] / total_seg
                 val_prop = valor_boleto * prop
                 empresa = 'iGreen' if str(linha['agente']).upper().strip() in _ags_luc_det else 'Meet Call'
-                dt_contato = linha.get('data_contato', None) if 'data_contato' in linha.index else None
                 det_rows.append({
                     'CPF': cpf,
                     'Agente': linha['agente'],
                     'Fornecedora': forn,
                     'UF': uf_val,
                     'Empresa': empresa,
-                    'Data Contato': dt_contato,
                     'Data Pagamento': dt_pag,
                     'Valor Boleto': valor_boleto,
                     'Tempo': seg_to_hms_div(linha['segundos']),
                     'Segundos Cada': int(linha['segundos']),
-                    'Segundos Totais': int(total_seg_boleto),
+                    'Segundos Totais': int(total_seg),
                     'Valor Proporcional': round(val_prop, 2)
                 })
 
         df_seg_det = pd.DataFrame(det_rows) if det_rows else pd.DataFrame()
         if not df_seg_det.empty:
-            cols_det = ['CPF','Agente','Fornecedora','UF','Empresa','Data Contato','Data Pagamento','Valor Boleto','Tempo','Segundos Cada','Segundos Totais','Valor Proporcional']
+            cols_det = ['CPF','Agente','Fornecedora','UF','Empresa','Data Pagamento','Valor Boleto','Tempo','Segundos Cada','Segundos Totais','Valor Proporcional']
             df_seg_det = df_seg_det[[c for c in cols_det if c in df_seg_det.columns]]
 
         resultado = {
