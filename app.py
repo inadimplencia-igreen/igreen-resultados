@@ -2078,12 +2078,8 @@ def gerar_relatorio_monitorias(eq, ma):
     if not monitorias:
         return None
 
-    # Organizar por operador e semana
-    # semana_mon pode ser "1a_primeira", "1a_segunda", "2a_primeira" etc.
-    semanas = ["1a_primeira","1a_segunda","2a_primeira","2a_segunda",
-               "3a_primeira","3a_segunda","4a_primeira","4a_segunda"]
-    labels = ["1a Primeira","1a Segunda","2a Primeira","2a Segunda",
-              "3a Primeira","3a Segunda","4a Primeira","4a Segunda"]
+    # Organizar por operador e semana — usar exatamente os valores salvos no banco
+    semanas = SEMANAS_MONITORIA  # ["1ª Semana — 1ª Monitoria", ...]
 
     # Mapear monitorias por opId e semana
     dados = {}
@@ -2127,10 +2123,10 @@ def gerar_relatorio_monitorias(eq, ma):
         ws[f"{letra_ini}1"].alignment = Alignment(horizontal="center")
         ws[f"{letra_ini}1"].fill = PatternFill("solid", start_color=cores_semanas[col_ini-2])
 
-    # Cabeçalho linha 2 — Primeira/Segunda
+    # Cabeçalho linha 2 — 1ª Monitoria / 2ª Monitoria
     for i, col in enumerate(range(2, 10)):
         letra = get_column_letter(col)
-        ws[f"{letra}2"] = "Primeira" if i % 2 == 0 else "Segunda"
+        ws[f"{letra}2"] = "1ª Monitoria" if i % 2 == 0 else "2ª Monitoria"
         ws[f"{letra}2"].font = Font(bold=True)
         ws[f"{letra}2"].fill = PatternFill("solid", start_color=cores_semanas[i])
         ws[f"{letra}2"].alignment = Alignment(horizontal="center")
@@ -2884,112 +2880,71 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
 
         df_int = pd.concat(contatos_ag, ignore_index=True)
 
-        # 5. Divisão proporcional — por boleto, linha por linha
-        # Para cada boleto, divide pelos agentes que contataram ANTES ou NO DIA do pagamento
+        # 5. Divisão proporcional — VETORIZADO (sem loops linha a linha)
         df_int_todos = df_int[df_int['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
         df_int_todos['data_contato'] = pd.to_datetime(df_int_todos['data_contato'], errors='coerce').dt.normalize()
 
-        resultados = []
-        # Iterar por boleto
-        for _, boleto in df_eleg.iterrows():
-            cpf = boleto['uc_cpf']
-            valor = float(boleto['valor'])
-            dt_pag = pd.to_datetime(boleto['data_pagamento'], errors='coerce')
-            if pd.isna(dt_pag) or valor <= 0:
-                continue
-            dt_pag = dt_pag.normalize()
+        # Normalizar datas dos boletos elegíveis
+        df_eleg2 = df_eleg.copy()
+        df_eleg2['data_pagamento'] = pd.to_datetime(df_eleg2['data_pagamento'], errors='coerce').dt.normalize()
+        df_eleg2 = df_eleg2[df_eleg2['valor'] > 0].reset_index(drop=True)
 
-            # Contatos desse CPF até a data do pagamento
-            contatos_boleto = df_int_todos[
-                (df_int_todos['uc_cpf'] == cpf) &
-                (df_int_todos['data_contato'] <= dt_pag)
-            ].copy()
+        # Cross join boletos x contatos via merge por CPF, depois filtrar data_contato <= data_pagamento
+        df_cross = df_eleg2[['uc_cpf','valor','data_pagamento']].merge(
+            df_int_todos[['uc_cpf','agente','data_contato','segundos']],
+            on='uc_cpf', how='inner'
+        )
+        # Filtrar: só contatos até a data do pagamento
+        df_cross = df_cross[df_cross['data_contato'] <= df_cross['data_pagamento']].copy()
 
-            if contatos_boleto.empty:
-                continue
+        if df_cross.empty:
+            return None, "Nenhum resultado calculado — nenhum contato anterior ao pagamento encontrado."
 
-            total_seg = contatos_boleto['segundos'].sum()
-            if total_seg == 0:
-                continue
+        # Total de segundos por boleto (CPF + data_pagamento)
+        seg_total = df_cross.groupby(['uc_cpf','data_pagamento'])['segundos'].sum().reset_index()
+        seg_total.columns = ['uc_cpf','data_pagamento','total_seg']
+        df_cross = df_cross.merge(seg_total, on=['uc_cpf','data_pagamento'], how='left')
 
-            # Calcular proporcional linha por linha
-            for _, linha in contatos_boleto.iterrows():
-                prop = linha['segundos'] / total_seg
-                resultados.append({
-                    'agente': linha['agente'],
-                    'valor_proporcional': valor * prop
-                })
-
-        if not resultados:
-            return None, "Nenhum resultado calculado."
-
-        df_calc = pd.DataFrame(resultados)
+        # Proporcional por linha
+        df_cross['valor_proporcional'] = df_cross['valor'] * (df_cross['segundos'] / df_cross['total_seg'])
 
         # 6. Somar por agente
-        df_result = df_calc.groupby('agente')['valor_proporcional'].sum().reset_index()
+        df_result = df_cross.groupby('agente')['valor_proporcional'].sum().reset_index()
         df_result = df_result.sort_values('valor_proporcional', ascending=False)
         df_result.columns = ['agente', 'valor']
 
         total = float(df_result['valor'].sum())
-        # Montar planilha de detalhe — TODOS os contatos (elegíveis e não elegíveis)
+
         def seg_to_hms(s):
             try:
                 s=int(s); return f"{s//3600:02d}:{(s%3600)//60:02d}:{s%60:02d}"
             except: return "00:00:00"
 
-        # Pegar TODAS as interações — não só elegíveis
-        df_todos_int = df_int.copy()
-        df_todos_int['data_contato'] = pd.to_datetime(df_todos_int['data_contato'], errors='coerce').dt.normalize()
+        # Detalhe vetorizado — contatos com boleto
+        df_det = df_cross[['uc_cpf','agente','data_contato','data_pagamento','valor','segundos','total_seg','valor_proporcional']].copy()
+        df_det['Tempo'] = df_det['segundos'].apply(seg_to_hms)
+        df_det['valor_proporcional'] = df_det['valor_proporcional'].round(2)
+        df_det = df_det.rename(columns={
+            'uc_cpf':'CPF','agente':'Agente','data_contato':'Data Contato',
+            'data_pagamento':'Data Pagamento','valor':'Valor Boleto',
+            'segundos':'Segundos Cada','total_seg':'Segundos Totais (até dt pag)',
+            'valor_proporcional':'Valor Proporcional'
+        })
+        df_det = df_det[['CPF','Agente','Data Contato','Data Pagamento','Valor Boleto','Tempo','Segundos Cada','Segundos Totais (até dt pag)','Valor Proporcional']]
 
-        # Mapa CPF -> boletos (pode ter vários boletos por CPF)
-        df_boletos = df_eleg[['uc_cpf','valor','data_pagamento']].copy()
-        df_boletos['data_pagamento'] = pd.to_datetime(df_boletos['data_pagamento'], errors='coerce').dt.normalize()
+        # Contatos sem boleto (só para completar o detalhe)
+        cpfs_sem_boleto = df_int_todos[~df_int_todos['uc_cpf'].isin(df_eleg2['uc_cpf'])].copy()
+        if not cpfs_sem_boleto.empty:
+            cpfs_sem_boleto['Tempo'] = cpfs_sem_boleto['segundos'].apply(seg_to_hms)
+            cpfs_sem_boleto = cpfs_sem_boleto.rename(columns={'uc_cpf':'CPF','agente':'Agente','data_contato':'Data Contato','segundos':'Segundos Cada'})
+            cpfs_sem_boleto['Data Pagamento'] = None
+            cpfs_sem_boleto['Valor Boleto'] = 0
+            cpfs_sem_boleto['Segundos Totais (até dt pag)'] = 0
+            cpfs_sem_boleto['Valor Proporcional'] = 0
+            cpfs_sem_boleto = cpfs_sem_boleto[['CPF','Agente','Data Contato','Data Pagamento','Valor Boleto','Tempo','Segundos Cada','Segundos Totais (até dt pag)','Valor Proporcional']]
+            df_det = pd.concat([df_det, cpfs_sem_boleto], ignore_index=True)
 
-        # Construir detalhe linha por linha
-        det_rows = []
-        for _, contato in df_todos_int.iterrows():
-            cpf = contato['uc_cpf']
-            agente = contato['agente']
-            dt_contato = contato['data_contato']
-            seg = contato['segundos']
-
-            # Verificar se esse CPF tem boletos pagos
-            boletos_cpf = df_boletos[df_boletos['uc_cpf'] == cpf]
-
-            if boletos_cpf.empty:
-                # Sem pagamento — inclui mas sem valor proporcional
-                det_rows.append({
-                    'CPF': cpf, 'Agente': agente,
-                    'Data Contato': dt_contato, 'Data Pagamento': None,
-                    'Valor Boleto': 0, 'Tempo': seg_to_hms(seg),
-                    'Segundos Cada': seg, 'Segundos Totais (até dt pag)': 0,
-                    'Valor Proporcional': 0
-                })
-            else:
-                # Para cada boleto do CPF
-                for _, boleto in boletos_cpf.iterrows():
-                    dt_pag = boleto['data_pagamento']
-                    val = boleto['valor']
-                    # Contatos até a data do pagamento
-                    cont_ate_pag = df_todos_int[
-                        (df_todos_int['uc_cpf'] == cpf) &
-                        (df_todos_int['data_contato'] <= dt_pag)
-                    ]
-                    total_seg_boleto = cont_ate_pag['segundos'].sum()
-                    # Calcular valor proporcional só se contato foi antes do pagamento
-                    if pd.notna(dt_contato) and dt_contato <= dt_pag and total_seg_boleto > 0:
-                        val_prop = val * (seg / total_seg_boleto)
-                    else:
-                        val_prop = 0
-                    det_rows.append({
-                        'CPF': cpf, 'Agente': agente,
-                        'Data Contato': dt_contato, 'Data Pagamento': dt_pag,
-                        'Valor Boleto': val, 'Tempo': seg_to_hms(seg),
-                        'Segundos Cada': seg, 'Segundos Totais (até dt pag)': int(total_seg_boleto),
-                        'Valor Proporcional': round(val_prop, 2)
-                    })
-
-        df_detalhe = pd.DataFrame(det_rows)
+        df_detalhe = df_det
 
         # Aba 2 — Pagos elegíveis
         df_eleg_out = df_eleg.copy()
