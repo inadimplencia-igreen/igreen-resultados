@@ -2822,46 +2822,54 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         _ags_luc_det = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
 
-        # Detalhe — expande df_int_eleg (linhas individuais) x boletos do CPF
-        # Para cada contato individual x cada boleto:
-        # valor_prop = valor_boleto * (segundos_contato / total_seg_cpf)
-        # Soma = total_luciano + total_metcool exatamente
+        # Detalhe — por boleto, filtra contatos até data_pagamento (igual Resultado por Atendente)
+        # Cálculo do detalhe: valor_prop = valor_boleto * (seg_contato / total_seg_até_dt_pag)
+        # NÃO altera o cálculo principal (total_luciano/total_metcool)
 
         df_pagos_ord = df_pagos.copy()
         df_pagos_ord['data_pagamento'] = pd.to_datetime(df_pagos_ord['data_pagamento'], errors='coerce').dt.normalize()
         df_pagos_ord['valor'] = pd.to_numeric(df_pagos_ord['valor'], errors='coerce').fillna(0)
 
-        # total_seg por CPF — mesmo usado no cálculo principal
-        seg_tot_det = df_int_eleg.groupby('uc_cpf')['segundos'].sum().reset_index()
-        seg_tot_det.columns = ['uc_cpf','total_seg_cpf']
+        df_int_det = df_int_eleg.copy()
+        df_int_det['data_contato'] = pd.to_datetime(df_int_det['data_contato'], errors='coerce').dt.normalize() if 'data_contato' in df_int_det.columns else pd.NaT
 
         det_rows = []
-        for _, contato in df_int_eleg.iterrows():
-            cpf = contato['uc_cpf']
-            agente = contato['agente']
-            seg = contato['segundos']
-            empresa = 'iGreen' if str(agente).upper().strip() in _ags_luc_det else 'Meet Call'
+        for _, boleto in df_pagos_ord.iterrows():
+            cpf = boleto['uc_cpf']
+            valor_boleto = float(boleto['valor'])
+            dt_pag = boleto['data_pagamento']
+            forn = boleto.get('fornecedora','') if 'fornecedora' in boleto.index else ''
+            uf_val = boleto.get('uf','') if 'uf' in boleto.index else ''
 
-            total_seg = float(seg_tot_det[seg_tot_det['uc_cpf']==cpf]['total_seg_cpf'].iloc[0]) if len(seg_tot_det[seg_tot_det['uc_cpf']==cpf])>0 else 0
+            # Contatos desse CPF até a data do pagamento
+            if 'data_contato' in df_int_det.columns:
+                contatos_boleto = df_int_det[
+                    (df_int_det['uc_cpf']==cpf) &
+                    (df_int_det['data_contato'] <= dt_pag)
+                ].copy()
+            else:
+                contatos_boleto = df_int_det[df_int_det['uc_cpf']==cpf].copy()
+
+            if contatos_boleto.empty:
+                continue
+
+            total_seg = contatos_boleto['segundos'].sum()
             if total_seg == 0:
                 continue
 
-            boletos_cpf = df_pagos_ord[df_pagos_ord['uc_cpf']==cpf]
-            if boletos_cpf.empty:
-                continue
-
-            for _, boleto in boletos_cpf.iterrows():
-                valor_boleto = float(boleto['valor'])
-                dt_pag = boleto['data_pagamento']
-                forn = boleto.get('fornecedora','') if 'fornecedora' in boleto.index else ''
-                uf_val = boleto.get('uf','') if 'uf' in boleto.index else ''
+            for _, linha in contatos_boleto.iterrows():
+                seg = linha['segundos']
+                agente = linha['agente']
+                empresa = 'iGreen' if str(agente).upper().strip() in _ags_luc_det else 'Meet Call'
                 val_prop = valor_boleto * (seg / total_seg)
+                dt_contato = linha.get('data_contato', None) if 'data_contato' in linha.index else None
                 det_rows.append({
                     'CPF': cpf,
                     'Agente': agente,
                     'Fornecedora': forn,
                     'UF': uf_val,
                     'Empresa': empresa,
+                    'Data Contato': dt_contato,
                     'Data Pagamento': dt_pag,
                     'Valor Boleto': valor_boleto,
                     'Tempo': seg_to_hms_div(seg),
