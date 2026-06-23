@@ -2197,9 +2197,11 @@ def gerar_relatorio_monitorias(eq, ma):
             ws[f"{letra}{row}"].fill = PatternFill("solid", start_color="D8F3DC")
             ws[f"{letra}{row}"].alignment = Alignment(horizontal="center")
 
-    # Média geral da equipe — todas as notas brutas de todos os operadores
-    if todas_notas_equipe:
-        media_geral = sum(todas_notas_equipe) / len(todas_notas_equipe)
+    # Média geral da equipe — média das médias dos operadores
+    medias_ops = [sum(n for notas in info["semanas"].values() for n in notas) / max(1, sum(len(notas) for notas in info["semanas"].values())) for oid, info in dados.items() if any(info["semanas"].values())]
+    if medias_ops:
+        media_geral = sum(medias_ops) / len(medias_ops)
+    if medias_ops:
         ws[f"J{row}"] = f"{int(round(media_geral))}%"
         ws[f"J{row}"].font = Font(bold=True, color="2D6A4F")
         ws[f"J{row}"].fill = PatternFill("solid", start_color="D8F3DC")
