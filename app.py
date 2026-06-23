@@ -2221,6 +2221,18 @@ def pagina_monitorias(ma):
     # Luciano: mostrar só operadores iGreen (sem Meet Call) — igual Minha Conta
     ops=[op for op in ops_todos if op["nome"] not in OPERADORES_MEETCALL] if eq=="luciano" else ops_todos
     if not ops: st.warning("Cadastre operadores primeiro."); return
+
+    # Botão download relatório — sempre visível no topo
+    rel = gerar_relatorio_monitorias(eq, ma)
+    if rel:
+        st.download_button(
+            "⬇️ Baixar Relatório de Monitorias (.xlsx)",
+            rel,
+            file_name=f"monitorias_{eq}_{ma}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="dl_rel_mon_topo"
+        )
+
     if "mon_op_sel" not in st.session_state: st.session_state.mon_op_sel=None
     if "mon_modo" not in st.session_state: st.session_state.mon_modo=None
     if st.session_state.mon_op_sel is None:
