@@ -1256,10 +1256,12 @@ def pagina_operadores():
                     todas_equipes = ['tamires','luciano','deborah','metcool']
                     op_existente = None
                     primeiro_digitado = nn.strip().upper().split()[0]
-                    equipes_busca = [e for e in todas_equipes if e != eq]
-                    todos_ops = list(get_db().operadores.find({"equipeId": {"$in": equipes_busca}}))
+                    # Buscar TODOS os operadores do banco — sem filtro de equipe
+                    todos_ops = list(get_db().operadores.find({}))
                     for op in todos_ops:
-                        primeiro_op = op['nome'].strip().upper().split()[0]
+                        if op.get('equipeId') == eq: continue  # Pular mesma equipe
+                        primeiro_op = op.get('nome','').strip().upper().split()
+                        primeiro_op = primeiro_op[0] if primeiro_op else ""
                         if primeiro_digitado == primeiro_op:
                             op_existente = op
                             break
