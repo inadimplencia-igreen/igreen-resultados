@@ -3855,13 +3855,48 @@ def pagina_minha_conta():
             with c2: np=st.checkbox('Pleno',key='mc_op_pleno')
             with c3:
                 st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
-                if st.button('Adicionar',use_container_width=True,key='mc_op_add'):
+                if st.button('Buscar / Cadastrar',use_container_width=True,key='mc_op_add'):
                     if nn.strip():
-                        salvar_operador(eq,nn.strip(),np)
-                        buscar_operadores.clear()
-                        st.success(f"✅ {nn} adicionado com sucesso!"); st.rerun()
+                        primeiro = nn.strip().upper().split()[0]
+                        encontrado = next((op for op in get_db().operadores.find({"equipeId": {"$ne": eq}})
+                                          if op.get('nome','').strip().upper().split()[0] == primeiro), None)
+                        if encontrado:
+                            st.session_state['mc_op_busca_result'] = {'op': encontrado, 'eq': eq, 'nome': nn.strip(), 'pleno': np}
+                        else:
+                            salvar_operador(eq, nn.strip(), np)
+                            buscar_operadores.clear()
+                            st.session_state['mc_op_busca_result'] = None
+                            st.success(f"✅ {nn} cadastrado!")
+                            st.rerun()
                     else: st.error('Digite o nome.')
                 st.markdown('</div>',unsafe_allow_html=True)
+
+            # Resultado da busca — vinculação
+            if st.session_state.get('mc_op_busca_result'):
+                r = st.session_state['mc_op_busca_result']
+                st.warning(f"⚠️ **{r['op']['nome']}** já existe na equipe **{r['op'].get('equipeId','')}**.")
+                st.markdown("Quer vincular o mesmo operador (mantém histórico) ou criar novo?")
+                cv1, cv2, cv3 = st.columns(3)
+                with cv1:
+                    if st.button("🔗 Vincular", key="mc_op_vincular", use_container_width=True):
+                        novo_id = f"{r['op']['_id']}-{r['eq']}"
+                        get_db().operadores.update_one(
+                            {"_id": novo_id},
+                            {"$set": {"nome": r['op']['nome'], "equipeId": r['eq'], "pleno": r['pleno'], "vinculadoA": r['op']['_id']}},
+                            upsert=True)
+                        buscar_operadores.clear()
+                        st.session_state['mc_op_busca_result'] = None
+                        st.rerun()
+                with cv2:
+                    if st.button("➕ Criar novo", key="mc_op_criar", use_container_width=True):
+                        salvar_operador(r['eq'], r['nome'], r['pleno'])
+                        buscar_operadores.clear()
+                        st.session_state['mc_op_busca_result'] = None
+                        st.rerun()
+                with cv3:
+                    if st.button("❌ Cancelar", key="mc_op_cancelar", use_container_width=True):
+                        st.session_state['mc_op_busca_result'] = None
+                        st.rerun()
             st.markdown('---')
             # Luciano: excluir Meet Call da lista
             ops_todos=buscar_operadores(eq)
