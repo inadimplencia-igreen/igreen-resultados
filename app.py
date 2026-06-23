@@ -2221,6 +2221,13 @@ def pagina_monitorias(ma):
     header_page("Monitorias","Avaliação de qualidade")
     if u["role"]=="diretor": pagina_monitorias_diretor(ma); return
     eq=seletor_equipe(u["equipe"])
+    # Botão download relatório
+    rel = gerar_relatorio_monitorias(eq, ma)
+    if rel:
+        st.download_button("⬇️ Baixar Relatório de Monitorias", rel,
+            file_name=f"monitorias_{eq}_{ma}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="dl_rel_mon")
     ops_todos=buscar_operadores(eq)
     # Luciano: mostrar só operadores iGreen (sem Meet Call) — igual Minha Conta
     ops=[op for op in ops_todos if op["nome"] not in OPERADORES_MEETCALL] if eq=="luciano" else ops_todos
@@ -4122,5 +4129,4 @@ def main():
 # deploy: 2026-06-05-v3
 if __name__=="__main__":
     main()
-
 
