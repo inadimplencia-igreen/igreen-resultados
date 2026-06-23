@@ -464,7 +464,13 @@ def salvar_monitoria(eq, oid, onome, prot, obs, crits, erros, nota, ma, semana=N
     ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
     get_db().monitorias.insert_one({"_id":f"mon__{eq}__{oid}__{ts}","equipeId":eq,"opId":oid,"opNome":onome,"protocolo":prot,"observacao":obs,"criterios":crits,"errosCriticos":erros,"nota":nota,"mesAno":ma,"semana_mon":semana,"tipo":tipo,"criadoEm":datetime.now()})
 
-def buscar_monitorias_operador(oid): return list(get_db().monitorias.find({"opId":oid}).sort("criadoEm",-1))
+def buscar_monitorias_operador(oid):
+    # Buscar monitorias pelo opId — se tiver vinculadoA, busca pelo original também
+    op_doc = get_db().operadores.find_one({"_id": oid})
+    ids_busca = [oid]
+    if op_doc and op_doc.get('vinculadoA'):
+        ids_busca.append(op_doc['vinculadoA'])
+    return list(get_db().monitorias.find({"opId": {"$in": ids_busca}}).sort("criadoEm",-1))
 
 def buscar_monitorias_equipe(eq, ma=None):
     f = {"equipeId":eq}
@@ -1229,9 +1235,18 @@ def pagina_operadores():
         col_v1, col_v2 = st.columns(2)
         with col_v1:
             if st.button("🔗 Vincular mesmo operador", use_container_width=True, key="btn_vincular_op"):
+                # Criar novo documento com mesmo _id mas equipeId da nova equipe
+                novo_id = f"{op_v['op']['_id']}-{op_v['eq']}"
                 get_db().operadores.update_one(
-                    {"_id": op_v['op']['_id']},
-                    {"$set": {"equipeId": op_v['eq']}}
+                    {"_id": novo_id},
+                    {"$set": {
+                        "_id": novo_id,
+                        "nome": op_v['op']['nome'],
+                        "equipeId": op_v['eq'],
+                        "pleno": op_v['pleno'],
+                        "vinculadoA": op_v['op']['_id']  # referência ao original
+                    }},
+                    upsert=True
                 )
                 buscar_operadores.cache_clear()
                 st.session_state['op_vincular'] = None
