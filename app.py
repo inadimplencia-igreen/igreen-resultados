@@ -2143,6 +2143,7 @@ def gerar_relatorio_monitorias(eq, ma):
     # Dados por operador
     row = 3
     medias_semana = {s: [] for s in semanas}
+    todas_notas_equipe = []  # todas as notas brutas da equipe para média geral
 
     for oid, info in sorted(dados.items(), key=lambda x: x[1]['nome']):
         ws[f"A{row}"] = info['nome']
@@ -2150,7 +2151,7 @@ def gerar_relatorio_monitorias(eq, ma):
         if row % 2 == 0:
             ws[f"A{row}"].fill = PatternFill("solid", start_color=cinza)
 
-        notas_op = []
+        notas_brutas_op = []  # notas brutas do operador para média real
         for i, sem in enumerate(semanas):
             col = i + 2
             letra = get_column_letter(col)
@@ -2160,19 +2161,20 @@ def gerar_relatorio_monitorias(eq, ma):
                 ws[f"{letra}{row}"] = f"{int(round(media))}%"
                 ws[f"{letra}{row}"].alignment = Alignment(horizontal="center")
                 ws[f"{letra}{row}"].fill = PatternFill("solid", start_color=cores_semanas[i])
-                notas_op.append(media)
+                notas_brutas_op.extend(notas)
                 medias_semana[sem].append(media)
             else:
                 ws[f"{letra}{row}"] = "—"
                 ws[f"{letra}{row}"].alignment = Alignment(horizontal="center")
                 ws[f"{letra}{row}"].fill = PatternFill("solid", start_color=cores_semanas[i])
 
-        # Média do operador
-        if notas_op:
-            media_op = sum(notas_op) / len(notas_op)
+        # Média do operador — baseada em todas as notas brutas dele
+        if notas_brutas_op:
+            media_op = sum(notas_brutas_op) / len(notas_brutas_op)
             ws[f"J{row}"] = f"{int(round(media_op))}%"
             ws[f"J{row}"].font = Font(bold=True)
             ws[f"J{row}"].alignment = Alignment(horizontal="center")
+            todas_notas_equipe.extend(notas_brutas_op)
 
         row += 1
 
@@ -2181,7 +2183,6 @@ def gerar_relatorio_monitorias(eq, ma):
     ws[f"A{row}"].font = Font(bold=True, color="2D6A4F")
     ws[f"A{row}"].fill = PatternFill("solid", start_color="D8F3DC")
 
-    todas_medias = []
     for i, sem in enumerate(semanas):
         col = i + 2
         letra = get_column_letter(col)
@@ -2191,14 +2192,14 @@ def gerar_relatorio_monitorias(eq, ma):
             ws[f"{letra}{row}"].font = Font(bold=True, color="2D6A4F")
             ws[f"{letra}{row}"].fill = PatternFill("solid", start_color="D8F3DC")
             ws[f"{letra}{row}"].alignment = Alignment(horizontal="center")
-            todas_medias.append(m)
         else:
             ws[f"{letra}{row}"] = "—"
             ws[f"{letra}{row}"].fill = PatternFill("solid", start_color="D8F3DC")
             ws[f"{letra}{row}"].alignment = Alignment(horizontal="center")
 
-    if todas_medias:
-        media_geral = sum(todas_medias) / len(todas_medias)
+    # Média geral da equipe — todas as notas brutas de todos os operadores
+    if todas_notas_equipe:
+        media_geral = sum(todas_notas_equipe) / len(todas_notas_equipe)
         ws[f"J{row}"] = f"{int(round(media_geral))}%"
         ws[f"J{row}"].font = Font(bold=True, color="2D6A4F")
         ws[f"J{row}"].fill = PatternFill("solid", start_color="D8F3DC")
