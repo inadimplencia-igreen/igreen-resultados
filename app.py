@@ -2822,23 +2822,35 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         _ags_luc_det = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
 
-        # Detalhe — usa df_seg (mesmo conjunto do cálculo) expandido por boleto
-        # df_seg tem uc_cpf, agente, segundos, total_seg, proporcao, valor(total CPF)
-        # Para cada CPF, expandir pelos boletos individuais de df_pagos
+        # Detalhe — desmembra df_seg por boleto individual
+        # valor_proporcional já calculado corretamente por agente (total CPF)
+        # Para cada agente, dividir o valor_proporcional proporcionalmente entre os boletos do CPF
+        # Assim a soma do Valor Proporcional = total_luciano + total_metcool exatamente
 
         df_pagos_ord = df_pagos.copy()
         df_pagos_ord['data_pagamento'] = pd.to_datetime(df_pagos_ord['data_pagamento'], errors='coerce').dt.normalize()
-        # CPFs que estão no df_seg (inner join já aplicado no cálculo)
-        cpfs_calculo = set(df_seg['uc_cpf'].unique())
+        df_pagos_ord['valor'] = pd.to_numeric(df_pagos_ord['valor'], errors='coerce').fillna(0)
+
+        # valor total por CPF (soma de boletos) — para calcular peso de cada boleto
+        valor_total_cpf = df_pagos_ord.groupby('uc_cpf')['valor'].sum().reset_index()
+        valor_total_cpf.columns = ['uc_cpf', 'valor_total_cpf']
 
         det_rows = []
-        for cpf in cpfs_calculo:
+        for _, ag_row in df_seg.iterrows():
+            cpf = ag_row['uc_cpf']
+            agente = ag_row['agente']
+            seg = ag_row['segundos']
+            total_seg = ag_row['total_seg']
+            val_prop_agente = float(ag_row['valor_proporcional'])  # já calculado corretamente
+            empresa = 'iGreen' if str(agente).upper().strip() in _ags_luc_det else 'Meet Call'
+
             # Boletos desse CPF
             boletos_cpf = df_pagos_ord[df_pagos_ord['uc_cpf'] == cpf]
-            # Contatos desse CPF
-            contatos_cpf = df_seg[df_seg['uc_cpf'] == cpf]
-            total_seg = float(contatos_cpf['total_seg'].iloc[0]) if len(contatos_cpf) > 0 else 0
-            if total_seg == 0:
+            if boletos_cpf.empty:
+                continue
+
+            val_total = float(valor_total_cpf[valor_total_cpf['uc_cpf'] == cpf]['valor_total_cpf'].iloc[0]) if len(valor_total_cpf[valor_total_cpf['uc_cpf'] == cpf]) > 0 else 0
+            if val_total == 0:
                 continue
 
             for _, boleto in boletos_cpf.iterrows():
@@ -2846,24 +2858,22 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
                 dt_pag = boleto['data_pagamento']
                 forn = boleto.get('fornecedora', '') if 'fornecedora' in boleto.index else ''
                 uf_val = boleto.get('uf', '') if 'uf' in boleto.index else ''
-
-                for _, linha in contatos_cpf.iterrows():
-                    prop = linha['segundos'] / total_seg
-                    val_prop = valor_boleto * prop
-                    empresa = 'iGreen' if str(linha['agente']).upper().strip() in _ags_luc_det else 'Meet Call'
-                    det_rows.append({
-                        'CPF': cpf,
-                        'Agente': linha['agente'],
-                        'Fornecedora': forn,
-                        'UF': uf_val,
-                        'Empresa': empresa,
-                        'Data Pagamento': dt_pag,
-                        'Valor Boleto': valor_boleto,
-                        'Tempo': seg_to_hms_div(linha['segundos']),
-                        'Segundos Cada': int(linha['segundos']),
-                        'Segundos Totais': int(total_seg),
-                        'Valor Proporcional': round(val_prop, 2)
-                    })
+                # Peso deste boleto no total do CPF
+                peso_boleto = valor_boleto / val_total
+                val_prop_linha = val_prop_agente * peso_boleto
+                det_rows.append({
+                    'CPF': cpf,
+                    'Agente': agente,
+                    'Fornecedora': forn,
+                    'UF': uf_val,
+                    'Empresa': empresa,
+                    'Data Pagamento': dt_pag,
+                    'Valor Boleto': valor_boleto,
+                    'Tempo': seg_to_hms_div(seg),
+                    'Segundos Cada': int(seg),
+                    'Segundos Totais': int(total_seg),
+                    'Valor Proporcional': round(val_prop_linha, 2)
+                })
 
         df_seg_det = pd.DataFrame(det_rows) if det_rows else pd.DataFrame()
         if not df_seg_det.empty:
