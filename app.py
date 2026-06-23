@@ -2077,6 +2077,17 @@ def gerar_relatorio_monitorias(eq, ma):
     ops = buscar_operadores(eq)
     monitorias = buscar_monitorias_equipe(eq, ma)
 
+    # Buscar também monitorias de operadores vinculados (vinculadoA)
+    for op in ops:
+        vid = op.get('vinculadoA')
+        if vid:
+            mons_vinc = list(get_db().monitorias.find({"opId": vid, "mesAno": ma}))
+            for m in mons_vinc:
+                # Substituir opId/opNome pelo operador da equipe atual
+                m['opId'] = op['_id']
+                m['opNome'] = op['nome']
+            monitorias.extend(mons_vinc)
+
     if not monitorias:
         return None
 
@@ -2385,7 +2396,8 @@ def pagina_monitorias(ma):
                 if ultimo: st.session_state["mon_ultimo_salvo"]=ultimo
                 st.rerun()
     with t2:
-        monts2=[m for m in buscar_monitorias_equipe(eq,ma) if m["opId"]==op["_id"]]
+        monts2=buscar_monitorias_operador(op["_id"])
+        monts2=[m for m in monts2 if m.get("mesAno")==ma]
         if not monts2: st.info(f"Nenhuma monitoria para {op['nome']} em {ma.replace('-',' ')}.")
         else:
             ordem_semanas={s:i for i,s in enumerate(SEMANAS_MONITORIA)}
