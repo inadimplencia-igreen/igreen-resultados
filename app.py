@@ -2811,8 +2811,11 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
                         'boletos': int(grp['uc_cpf'].nunique())
                     }
 
-        # Montar detalhe CPF x Boleto — usa df_eleg (elegíveis) x df_int_eleg (contatos agrupados)
-        # Total Valor Proporcional bate exatamente com total_luciano + total_metcool
+        # Montar detalhe — usa df_seg (já calculado) expandido por boleto individual
+        # df_seg tem valor_proporcional correto por agente (total CPF)
+        # Expandir: para cada agente x cada boleto do CPF
+        # val_prop_linha = valor_proporcional_agente * (valor_boleto / valor_total_cpf)
+        # Soma garantida = df_seg['valor_proporcional'].sum() = total_luciano + total_metcool
 
         def seg_to_hms_div(s):
             try:
@@ -2821,59 +2824,52 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         _ags_luc_det = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
 
-        # Detalhe — por boleto, filtra contatos com data_contato <= data_pagamento
-        # df_int_eleg tem data_contato individual (antes do groupby)
-        # total bate porque todo elegível tem contato antes do pagamento
-
         df_pagos_ord = df_pagos.copy()
         df_pagos_ord['data_pagamento'] = pd.to_datetime(df_pagos_ord['data_pagamento'], errors='coerce').dt.normalize()
         df_pagos_ord['valor'] = pd.to_numeric(df_pagos_ord['valor'], errors='coerce').fillna(0)
 
-        df_int_det = df_int_eleg.copy()
-        df_int_det['data_contato'] = pd.to_datetime(df_int_det['data_contato'], errors='coerce').dt.normalize()
+        # valor total por CPF (para calcular peso de cada boleto)
+        valor_total_cpf = df_pagos_ord.groupby('uc_cpf')['valor'].sum()
 
-        # indexar contatos por CPF para performance
-        contatos_por_cpf = {cpf: grp for cpf, grp in df_int_det.groupby('uc_cpf')}
+        # indexar boletos por CPF
+        boletos_por_cpf = {cpf: grp for cpf, grp in df_pagos_ord.groupby('uc_cpf')}
 
         det_rows = []
-        for _, boleto in df_pagos_ord.iterrows():
-            cpf = boleto['uc_cpf']
-            valor_boleto = float(boleto['valor'])
-            dt_pag = boleto['data_pagamento']
-            forn = boleto.get('fornecedora','') if 'fornecedora' in boleto.index else ''
-            uf_val = boleto.get('uf','') if 'uf' in boleto.index else ''
+        for _, ag_row in df_seg.iterrows():
+            cpf = ag_row['uc_cpf']
+            agente = ag_row['agente']
+            seg = ag_row['segundos']
+            total_seg = ag_row['total_seg']
+            val_prop_agente = float(ag_row['valor_proporcional'])
+            empresa = 'iGreen' if str(agente).upper().strip() in _ags_luc_det else 'Meet Call'
 
-            todos_contatos = contatos_por_cpf.get(cpf)
-            if todos_contatos is None or todos_contatos.empty:
+            boletos_cpf = boletos_por_cpf.get(cpf)
+            if boletos_cpf is None or boletos_cpf.empty:
                 continue
 
-            # Filtrar contatos até a data do pagamento deste boleto
-            contatos_boleto = todos_contatos[todos_contatos['data_contato'] <= dt_pag]
-            if contatos_boleto.empty:
+            val_total = float(valor_total_cpf.get(cpf, 0))
+            if val_total == 0:
                 continue
 
-            total_seg = contatos_boleto['segundos'].sum()
-            if total_seg == 0:
-                continue
-
-            for _, linha in contatos_boleto.iterrows():
-                seg = linha['segundos']
-                agente = linha['agente']
-                empresa = 'iGreen' if str(agente).upper().strip() in _ags_luc_det else 'Meet Call'
-                val_prop = valor_boleto * (seg / total_seg)
+            for _, boleto in boletos_cpf.iterrows():
+                valor_boleto = float(boleto['valor'])
+                dt_pag = boleto['data_pagamento']
+                forn = boleto.get('fornecedora','') if 'fornecedora' in boleto.index else ''
+                uf_val = boleto.get('uf','') if 'uf' in boleto.index else ''
+                # Peso deste boleto = valor_boleto / valor_total_cpf
+                val_prop_linha = val_prop_agente * (valor_boleto / val_total)
                 det_rows.append({
                     'CPF': cpf,
                     'Agente': agente,
                     'Fornecedora': forn,
                     'UF': uf_val,
                     'Empresa': empresa,
-                    'Data Contato': linha['data_contato'],
                     'Data Pagamento': dt_pag,
                     'Valor Boleto': valor_boleto,
                     'Tempo': seg_to_hms_div(seg),
                     'Segundos Cada': int(seg),
                     'Segundos Totais': int(total_seg),
-                    'Valor Proporcional': round(val_prop, 2)
+                    'Valor Proporcional': round(val_prop_linha, 2)
                 })
 
         df_seg_det = pd.DataFrame(det_rows) if det_rows else pd.DataFrame()
