@@ -1226,85 +1226,57 @@ def pagina_operadores():
     u=st.session_state.usuario
     header_page("Operadores","Gerencie os operadores da equipe")
     eq=seletor_equipe(u["equipe"])
-    if 'op_vincular' not in st.session_state:
-        st.session_state['op_vincular'] = None
-    # Confirmar vinculação de operador existente — antes do expander para ficar visível
-    if st.session_state['op_vincular'] is not None:
-        op_v = st.session_state['op_vincular']
-        st.warning(f"⚠️ **{op_v['op']['nome']}** já está cadastrado em outra equipe. Vincular o mesmo (mantém histórico) ou criar novo?")
-        col_v1, col_v2 = st.columns(2)
-        with col_v1:
-            if st.button("🔗 Vincular mesmo operador", use_container_width=True, key="btn_vincular_op"):
-                # Criar novo documento com mesmo _id mas equipeId da nova equipe
-                novo_id = f"{op_v['op']['_id']}-{op_v['eq']}"
-                get_db().operadores.update_one(
-                    {"_id": novo_id},
-                    {"$set": {
-                        "_id": novo_id,
-                        "nome": op_v['op']['nome'],
-                        "equipeId": op_v['eq'],
-                        "pleno": op_v['pleno'],
-                        "vinculadoA": op_v['op']['_id']  # referência ao original
-                    }},
-                    upsert=True
-                )
-                buscar_operadores.cache_clear()
-                st.session_state['op_vincular'] = None
-                st.success(f"✅ {op_v['op']['nome']} vinculado!")
-                st.rerun()
-        with col_v2:
-            if st.button("➕ Criar novo operador", use_container_width=True, key="btn_criar_novo_op"):
-                salvar_operador(op_v['eq'], op_v['op']['nome'], op_v['pleno'])
-                buscar_operadores.cache_clear()
-                st.session_state['op_vincular'] = None
-                st.success(f"✅ Novo operador criado!")
-                st.rerun()
+
 
     with st.expander("Cadastrar Novo Operador",expanded=False):
         c1,c2,c3=st.columns([3,1,1])
-        with c1: nn=st.text_input("Nome",placeholder="Nome completo", key="input_nome_op")
-        with c2: np=st.checkbox("Pleno", key="check_pleno_op")
+        with c1: nn=st.text_input("Nome",placeholder="Nome completo", key="op_nome_input")
+        with c2: np_op=st.checkbox("Pleno", key="op_pleno_input")
         with c3:
             st.markdown("<div style='margin-top:28px'>",unsafe_allow_html=True)
-            if st.button("Cadastrar",use_container_width=True, key="btn_cadastrar_op"):
+            if st.button("Buscar / Cadastrar", use_container_width=True, key="op_buscar_btn"):
                 if nn.strip():
-                    # Buscar em outras equipes
-                    todos_ops = list(get_db().operadores.find({"equipeId": {"$ne": eq}}))
-                    primeiro_digitado = nn.strip().upper().split()[0]
-                    op_existente = next((op for op in todos_ops if op.get('nome','').strip().upper().split()[0] == primeiro_digitado), None)
-                    if op_existente:
-                        st.session_state['op_vincular'] = {'op': op_existente, 'eq': eq, 'pleno': np}
+                    primeiro = nn.strip().upper().split()[0]
+                    encontrado = next((op for op in get_db().operadores.find({"equipeId": {"$ne": eq}}) 
+                                      if op.get('nome','').strip().upper().split()[0] == primeiro), None)
+                    if encontrado:
+                        st.session_state['op_busca_result'] = {'op': encontrado, 'eq': eq, 'nome': nn.strip(), 'pleno': np_op}
                     else:
-                        salvar_operador(eq,nn.strip(),np)
+                        salvar_operador(eq, nn.strip(), np_op)
                         buscar_operadores.cache_clear()
-                        st.session_state['op_vincular'] = None
+                        st.session_state['op_busca_result'] = None
+                        st.success(f"✅ {nn} cadastrado!")
+                        st.rerun()
                 else:
                     st.error("Digite o nome.")
             st.markdown("</div>",unsafe_allow_html=True)
-        
-        # Confirmação dentro do expander
-        if st.session_state.get('op_vincular'):
-            op_v = st.session_state['op_vincular']
-            st.warning(f"⚠️ **{op_v['op']['nome']}** já existe em outra equipe. Vincular (mantém histórico) ou criar novo?")
-            col_v1, col_v2 = st.columns(2)
-            with col_v1:
-                if st.button("🔗 Vincular", use_container_width=True, key="btn_vincular_op"):
-                    novo_id = f"{op_v['op']['_id']}-{op_v['eq']}"
+
+        # Resultado da busca — dentro do expander, sem rerun
+        if st.session_state.get('op_busca_result'):
+            r = st.session_state['op_busca_result']
+            st.warning(f"⚠️ **{r['op']['nome']}** já existe na equipe **{r['op'].get('equipeId','')}**.")
+            st.markdown("Quer vincular o mesmo operador (mantém histórico de monitorias) ou criar um novo?")
+            cv1, cv2, cv3 = st.columns(3)
+            with cv1:
+                if st.button("🔗 Vincular", key="op_vincular_btn", use_container_width=True):
+                    novo_id = f"{r['op']['_id']}-{r['eq']}"
                     get_db().operadores.update_one(
                         {"_id": novo_id},
-                        {"$set": {"nome": op_v['op']['nome'], "equipeId": op_v['eq'], "pleno": op_v['pleno'], "vinculadoA": op_v['op']['_id']}},
+                        {"$set": {"nome": r['op']['nome'], "equipeId": r['eq'], "pleno": r['pleno'], "vinculadoA": r['op']['_id']}},
                         upsert=True
                     )
                     buscar_operadores.cache_clear()
-                    st.session_state['op_vincular'] = None
-                    st.success(f"✅ {op_v['op']['nome']} vinculado!")
+                    st.session_state['op_busca_result'] = None
                     st.rerun()
-            with col_v2:
-                if st.button("➕ Criar novo", use_container_width=True, key="btn_criar_novo_op"):
-                    salvar_operador(op_v['eq'], op_v['op']['nome'], op_v['pleno'])
+            with cv2:
+                if st.button("➕ Criar novo", key="op_criar_btn", use_container_width=True):
+                    salvar_operador(r['eq'], r['nome'], r['pleno'])
                     buscar_operadores.cache_clear()
-                    st.session_state['op_vincular'] = None
-                    st.success(f"✅ Novo operador criado!")
+                    st.session_state['op_busca_result'] = None
+                    st.rerun()
+            with cv3:
+                if st.button("❌ Cancelar", key="op_cancelar_btn", use_container_width=True):
+                    st.session_state['op_busca_result'] = None
                     st.rerun()
 
 
