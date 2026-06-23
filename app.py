@@ -591,24 +591,26 @@ def buscar_senha_usuario(uid):
     return None
 
 def salvar_historico_processamento(mes_ano, equipe_id, usuario_nome, df):
-    ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
-    doc_id = f"hist_proc__{mes_ano}__{equipe_id}__{ts}"
+    doc_id = f"hist_proc__{mes_ano}__{equipe_id}"
     df_num = df.copy()
     df_num["valor"] = pd.to_numeric(df_num.get("valor", pd.Series(dtype=float)), errors="coerce").fillna(0)
     elig = df_num[df_num["elegibilidade"]=="Elegível"] if "elegibilidade" in df_num.columns else df_num
     fornecedoras = sorted(df_num["fornecedora"].dropna().unique().tolist()) if "fornecedora" in df_num.columns else []
-    get_db().historico_processamentos.insert_one({
-        "_id": doc_id,
-        "mesAno": mes_ano,
-        "equipeId": equipe_id,
-        "usuarioNome": usuario_nome,
-        "fornecedoras": fornecedoras,
-        "totalBoletos": len(df_num),
-        "boletosElegiveis": len(elig),
-        "valorElegivel": float(elig["valor"].sum()),
-        "valorTotal": float(df_num["valor"].sum()),
-        "criadoEm": datetime.now()
-    })
+    get_db().historico_processamentos.update_one(
+        {"_id": doc_id},
+        {"$set": {
+            "_id": doc_id,
+            "mesAno": mes_ano,
+            "equipeId": equipe_id,
+            "usuarioNome": usuario_nome,
+            "fornecedoras": fornecedoras,
+            "totalBoletos": len(df_num),
+            "boletosElegiveis": len(elig),
+            "valorElegivel": float(elig["valor"].sum()),
+            "valorTotal": float(df_num["valor"].sum()),
+            "criadoEm": datetime.now()
+        }},
+        upsert=True)
 
 def buscar_historico_geral(mes_ano=None, equipe_id=None):
     filtro = {}
@@ -2945,7 +2947,11 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
             except: return "00:00:00"
 
         # Detalhe — vetorizado apenas aqui (não afeta o cálculo)
-        df_boletos = df_eleg[['uc_cpf','valor','data_pagamento']].copy()
+        # Incluir fornecedora e UF do df_eleg
+        cols_boleto = ['uc_cpf','valor','data_pagamento']
+        if 'fornecedora' in df_eleg.columns: cols_boleto.append('fornecedora')
+        if 'uf' in df_eleg.columns: cols_boleto.append('uf')
+        df_boletos = df_eleg[cols_boleto].copy()
         df_boletos['data_pagamento'] = pd.to_datetime(df_boletos['data_pagamento'], errors='coerce').dt.normalize()
 
         df_todos_int = df_int.copy()
@@ -2967,13 +2973,27 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
             if r['elegivel_boleto'] and r['total_seg_det'] > 0 else 0, axis=1
         )
         df_det['Tempo'] = df_det['segundos'].apply(seg_to_hms)
-        df_det = df_det.rename(columns={
+        # Empresa — iGreen ou Meet Call baseado no agente
+        _ags_luc = ['JHENIFFER','MARCOS','JUNIOR','CAMILA','HEVERTON','MARIA','LORENZZO','GRASIELLE','DIOGO','MICHELLE','KETLE','EMANUEL','EDUARDA','GABRIELLE','VICTORIA','CAUA','PAULO','SAMIRES','JENNIFER','LUCIANO','MAYCOW','LAURA']
+        df_det['Empresa'] = df_det['agente'].str.upper().str.strip().apply(
+            lambda a: 'iGreen' if any(a.startswith(ag) for ag in _ags_luc) else 'Meet Call'
+        )
+        rename_map = {
             'uc_cpf':'CPF','agente':'Agente','data_contato':'Data Contato',
             'data_pagamento':'Data Pagamento','valor':'Valor Boleto',
             'segundos':'Segundos Cada','total_seg_det':'Segundos Totais (até dt pag)',
             'val_prop_det':'Valor Proporcional'
-        })
-        df_detalhe = df_det[['CPF','Agente','Data Contato','Data Pagamento','Valor Boleto','Tempo','Segundos Cada','Segundos Totais (até dt pag)','Valor Proporcional']]
+        }
+        if 'fornecedora' in df_det.columns: rename_map['fornecedora'] = 'Fornecedora'
+        if 'uf' in df_det.columns: rename_map['uf'] = 'UF'
+        df_det = df_det.rename(columns=rename_map)
+        df_det['Tempo'] = df_det['Tempo'] if 'Tempo' in df_det.columns else '00:00:00'
+        # Montar colunas finais na ordem certa
+        cols_det = ['CPF','Agente','Data Contato','Data Pagamento']
+        if 'Fornecedora' in df_det.columns: cols_det.append('Fornecedora')
+        if 'UF' in df_det.columns: cols_det.append('UF')
+        cols_det += ['Empresa','Valor Boleto','Tempo','Segundos Cada','Segundos Totais (até dt pag)','Valor Proporcional']
+        df_detalhe = df_det[[c for c in cols_det if c in df_det.columns]]
 
         # Aba 2 — Pagos elegíveis
         df_eleg_out = df_eleg.copy()
