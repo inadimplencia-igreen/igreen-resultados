@@ -2772,17 +2772,28 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         df_int_eleg = df_int[df_int['uc_cpf'].isin(df_pagos['uc_cpf'].unique())].copy()
         df_int_eleg['agente'] = df_int_eleg['agente'].fillna('DESCONHECIDO').replace('', 'DESCONHECIDO').replace('NAN', 'DESCONHECIDO')
+        df_int_eleg['data_contato'] = pd.to_datetime(df_int_eleg['data_contato'], errors='coerce').dt.normalize() if 'data_contato' in df_int_eleg.columns else pd.NaT
 
         # Valor total por CPF — soma de todos os boletos elegíveis
         df_valor = df_pagos.groupby('uc_cpf')['valor'].sum().reset_index()
         df_valor.columns = ['uc_cpf', 'valor_total_cpf']
 
-        # Total de segundos por CPF — soma de TODAS as linhas individuais
-        df_seg_total = df_int_eleg.groupby('uc_cpf')['segundos'].sum().reset_index()
+        # Filtrar só contatos válidos: data_contato <= data_pagamento_maximo do CPF
+        dt_max_pag = df_pagos.copy()
+        dt_max_pag['data_pagamento'] = pd.to_datetime(dt_max_pag['data_pagamento'], errors='coerce').dt.normalize()
+        dt_max_map = dt_max_pag.groupby('uc_cpf')['data_pagamento'].max()
+        if 'data_contato' in df_int_eleg.columns:
+            df_int_eleg['dt_max_pag'] = df_int_eleg['uc_cpf'].map(dt_max_map)
+            df_int_validos = df_int_eleg[df_int_eleg['data_contato'] <= df_int_eleg['dt_max_pag']].copy()
+        else:
+            df_int_validos = df_int_eleg.copy()
+
+        # Total de segundos por CPF — só contatos válidos
+        df_seg_total = df_int_validos.groupby('uc_cpf')['segundos'].sum().reset_index()
         df_seg_total.columns = ['uc_cpf', 'total_seg']
 
-        # Merge partindo de df_int_eleg — cada linha de contato recebe valor_total_cpf e total_seg
-        df_seg = df_int_eleg.merge(df_valor, on='uc_cpf', how='inner')
+        # Merge partindo de df_int_validos — cada linha válida recebe valor_total_cpf e total_seg
+        df_seg = df_int_validos.merge(df_valor, on='uc_cpf', how='inner')
         df_seg = df_seg.merge(df_seg_total, on='uc_cpf', how='left')
         df_seg = df_seg.dropna(subset=['total_seg','valor_total_cpf'])
         df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
