@@ -2789,16 +2789,27 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             df_int_eleg, on='uc_cpf', how='inner'
         )
         # Filtrar: excluir contatos que vieram depois do pagamento daquele boleto
-        df_cross = df_cross[df_cross['data_contato'] <= df_cross['data_pagamento']].copy()
+        df_cross_validos = df_cross[df_cross['data_contato'] <= df_cross['data_pagamento']].copy()
 
-        # Seg Totais por boleto (CPF + data_pagamento)
-        seg_tot = df_cross.groupby(['uc_cpf','data_pagamento'])['segundos'].sum().reset_index()
+        # Seg Totais por boleto (CPF + data_pagamento) — só contatos válidos
+        seg_tot = df_cross_validos.groupby(['uc_cpf','data_pagamento'])['segundos'].sum().reset_index()
         seg_tot.columns = ['uc_cpf','data_pagamento','total_seg']
-        df_cross = df_cross.merge(seg_tot, on=['uc_cpf','data_pagamento'], how='left')
-        df_cross = df_cross[df_cross['total_seg'] > 0].copy()
-        # Valor Proporcional = valor_boleto * (seg_cada / seg_totais_boleto)
-        df_cross['valor_proporcional'] = df_cross['valor'] * (df_cross['segundos'] / df_cross['total_seg'])
-        df_seg = df_cross
+        df_cross_validos = df_cross_validos.merge(seg_tot, on=['uc_cpf','data_pagamento'], how='left')
+        df_cross_validos = df_cross_validos[df_cross_validos['total_seg'] > 0].copy()
+
+        # Boletos sem contato válido — usar primeiro contato do CPF (que tornou o boleto elegível)
+        boletos_com_contato = set(zip(df_cross_validos['uc_cpf'], df_cross_validos['data_pagamento'].astype(str)))
+        df_cross_sem = df_cross[~df_cross.apply(lambda r: (r['uc_cpf'], str(r['data_pagamento'])) in boletos_com_contato, axis=1)].copy()
+        if not df_cross_sem.empty:
+            # Para boletos sem contato, usar o primeiro contato do CPF
+            primeiro_contato = df_cross.groupby('uc_cpf').apply(lambda x: x.nsmallest(1, 'data_contato')).reset_index(drop=True)
+            df_cross_sem2 = df_pagos[~df_pagos.apply(lambda r: (r['uc_cpf'], str(r['data_pagamento'])) in boletos_com_contato, axis=1)].copy()
+            df_cross_sem2 = df_cross_sem2.merge(primeiro_contato[['uc_cpf','agente','data_contato','segundos','meio']], on='uc_cpf', how='inner')
+            df_cross_sem2['total_seg'] = df_cross_sem2['segundos']
+            df_cross_validos = pd.concat([df_cross_validos, df_cross_sem2], ignore_index=True)
+
+        df_cross_validos['valor_proporcional'] = df_cross_validos['valor'] * (df_cross_validos['segundos'] / df_cross_validos['total_seg'])
+        df_seg = df_cross_validos
 
                 # 5. Separar Luciano vs Amitycall
         df_seg['equipe'] = df_seg['agente'].apply(
