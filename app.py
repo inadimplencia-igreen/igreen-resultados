@@ -2840,52 +2840,34 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         _ags_luc_det = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
 
-        df_pagos_ord = df_pagos.copy()
-        df_pagos_ord['data_pagamento'] = pd.to_datetime(df_pagos_ord['data_pagamento'], errors='coerce').dt.normalize()
-        df_pagos_ord['valor'] = pd.to_numeric(df_pagos_ord['valor'], errors='coerce').fillna(0)
-
-        boletos_por_cpf = {cpf: grp for cpf, grp in df_pagos_ord.groupby('uc_cpf')}
-
-        det_rows = []
-        for _, linha in df_seg.iterrows():
-            cpf = linha['uc_cpf']
-            agente = linha['agente']
-            seg = linha['segundos']
-            total_seg = linha['total_seg']
-            val_prop_linha = float(linha['valor_proporcional'])
-            val_total_cpf = float(linha['valor_total_cpf'])
-            empresa = 'iGreen' if str(agente).upper().strip() in _ags_luc_det else 'Meet Call'
-            dt_contato = linha.get('data_contato', None) if 'data_contato' in linha.index else None
-
-            boletos_cpf = boletos_por_cpf.get(cpf)
-            if boletos_cpf is None or boletos_cpf.empty or val_total_cpf == 0:
-                continue
-
-            for _, boleto in boletos_cpf.iterrows():
-                valor_boleto = float(boleto['valor'])
-                dt_pag = boleto['data_pagamento']
-                forn = boleto.get('fornecedora','') if 'fornecedora' in boleto.index else ''
-                uf_val = boleto.get('uf','') if 'uf' in boleto.index else ''
-                val_prop_boleto = val_prop_linha * (valor_boleto / val_total_cpf)
-                det_rows.append({
-                    'CPF': cpf,
-                    'Agente': agente,
-                    'Fornecedora': forn,
-                    'UF': uf_val,
-                    'Empresa': empresa,
-                    'Data Contato': dt_contato,
-                    'Data Pagamento': dt_pag,
-                    'Valor Boleto': valor_boleto,
-                    'Tempo': seg_to_hms_div(seg),
-                    'Segundos Cada': int(seg),
-                    'Segundos Totais': int(total_seg),
-                    'Valor Proporcional': round(val_prop_boleto, 2)
-                })
-
-        df_seg_det = pd.DataFrame(det_rows) if det_rows else pd.DataFrame()
-        if not df_seg_det.empty:
-            cols_det = ['CPF','Agente','Fornecedora','UF','Empresa','Data Contato','Data Pagamento','Valor Boleto','Tempo','Segundos Cada','Segundos Totais','Valor Proporcional']
-            df_seg_det = df_seg_det[[c for c in cols_det if c in df_seg_det.columns]]
+        # Detalhe — usar df_seg diretamente (já tem valor_proporcional por boleto)
+        df_seg_det = df_seg.copy()
+        df_seg_det['Empresa'] = df_seg_det['agente'].apply(
+            lambda a: 'iGreen' if str(a).upper().strip() in _ags_luc_det else 'Meet Call'
+        )
+        df_seg_det['Tempo'] = df_seg_det['segundos'].apply(seg_to_hms_div)
+        # Adicionar fornecedora e UF do df_pagos
+        cols_extra = ['uc_cpf','data_pagamento']
+        if 'fornecedora' in df_pagos.columns: cols_extra.append('fornecedora')
+        if 'uf' in df_pagos.columns: cols_extra.append('uf')
+        df_seg_det = df_seg_det.merge(
+            df_pagos[cols_extra].drop_duplicates(['uc_cpf','data_pagamento']),
+            on=['uc_cpf','data_pagamento'], how='left'
+        )
+        rename_map = {
+            'uc_cpf':'CPF','agente':'Agente','data_contato':'Data Contato',
+            'data_pagamento':'Data Pagamento','valor':'Valor Boleto',
+            'segundos':'Segundos Cada','total_seg':'Segundos Totais',
+            'valor_proporcional':'Valor Proporcional'
+        }
+        if 'fornecedora' in df_seg_det.columns: rename_map['fornecedora'] = 'Fornecedora'
+        if 'uf' in df_seg_det.columns: rename_map['uf'] = 'UF'
+        df_seg_det = df_seg_det.rename(columns=rename_map)
+        cols_det = ['CPF','Agente']
+        if 'Fornecedora' in df_seg_det.columns: cols_det.append('Fornecedora')
+        if 'UF' in df_seg_det.columns: cols_det.append('UF')
+        cols_det += ['Empresa','Data Contato','Data Pagamento','Valor Boleto','Tempo','Segundos Cada','Segundos Totais','Valor Proporcional']
+        df_seg_det = df_seg_det[[c for c in cols_det if c in df_seg_det.columns]]
 
         resultado = {
             'total_luciano': total_luciano,
