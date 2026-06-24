@@ -2781,22 +2781,26 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         df_seg_total = df_int_eleg.groupby('uc_cpf')['segundos'].sum().reset_index()
         df_seg_total.columns = ['uc_cpf', 'total_seg']
 
-        # Expandir: cruzar cada boleto com cada contato do CPF (igual ao Power Query/Excel)
-        # Seg Totais por boleto = soma de todos os contatos daquele CPF (sem filtro de data)
+        # Expandir boletos x contatos — igual ao Excel/Power Query
+        # valor_proporcional = valor_total_cpf * (seg_cada / seg_totais_por_boleto)
+        # Total sempre bate porque soma de proporcoes = 1 por boleto
         df_pagos_exp = df_pagos.copy()
         df_pagos_exp['data_pagamento'] = pd.to_datetime(df_pagos_exp['data_pagamento'], errors='coerce').dt.normalize()
+        df_pagos_exp['valor'] = pd.to_numeric(df_pagos_exp['valor'], errors='coerce').fillna(0)
+
+        # Cruzar cada boleto com cada contato do CPF
         df_seg = df_pagos_exp[['uc_cpf','valor','data_pagamento']].merge(
             df_int_eleg, on='uc_cpf', how='inner'
         )
+        # Seg Totais por CPF+boleto = soma de todos os contatos (sem filtro de data)
         seg_tot_exp = df_seg.groupby(['uc_cpf','data_pagamento'])['segundos'].sum().reset_index()
         seg_tot_exp.columns = ['uc_cpf','data_pagamento','total_seg']
         df_seg = df_seg.merge(seg_tot_exp, on=['uc_cpf','data_pagamento'], how='left')
-        df_seg = df_seg.dropna(subset=['total_seg'])
-        df_seg = df_seg[df_seg['total_seg'] > 0].copy()
-        # valor_total_cpf = soma de todos os boletos do CPF
-        df_seg = df_seg.merge(df_valor.rename(columns={'valor_total_cpf':'valor_total_cpf'}), on='uc_cpf', how='left')
+        df_seg = df_seg.merge(df_valor, on='uc_cpf', how='left')
+        df_seg = df_seg[df_seg['total_seg'] > 0].dropna(subset=['total_seg','valor_total_cpf']).copy()
         df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
-        df_seg['valor_proporcional'] = df_seg['valor'] * df_seg['proporcao']
+        # valor_proporcional = valor_total_cpf * proporcao (não valor do boleto individual)
+        df_seg['valor_proporcional'] = df_seg['valor_total_cpf'] * df_seg['proporcao']
 
         # 5. Separar Luciano vs Amitycall
         df_seg['equipe'] = df_seg['agente'].apply(
@@ -2996,8 +3000,8 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         df_valor_cpf['data_pagamento'] = pd.to_datetime(df_valor_cpf['data_pagamento'], errors='coerce').dt.normalize()
 
         # Expandir: cruzar cada boleto com cada contato do CPF (igual ao Power Query)
-        # Seg Totais por boleto = soma de segundos de todos os contatos daquele CPF
-        # (igual SOMASES só por CPF no Excel — sem filtro de data)
+        # Seg Totais por CPF+boleto = soma de todos os contatos (sem filtro de data)
+        valor_total_map = df_valor_cpf.groupby('uc_cpf')['valor'].sum()
         df_expand = df_valor_cpf[['uc_cpf','valor','data_pagamento']].merge(
             df_int_todos, on='uc_cpf', how='inner'
         )
@@ -3005,7 +3009,9 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         seg_tot.columns = ['uc_cpf','data_pagamento','total_seg']
         df_expand = df_expand.merge(seg_tot, on=['uc_cpf','data_pagamento'], how='left')
         df_expand = df_expand[df_expand['total_seg'] > 0].copy()
-        df_expand['valor_proporcional'] = df_expand['valor'] * (df_expand['segundos'] / df_expand['total_seg'])
+        df_expand['valor_total_cpf'] = df_expand['uc_cpf'].map(valor_total_map)
+        # valor_proporcional = valor_total_cpf * (seg_cada / seg_totais) — total sempre bate
+        df_expand['valor_proporcional'] = df_expand['valor_total_cpf'] * (df_expand['segundos'] / df_expand['total_seg'])
 
         if df_expand.empty:
             return None, "Nenhum resultado calculado."
