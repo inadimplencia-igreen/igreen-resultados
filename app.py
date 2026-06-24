@@ -2785,11 +2785,14 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         # Seg Totais = soma só dos contatos válidos por CPF
         # Total bate porque valor_total_cpf é fixo e soma(proporcao) = 1
         # Divisão proporcional por boleto individual
-        # Cada boleto tem seu conjunto de agentes elegíveis (data_contato <= data_pagamento_boleto)
-        # Seg Totais por boleto = soma dos segundos elegíveis daquele boleto
+        # Para cada boleto: agentes elegíveis = data_contato <= data_pagamento do boleto
+        # Seg Totais por boleto = soma dos segundos dos agentes elegíveis daquele boleto
         # Valor Proporcional = valor_boleto * (seg_cada / seg_totais_boleto)
-        # Total bate porque cada boleto é dividido 100% entre seus agentes
+        # Total bate porque cada boleto é dividido 100% entre seus agentes elegíveis
         df_int_eleg['data_contato'] = pd.to_datetime(df_int_eleg['data_contato'], errors='coerce').dt.normalize() if 'data_contato' in df_int_eleg.columns else pd.NaT
+        df_pagos['uc_cpf'] = df_pagos['uc_cpf'].apply(normalizar_cpf)
+        df_int_eleg['uc_cpf'] = df_int_eleg['uc_cpf'].apply(normalizar_cpf)
+
         df_pagos_exp = df_pagos.copy()
         df_pagos_exp['data_pagamento'] = pd.to_datetime(df_pagos_exp['data_pagamento'], errors='coerce').dt.normalize()
         df_pagos_exp['valor'] = pd.to_numeric(df_pagos_exp['valor'], errors='coerce').fillna(0)
@@ -2798,11 +2801,11 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         df_cross = df_pagos_exp[['uc_cpf','valor','data_pagamento']].merge(
             df_int_eleg, on='uc_cpf', how='inner'
         )
-        # Filtrar: só contatos válidos para cada boleto
+        # Filtrar: só contatos elegíveis para cada boleto
         if 'data_contato' in df_cross.columns:
             df_cross = df_cross[df_cross['data_contato'] <= df_cross['data_pagamento']].copy()
 
-        # Seg Totais por boleto (CPF+data_pagamento)
+        # Seg Totais por boleto (CPF + data_pagamento)
         seg_tot = df_cross.groupby(['uc_cpf','data_pagamento'])['segundos'].sum().reset_index()
         seg_tot.columns = ['uc_cpf','data_pagamento','total_seg']
         df_cross = df_cross.merge(seg_tot, on=['uc_cpf','data_pagamento'], how='left')
@@ -3011,6 +3014,11 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         # Filtrar só contatos válidos (data_contato <= data_pagamento) antes de calcular seg_totais
         valor_total_map = df_valor_cpf.groupby('uc_cpf')['valor'].sum()
         # Divisão proporcional por boleto individual — mesma lógica do Luciano
+        df_eleg['uc_cpf'] = df_eleg['uc_cpf'].apply(normalizar_cpf)
+        df_int['uc_cpf'] = df_int['uc_cpf'].apply(normalizar_cpf)
+        df_int_todos['uc_cpf'] = df_int_todos['uc_cpf'].apply(normalizar_cpf)
+
+        df_valor_cpf['data_pagamento'] = pd.to_datetime(df_valor_cpf['data_pagamento'], errors='coerce').dt.normalize()
         df_cross_at = df_valor_cpf[['uc_cpf','valor','data_pagamento']].merge(
             df_int_todos, on='uc_cpf', how='inner'
         )
