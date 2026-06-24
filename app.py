@@ -2784,9 +2784,11 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         # Divisão proporcional por boleto individual
         # Para cada boleto: agentes elegíveis = data_contato <= data_pagamento do boleto
+        # Contatos não elegíveis são excluídos — boletos nunca somem
         df_cross = df_pagos[['uc_cpf','valor','data_pagamento']].merge(
             df_int_eleg, on='uc_cpf', how='inner'
         )
+        # Filtrar: excluir contatos que vieram depois do pagamento daquele boleto
         df_cross = df_cross[df_cross['data_contato'] <= df_cross['data_pagamento']].copy()
 
         # Seg Totais por boleto (CPF + data_pagamento)
@@ -2794,10 +2796,11 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         seg_tot.columns = ['uc_cpf','data_pagamento','total_seg']
         df_cross = df_cross.merge(seg_tot, on=['uc_cpf','data_pagamento'], how='left')
         df_cross = df_cross[df_cross['total_seg'] > 0].copy()
+        # Valor Proporcional = valor_boleto * (seg_cada / seg_totais_boleto)
         df_cross['valor_proporcional'] = df_cross['valor'] * (df_cross['segundos'] / df_cross['total_seg'])
         df_seg = df_cross
 
-        # 5. Separar Luciano vs Amitycall
+                # 5. Separar Luciano vs Amitycall
         df_seg['equipe'] = df_seg['agente'].apply(
             lambda a: 'luciano' if str(a).upper().strip() in AGENTES_LUCIANO else 'metcool'
         )
