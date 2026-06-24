@@ -2781,11 +2781,24 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         df_seg_total = df_int_eleg.groupby('uc_cpf')['segundos'].sum().reset_index()
         df_seg_total.columns = ['uc_cpf', 'total_seg']
 
-        # Uma linha por contato — valor_total_cpf × (seg_cada / seg_totais_cpf)
-        # Seg Totais = soma de todos os segundos do CPF (sem filtro de data)
-        # Total bate porque soma(seg_cada/seg_totais) = 1 por CPF
-        df_seg = df_int_eleg.merge(df_valor, on='uc_cpf', how='inner')
-        df_seg = df_seg.merge(df_seg_total, on='uc_cpf', how='left')
+        # Uma linha por contato válido (data_contato <= data_pagamento)
+        # Seg Totais = soma só dos contatos válidos por CPF
+        # Total bate porque valor_total_cpf é fixo e soma(proporcao) = 1
+        df_pagos_ref = df_pagos[['uc_cpf','data_pagamento']].copy()
+        df_pagos_ref['data_pagamento'] = pd.to_datetime(df_pagos_ref['data_pagamento'], errors='coerce').dt.normalize()
+        # Primeiro contato válido por CPF = mínimo data_contato que é <= alguma data_pagamento
+        df_int_eleg['data_contato'] = pd.to_datetime(df_int_eleg['data_contato'], errors='coerce').dt.normalize() if 'data_contato' in df_int_eleg.columns else pd.NaT
+        # Cruzar contatos com pagamentos para filtrar válidos
+        if 'data_contato' in df_int_eleg.columns:
+            df_cross = df_int_eleg.merge(df_pagos_ref.drop_duplicates('uc_cpf'), on='uc_cpf', how='left')
+            df_validos = df_cross[df_cross['data_contato'] <= df_cross['data_pagamento']].copy()
+        else:
+            df_validos = df_int_eleg.copy()
+        # Seg Totais por CPF — só contatos válidos
+        seg_tot_validos = df_validos.groupby('uc_cpf')['segundos'].sum().reset_index()
+        seg_tot_validos.columns = ['uc_cpf','total_seg']
+        df_seg = df_validos.merge(df_valor, on='uc_cpf', how='inner')
+        df_seg = df_seg.merge(seg_tot_validos, on='uc_cpf', how='left')
         df_seg = df_seg.dropna(subset=['total_seg','valor_total_cpf'])
         df_seg = df_seg[df_seg['total_seg'] > 0].copy()
         df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
@@ -2988,20 +3001,27 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
         df_valor_cpf['valor'] = pd.to_numeric(df_valor_cpf['valor'], errors='coerce').fillna(0)
         df_valor_cpf['data_pagamento'] = pd.to_datetime(df_valor_cpf['data_pagamento'], errors='coerce').dt.normalize()
 
-        # Uma linha por contato — valor_total_cpf × (seg_cada / seg_totais_cpf)
+        # Filtrar só contatos válidos (data_contato <= data_pagamento) antes de calcular seg_totais
         valor_total_map = df_valor_cpf.groupby('uc_cpf')['valor'].sum()
-        total_seg_map = df_int_todos.groupby('uc_cpf')['segundos'].sum()
-        df_int_todos['valor_total_cpf'] = df_int_todos['uc_cpf'].map(valor_total_map)
-        df_int_todos['total_seg'] = df_int_todos['uc_cpf'].map(total_seg_map)
-        df_int_todos = df_int_todos.dropna(subset=['valor_total_cpf','total_seg'])
-        df_int_todos = df_int_todos[df_int_todos['total_seg'] > 0].copy()
-        df_int_todos['valor_proporcional'] = df_int_todos['valor_total_cpf'] * (df_int_todos['segundos'] / df_int_todos['total_seg'])
+        # Data de pagamento mínima por CPF (primeiro pagamento elegível)
+        dt_pag_map = df_valor_cpf.groupby('uc_cpf')['data_pagamento'].min()
+        df_int_todos['dt_pag_ref'] = df_int_todos['uc_cpf'].map(dt_pag_map)
+        if 'data_contato' in df_int_todos.columns:
+            df_int_validos = df_int_todos[df_int_todos['data_contato'] <= df_int_todos['dt_pag_ref']].copy()
+        else:
+            df_int_validos = df_int_todos.copy()
+        total_seg_map = df_int_validos.groupby('uc_cpf')['segundos'].sum()
+        df_int_validos['valor_total_cpf'] = df_int_validos['uc_cpf'].map(valor_total_map)
+        df_int_validos['total_seg'] = df_int_validos['uc_cpf'].map(total_seg_map)
+        df_int_validos = df_int_validos.dropna(subset=['valor_total_cpf','total_seg'])
+        df_int_validos = df_int_validos[df_int_validos['total_seg'] > 0].copy()
+        df_int_validos['valor_proporcional'] = df_int_validos['valor_total_cpf'] * (df_int_validos['segundos'] / df_int_validos['total_seg'])
 
-        if df_int_todos.empty:
+        if df_int_validos.empty:
             return None, "Nenhum resultado calculado."
 
         # 6. Somar por agente
-        df_result = df_int_todos.groupby('agente')['valor_proporcional'].sum().reset_index()
+        df_result = df_int_validos.groupby('agente')['valor_proporcional'].sum().reset_index()
         df_result = df_result.sort_values('valor_proporcional', ascending=False)
         df_result.columns = ['agente', 'valor']
 
