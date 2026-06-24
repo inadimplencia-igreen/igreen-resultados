@@ -2766,6 +2766,10 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             return None, "Nenhum registro elegível encontrado na base processada."
 
         # 4. Divisão proporcional — linhas individuais (sem groupby), igual ao Excel manual
+        # Normalizar CPFs dos dois lados para garantir que o merge não perde registros
+        df_pagos['uc_cpf'] = df_pagos['uc_cpf'].apply(normalizar_cpf)
+        df_int['uc_cpf'] = df_int['uc_cpf'].apply(normalizar_cpf)
+
         df_int_eleg = df_int[df_int['uc_cpf'].isin(df_pagos['uc_cpf'].unique())].copy()
         df_int_eleg['agente'] = df_int_eleg['agente'].fillna('DESCONHECIDO').replace('', 'DESCONHECIDO').replace('NAN', 'DESCONHECIDO')
 
@@ -2777,9 +2781,10 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         df_seg_total = df_int_eleg.groupby('uc_cpf')['segundos'].sum().reset_index()
         df_seg_total.columns = ['uc_cpf', 'total_seg']
 
-        # Merge: cada linha de contato recebe valor_total_cpf e total_seg
+        # Merge partindo de df_int_eleg — cada linha de contato recebe valor_total_cpf e total_seg
         df_seg = df_int_eleg.merge(df_valor, on='uc_cpf', how='inner')
-        df_seg = df_seg.merge(df_seg_total, on='uc_cpf', how='inner')
+        df_seg = df_seg.merge(df_seg_total, on='uc_cpf', how='left')
+        df_seg = df_seg.dropna(subset=['total_seg','valor_total_cpf'])
         df_seg['proporcao'] = df_seg['segundos'] / df_seg['total_seg']
         df_seg['valor_proporcional'] = df_seg['valor_total_cpf'] * df_seg['proporcao']
 
