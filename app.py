@@ -2674,6 +2674,12 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
 
         def tempo_para_segundos(t):
             try:
+                import datetime as _dt
+                # Se já é objeto time ou datetime
+                if isinstance(t, _dt.time):
+                    return t.hour*3600 + t.minute*60 + t.second
+                if isinstance(t, _dt.datetime):
+                    return t.hour*3600 + t.minute*60 + t.second
                 s = str(t).strip()
                 if ':' in s:
                     partes = s.split(':')
@@ -2681,7 +2687,11 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
                         return int(partes[0])*3600 + int(partes[1])*60 + int(partes[2])
                     elif len(partes) == 2:
                         return int(partes[0])*60 + int(partes[1])
-                return float(s)
+                # Número decimal do Excel (fração de dia) — multiplicar por 86400
+                f = float(s)
+                if 0 < f < 1:
+                    return max(1, int(round(f * 86400)))
+                return max(1, int(f))
             except:
                 return 1
 
