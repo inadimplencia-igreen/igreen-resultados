@@ -2821,8 +2821,19 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         df_seg = df_cross
 
                 # 5. Separar Luciano vs Amitycall
+        def match_dois_nomes(agente, lista):
+            a = str(agente).upper().strip()
+            palavras_a = a.split()
+            dois_a = ' '.join(palavras_a[:2]) if len(palavras_a) >= 2 else a
+            for nome in lista:
+                palavras_n = nome.upper().strip().split()
+                dois_n = ' '.join(palavras_n[:2]) if len(palavras_n) >= 2 else nome.upper()
+                if dois_a == dois_n:
+                    return True
+            return False
+
         df_seg['equipe'] = df_seg['agente'].apply(
-            lambda a: 'luciano' if str(a).upper().strip() in AGENTES_LUCIANO else 'metcool'
+            lambda a: 'luciano' if match_dois_nomes(a, AGENTES_LUCIANO) else 'metcool'
         )
 
         # Debug — agentes únicos e classificação
