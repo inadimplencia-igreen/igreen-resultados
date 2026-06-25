@@ -2676,27 +2676,28 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             try:
                 import datetime as _dt
                 import pandas as _pd
-                # Se já é objeto time
-                if isinstance(t, _dt.time):
-                    return t.hour*3600 + t.minute*60 + t.second
-                # Se é datetime ou Timestamp
-                if isinstance(t, (_dt.datetime, _pd.Timestamp)):
-                    return t.hour*3600 + t.minute*60 + t.second
-                # Se é Timedelta (pandas lê HH:MM:SS como timedelta)
+                # Se é Timedelta
                 if isinstance(t, _pd.Timedelta):
                     return max(1, int(t.total_seconds()))
+                # Se é time
+                if isinstance(t, _dt.time):
+                    return t.hour*3600 + t.minute*60 + t.second
+                # Se é Timestamp ou datetime — pegar só a parte de hora
+                if isinstance(t, (_dt.datetime, _pd.Timestamp)):
+                    return max(1, t.hour*3600 + t.minute*60 + t.second)
                 s = str(t).strip()
-                # Formato "0 days HH:MM:SS" do pandas Timedelta
+                # Formato "0 days HH:MM:SS"
                 if 'days' in s:
-                    partes = s.split(' ')
-                    s = partes[-1]
+                    s = s.split(' ')[-1]
+                # Formato "1900-01-01 HH:MM:SS" (datetime do Excel)
+                if len(s) > 8 and ' ' in s:
+                    s = s.split(' ')[-1]
                 if ':' in s:
                     partes = s.split(':')
                     if len(partes) == 3:
                         return max(1, int(partes[0])*3600 + int(partes[1])*60 + int(float(partes[2])))
                     elif len(partes) == 2:
                         return max(1, int(partes[0])*60 + int(partes[1]))
-                # Número decimal do Excel (fração de dia)
                 f = float(s)
                 if 0 < f < 1:
                     return max(1, int(round(f * 86400)))
