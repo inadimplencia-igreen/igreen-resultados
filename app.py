@@ -2675,19 +2675,28 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         def tempo_para_segundos(t):
             try:
                 import datetime as _dt
-                # Se já é objeto time ou datetime
+                import pandas as _pd
+                # Se já é objeto time
                 if isinstance(t, _dt.time):
                     return t.hour*3600 + t.minute*60 + t.second
-                if isinstance(t, _dt.datetime):
+                # Se é datetime ou Timestamp
+                if isinstance(t, (_dt.datetime, _pd.Timestamp)):
                     return t.hour*3600 + t.minute*60 + t.second
+                # Se é Timedelta (pandas lê HH:MM:SS como timedelta)
+                if isinstance(t, _pd.Timedelta):
+                    return max(1, int(t.total_seconds()))
                 s = str(t).strip()
+                # Formato "0 days HH:MM:SS" do pandas Timedelta
+                if 'days' in s:
+                    partes = s.split(' ')
+                    s = partes[-1]
                 if ':' in s:
                     partes = s.split(':')
                     if len(partes) == 3:
-                        return int(partes[0])*3600 + int(partes[1])*60 + int(partes[2])
+                        return max(1, int(partes[0])*3600 + int(partes[1])*60 + int(float(partes[2])))
                     elif len(partes) == 2:
-                        return int(partes[0])*60 + int(partes[1])
-                # Número decimal do Excel (fração de dia) — multiplicar por 86400
+                        return max(1, int(partes[0])*60 + int(partes[1]))
+                # Número decimal do Excel (fração de dia)
                 f = float(s)
                 if 0 < f < 1:
                     return max(1, int(round(f * 86400)))
