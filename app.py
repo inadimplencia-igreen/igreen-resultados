@@ -2751,26 +2751,36 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
             df_out = df_out[df_out['uc_cpf'] != 'nan']
             return df_out
 
+        def tem_tempo_real(df_raw, col_tempo):
+            if col_tempo is None:
+                return False
+            vals = df_raw[col_tempo].dropna()
+            return len(vals) > 0
+
         # Processar cada aba
         if xls_int:
             for aba_orig in xls_int.sheet_names:
                 aba_n = norm(aba_orig)
                 df_raw = pd.read_excel(xls_int, sheet_name=aba_orig)
+                # Detectar coluna de tempo
+                cols_norm_tmp = {norm(str(c)): c for c in df_raw.columns}
+                col_tempo_tmp = next((cols_norm_tmp[k] for k in cols_norm_tmp if any(x in k for x in ['TEMPO','DURACAO','DURATION','TIME','MINUTO','SEGUNDO'])), None)
+                tem_tempo = tem_tempo_real(df_raw, col_tempo_tmp)
                 if 'DISPAR' in aba_n:
-                    df_c = extrair_cpf_agente_data(df_raw, 'DISPARO', segundos_fixos=1)
+                    df_c = extrair_cpf_agente_data(df_raw, 'DISPARO', segundos_fixos=None if tem_tempo else 1)
                 elif 'CHAT' in aba_n:
-                    df_c = extrair_cpf_agente_data(df_raw, 'CHAT', segundos_fixos=5)
+                    df_c = extrair_cpf_agente_data(df_raw, 'CHAT', segundos_fixos=None if tem_tempo else 5)
                 elif 'LIG' in aba_n or 'LIGAC' in aba_n:
                     df_c = extrair_cpf_agente_data(df_raw, 'LIGACAO', segundos_fixos=None)
                 else:
-                    df_c = extrair_cpf_agente_data(df_raw, 'OUTRO', segundos_fixos=1)
+                    df_c = extrair_cpf_agente_data(df_raw, 'OUTRO', segundos_fixos=None if tem_tempo else 1)
                 if not df_c.empty:
                     contatos.append(df_c)
         else:
-            # Arquivo único — tentar ler como CSV de interações
+            # Arquivo único — usar tempo real se disponível
             arq_interacoes.seek(0)
             df_raw = ler_arquivo(arq_interacoes)
-            df_c = extrair_cpf_agente_data(df_raw, 'OUTRO', segundos_fixos=1)
+            df_c = extrair_cpf_agente_data(df_raw, 'OUTRO', segundos_fixos=None)
             if not df_c.empty:
                 contatos.append(df_c)
 
