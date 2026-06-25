@@ -2968,30 +2968,36 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
 
         df_int = pd.concat(contatos_ag, ignore_index=True)
 
-        # 5. Divisão proporcional — linhas individuais sem groupby (igual ao Excel manual)
-        df_int_todos = df_int[df_int['uc_cpf'].isin(df_eleg['uc_cpf'].unique())].copy()
+        # 5. Divisão proporcional com ID único por pagamento (igual ao Excel manual)
+        df_eleg_at = df_eleg.copy()
+        df_eleg_at['valor'] = pd.to_numeric(df_eleg_at['valor'], errors='coerce').fillna(0)
+        df_eleg_at['data_pagamento'] = pd.to_datetime(df_eleg_at['data_pagamento'], errors='coerce').dt.normalize()
+        df_eleg_at = df_eleg_at.reset_index(drop=True)
+        df_eleg_at['id_pagamento'] = df_eleg_at.index
+
+        df_int_todos = df_int[df_int['uc_cpf'].isin(df_eleg_at['uc_cpf'].unique())].copy()
         df_int_todos['data_contato'] = pd.to_datetime(df_int_todos['data_contato'], errors='coerce').dt.normalize()
+        df_int_todos['segundos'] = pd.to_numeric(df_int_todos['segundos'], errors='coerce').fillna(0)
 
-        # Valor total por CPF
-        df_valor_cpf = df_eleg.copy()
-        df_valor_cpf['valor'] = pd.to_numeric(df_valor_cpf['valor'], errors='coerce').fillna(0)
-        df_valor_cpf['data_pagamento'] = pd.to_datetime(df_valor_cpf['data_pagamento'], errors='coerce').dt.normalize()
-        valor_total_cpf = df_valor_cpf.groupby('uc_cpf')['valor'].sum()
+        # Mesclar por CPF — cada par (pagamento x interacao) vira uma linha
+        df_cross_at = df_eleg_at[['id_pagamento','uc_cpf','valor','data_pagamento']].merge(
+            df_int_todos, on='uc_cpf', how='inner'
+        )
+        # Filtro: manter so contatos no dia ou antes do pagamento
+        df_cross_at = df_cross_at[df_cross_at['data_contato'] <= df_cross_at['data_pagamento']].copy()
 
-        # Total de segundos por CPF — todas as linhas individuais sem filtro de data
-        total_seg_cpf = df_int_todos.groupby('uc_cpf')['segundos'].sum()
+        # Seg Totais por ID Pagamento (nao por CPF+Data!)
+        seg_tot_at = df_cross_at.groupby('id_pagamento')['segundos'].sum().reset_index()
+        seg_tot_at.columns = ['id_pagamento','total_seg']
+        df_cross_at = df_cross_at.merge(seg_tot_at, on='id_pagamento', how='left')
+        df_cross_at = df_cross_at[df_cross_at['total_seg'] > 0].copy()
+        df_cross_at['valor_proporcional'] = df_cross_at['valor'] * (df_cross_at['segundos'] / df_cross_at['total_seg'])
 
-        # Calcular valor proporcional por linha de contato
-        df_int_todos['valor_total_cpf'] = df_int_todos['uc_cpf'].map(valor_total_cpf)
-        df_int_todos['total_seg'] = df_int_todos['uc_cpf'].map(total_seg_cpf)
-        df_int_todos = df_int_todos[df_int_todos['total_seg'] > 0].copy()
-        df_int_todos['valor_proporcional'] = df_int_todos['valor_total_cpf'] * (df_int_todos['segundos'] / df_int_todos['total_seg'])
-
-        if df_int_todos.empty:
+        if df_cross_at.empty:
             return None, "Nenhum resultado calculado."
 
         # 6. Somar por agente
-        df_result = df_int_todos.groupby('agente')['valor_proporcional'].sum().reset_index()
+        df_result = df_cross_at.groupby('agente')['valor_proporcional'].sum().reset_index()
         df_result = df_result.sort_values('valor_proporcional', ascending=False)
         df_result.columns = ['agente', 'valor']
 
