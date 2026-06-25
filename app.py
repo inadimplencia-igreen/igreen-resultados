@@ -3008,53 +3008,31 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
                 s=int(s); return f"{s//3600:02d}:{(s%3600)//60:02d}:{s%60:02d}"
             except: return "00:00:00"
 
-        # Detalhe — vetorizado apenas aqui (não afeta o cálculo)
-        # Incluir fornecedora e UF do df_eleg
-        cols_boleto = ['uc_cpf','valor','data_pagamento']
-        if 'fornecedora' in df_eleg.columns: cols_boleto.append('fornecedora')
-        if 'uf' in df_eleg.columns: cols_boleto.append('uf')
-        df_boletos = df_eleg[cols_boleto].copy()
-        df_boletos['data_pagamento'] = pd.to_datetime(df_boletos['data_pagamento'], errors='coerce').dt.normalize()
-
-        df_todos_int = df_int.copy()
-        df_todos_int['data_contato'] = pd.to_datetime(df_todos_int['data_contato'], errors='coerce').dt.normalize()
-
-        # Merge para detalhe — só para montar a planilha, não altera o cálculo
-        df_det = df_todos_int.merge(df_boletos, on='uc_cpf', how='left')
-        df_det['elegivel_boleto'] = (
-            df_det['data_pagamento'].notna() &
-            (df_det['data_contato'] <= df_det['data_pagamento'])
-        )
-        # Segundos totais por CPF+data_pagamento para o detalhe
-        seg_tot = df_det[df_det['elegivel_boleto']].groupby(['uc_cpf','data_pagamento'])['segundos'].sum().reset_index()
-        seg_tot.columns = ['uc_cpf','data_pagamento','total_seg_det']
-        df_det = df_det.merge(seg_tot, on=['uc_cpf','data_pagamento'], how='left')
-        df_det['total_seg_det'] = df_det['total_seg_det'].fillna(0)
-        df_det['val_prop_det'] = df_det.apply(
-            lambda r: round(r['valor'] * r['segundos'] / r['total_seg_det'], 2)
-            if r['elegivel_boleto'] and r['total_seg_det'] > 0 else 0, axis=1
-        )
-        df_det['Tempo'] = df_det['segundos'].apply(seg_to_hms)
-        # Empresa — iGreen ou Meet Call baseado no agente
+        # Detalhe — usa df_cross_at que já tem id_pagamento e valor_proporcional correto
         _ags_luc_full = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
+        df_det = df_cross_at.copy()
+        df_det['Tempo'] = df_det['segundos'].apply(seg_to_hms)
         df_det['Empresa'] = df_det['agente'].str.upper().str.strip().apply(
             lambda a: 'iGreen' if a in _ags_luc_full else 'Meet Call'
         )
+        # Adicionar fornecedora e UF do df_eleg_at via id_pagamento
+        cols_extra = ['id_pagamento']
+        if 'fornecedora' in df_eleg_at.columns: cols_extra.append('fornecedora')
+        if 'uf' in df_eleg_at.columns: cols_extra.append('uf')
+        df_det = df_det.merge(df_eleg_at[cols_extra], on='id_pagamento', how='left')
         rename_map = {
             'uc_cpf':'CPF','agente':'Agente','data_contato':'Data Contato',
             'data_pagamento':'Data Pagamento','valor':'Valor Boleto',
-            'segundos':'Segundos Cada','total_seg_det':'Segundos Totais (até dt pag)',
-            'val_prop_det':'Valor Proporcional'
+            'segundos':'Segundos Cada','total_seg':'Segundos Totais',
+            'valor_proporcional':'Valor Proporcional','id_pagamento':'ID Pagamento'
         }
         if 'fornecedora' in df_det.columns: rename_map['fornecedora'] = 'Fornecedora'
         if 'uf' in df_det.columns: rename_map['uf'] = 'UF'
         df_det = df_det.rename(columns=rename_map)
-        df_det['Tempo'] = df_det['Tempo'] if 'Tempo' in df_det.columns else '00:00:00'
-        # Montar colunas finais na ordem certa
-        cols_det = ['CPF','Agente','Data Contato','Data Pagamento']
+        cols_det = ['ID Pagamento','CPF','Agente','Data Contato','Data Pagamento']
         if 'Fornecedora' in df_det.columns: cols_det.append('Fornecedora')
         if 'UF' in df_det.columns: cols_det.append('UF')
-        cols_det += ['Empresa','Valor Boleto','Tempo','Segundos Cada','Segundos Totais (até dt pag)','Valor Proporcional']
+        cols_det += ['Empresa','Valor Boleto','Tempo','Segundos Cada','Segundos Totais','Valor Proporcional']
         df_detalhe = df_det[[c for c in cols_det if c in df_det.columns]]
 
         # Aba 2 — Pagos elegíveis
