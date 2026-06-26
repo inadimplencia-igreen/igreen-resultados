@@ -1991,22 +1991,71 @@ def pagina_quadro(ma):
             +
             f"</div>", unsafe_allow_html=True)
         # Gráfico de evolução — apenas admin (tamires)
-        if u.get('id') == 'tamires' and len(lancs) >= 2:
+        if u.get('id') == 'tamires':
             from datetime import datetime as _dtm
+            import json as _json
             DATA_CORTE = _dtm(2026, 6, 24)
-            pontos = []
-            for l in sorted(lancs, key=lambda x: str(x.get('criadoEm',''))):
+            _lancs_todos = buscar_lancamentos(ma, eq)
+            _por_dia = {}
+            for l in _lancs_todos:
                 dt_lanc = l.get('criadoEm')
                 if not dt_lanc: continue
-                dt_obj = dt_lanc if isinstance(dt_lanc, _dtm) else _dtm.fromisoformat(str(dt_lanc)[:19])
+                try:
+                    dt_obj = dt_lanc if isinstance(dt_lanc, _dtm) else _dtm.fromisoformat(str(dt_lanc)[:19])
+                except: continue
                 if dt_obj < DATA_CORTE: continue
                 rg = float(l.get('recGeral',0)) or float(l.get('totalEquipe',0))
-                if rg > 0:
-                    pontos.append({'data': dt_obj.strftime('%d/%m'), 'valor': rg})
-            if len(pontos) >= 2:
-                st.markdown("<p style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin:8px 0 4px'>Evolucao dos lancamentos (a partir 24/06)</p>", unsafe_allow_html=True)
-                df_chart = pd.DataFrame(pontos).set_index('data')
-                st.line_chart(df_chart, height=120, use_container_width=True)
+                if rg <= 0: continue
+                dia = dt_obj.strftime('%d/%m')
+                if dia not in _por_dia or dt_obj > _por_dia[dia]['dt']:
+                    _por_dia[dia] = {'dt': dt_obj, 'valor': rg}
+            _pontos = [{'data': dia, 'valor': v['valor']} for dia, v in sorted(_por_dia.items())]
+            if len(_pontos) >= 2:
+                _sk = f"chart_exp_{eq}"
+                if _sk not in st.session_state: st.session_state[_sk] = False
+                _col1, _col2 = st.columns([6,1])
+                with _col1:
+                    st.markdown("<p style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin:8px 0 4px'>Evolução dos lançamentos</p>", unsafe_allow_html=True)
+                with _col2:
+                    if st.button("⛶" if not st.session_state[_sk] else "✕", key=f"btn_exp_{eq}", help="Expandir gráfico"):
+                        st.session_state[_sk] = not st.session_state[_sk]; st.rerun()
+                _altura = 320 if st.session_state[_sk] else 200
+                _labs = _json.dumps([p['data'] for p in _pontos])
+                _vals = _json.dumps([p['valor'] for p in _pontos])
+                _cid = f"chev_{eq}"
+                _html = (
+                    f'<div style="width:100%;height:{_altura}px;margin-bottom:8px">'
+                    f'<canvas id="{_cid}" role="img" aria-label="Evolucao lancamentos {eq}"></canvas></div>'
+                    '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>'
+                    '<script>(function(){'
+                    f'const L={_labs},V={_vals};'
+                    'const fmtBrl=v=>"R$ "+v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});'
+                    f'const canvas=document.getElementById("{_cid}");if(!canvas)return;'
+                    'new Chart(canvas,{type:"line",data:{labels:L,datasets:[{data:V,'
+                    'borderColor:"#2a78d6",backgroundColor:"rgba(42,120,214,0.08)",'
+                    'borderWidth:2,pointRadius:6,pointBackgroundColor:"#2a78d6",'
+                    'pointBorderColor:"#fff",pointBorderWidth:2,tension:0.3,fill:true}]},'
+                    'plugins:[{id:"lbl",afterDatasetsDraw(chart){'
+                    'const ctx=chart.ctx,meta=chart.getDatasetMeta(0);ctx.save();'
+                    'meta.data.forEach((pt,i)=>{'
+                    'const val=V[i],prev=i>0?V[i-1]:null,x=pt.x,y=pt.y;'
+                    'ctx.textAlign="center";'
+                    'if(prev!==null){'
+                    'const diff=val-prev,seta=diff>=0?"↑":"↓",cor=diff>=0?"#1baf7a":"#e34948";'
+                    'ctx.font="500 11px sans-serif";ctx.fillStyle=cor;'
+                    'ctx.fillText(seta+" R$ "+Math.abs(diff).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}),x,y-26);}'
+                    'ctx.font="500 11px sans-serif";ctx.fillStyle="#2a78d6";'
+                    'ctx.fillText(fmtBrl(val),x,y-12);'
+                    '});ctx.restore();}}],'
+                    'options:{responsive:true,maintainAspectRatio:false,'
+                    'layout:{padding:{top:44,left:90,right:90,bottom:4}},'
+                    'plugins:{legend:{display:false},tooltip:{enabled:false}},'
+                    'scales:{x:{grid:{display:false},border:{display:false},'
+                    'ticks:{font:{size:12},color:"#898781"}},'
+                    'y:{display:false}}}});'
+                    '})();</script>'
+                )
+                st.markdown(_html, unsafe_allow_html=True)
 
         k=f"show_ops_{eq}"
         if k not in st.session_state: st.session_state[k]=False
