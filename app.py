@@ -1990,6 +1990,49 @@ def pagina_quadro(ma):
             f"</div>"
             +
             f"</div>", unsafe_allow_html=True)
+        # Gráfico de evolução — apenas admin (tamires)
+        if u.get('id') == 'tamires' and len(lancs) >= 2:
+            from datetime import datetime as _dtm
+            import json as _json
+            DATA_CORTE = _dtm(2026, 6, 24)
+            pontos = []
+            for l in sorted(lancs, key=lambda x: str(x.get('criadoEm',''))):
+                dt_lanc = l.get('criadoEm')
+                if not dt_lanc: continue
+                dt_obj = dt_lanc if isinstance(dt_lanc, _dtm) else _dtm.fromisoformat(str(dt_lanc)[:19])
+                if dt_obj < DATA_CORTE: continue
+                rg = float(l.get('recGeral',0)) or float(l.get('totalEquipe',0))
+                if rg > 0:
+                    pontos.append({'data': dt_obj.strftime('%d/%m'), 'valor': rg})
+            if len(pontos) >= 2:
+                cor_eq = EQUIPES.get(eq, {}).get('cor', '#2e7d32')
+                labels_g = _json.dumps([p['data'] for p in pontos])
+                valores_g = _json.dumps([p['valor'] for p in pontos])
+                cid = "ch_" + eq
+                linha1 = '<div style="background:#0a1a0a;border:1px solid #1e3a1e;border-radius:0 0 12px 12px;padding:16px 24px;margin-top:-6px;margin-bottom:8px">'
+                linha2 = '<div style="font-size:10px;color:#3a6a4a;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Evolucao dos lancamentos (a partir 24/06)</div>'
+                linha3 = f'<div style="position:relative;width:100%;height:150px"><canvas id="{cid}"></canvas></div></div>'
+                linha4 = '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>'
+                js = (
+                    '<script>(function(){const L=' + labels_g + ',V=' + valores_g + ',C="' + cor_eq + '";'
+                    'const fmt=v=>v>=1000000?"R$"+(v/1e6).toFixed(1)+"M":"R$"+(v/1e3).toFixed(0)+"k";'
+                    'const canvas=document.getElementById("' + cid + '");if(!canvas)return;'
+                    'new Chart(canvas,{type:"line",data:{labels:L,datasets:[{data:V,borderColor:C,backgroundColor:C+"18",borderWidth:2,pointRadius:4,pointBackgroundColor:C,tension:0.4,fill:true}]},'
+                    'plugins:[{id:"lbl",afterDatasetsDraw(chart){const ctx=chart.ctx,meta=chart.getDatasetMeta(0);ctx.save();'
+                    'meta.data.forEach((pt,i)=>{const val=V[i],prev=i>0?V[i-1]:null;'
+                    'ctx.font="bold 9px sans-serif";ctx.fillStyle=C;ctx.textAlign="center";ctx.fillText(fmt(val),pt.x,pt.y-12);'
+                    'if(prev){const p=((val-prev)/prev*100).toFixed(0),s=p>0?"+":"";'
+                    'ctx.font="8px sans-serif";ctx.fillStyle=p>0?"#2daf5c":"#e53935";ctx.fillText(s+p+"%",pt.x,pt.y-22);}'
+                    '});ctx.restore();}}],'
+                    'options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:30}},'
+                    'plugins:{legend:{display:false},tooltip:{enabled:false}},'
+                    'scales:{x:{grid:{color:"rgba(255,255,255,0.04)"},ticks:{font:{size:8},color:"#4a7a4a",maxRotation:30}},y:{display:false}}}'
+                    '}});})();</script>'
+                )
+                linha5 = js
+                html_chart = linha1 + linha2 + linha3 + linha4 + linha5
+                st.markdown(html_chart, unsafe_allow_html=True)
+
         k=f"show_ops_{eq}"
         if k not in st.session_state: st.session_state[k]=False
         nome_eq_btn = "Meet Call" if eq=="metcool" else EQUIPES[eq]['nome']
@@ -3337,18 +3380,7 @@ def pagina_upload(ma):
             # Botão para baixar apenas Elegíveis em CSV — todas as colunas originais
             st.markdown("---")
             elig_download=df_res[df_res['elegibilidade']=='Elegível'] if 'elegibilidade' in df_res.columns else df_res
-            if not elig_download.empty:
-                # Remove colunas internas do sistema
-                cols_excluir=['equipe','mes_ano','_row_id','dias_vencidos']
-                cols_elig=[c for c in elig_download.columns if c not in cols_excluir]
-                csv_elig=elig_download[cols_elig].to_csv(index=False,sep=';',decimal=',')
-                st.download_button(
-                    label=f"⬇️ Baixar Elegíveis ({len(elig_download):,} registros) — CSV",
-                    data=csv_elig.encode('utf-8-sig'),
-                    file_name=f"elegiveis_{eq}_{ma}.csv",
-                    mime='text/csv',
-                    use_container_width=True
-                )
+
 
     # Limpar resultados de outras equipes se equipe mudou
     if st.session_state.get('div_prop_resultado') and eq != 'luciano':
@@ -3562,18 +3594,18 @@ def pagina_upload(ma):
         with c3:
             st.metric("Total Geral", fmt_brl(res['total_geral']))
 
-        # Download elegíveis
-        if res.get('df_eleg') is not None and not res['df_eleg'].empty:
-            csv_eleg = res['df_eleg'].to_csv(index=False).encode('utf-8')
-            st.download_button("⬇️ Baixar Elegíveis", csv_eleg,
-                             file_name=f"elegiveis_luciano_{res['ma']}.csv",
-                             mime="text/csv", key="dl_eleg_luciano")
-        # Download detalhe divisão proporcional
+        # Download detalhamento + elegíveis na mesma planilha
         if res.get('df_agentes_det') is not None and not res['df_agentes_det'].empty:
             try:
                 import io
                 buf2 = io.BytesIO()
-                res['df_agentes_det'].to_excel(buf2, index=False, sheet_name='Divisão Proporcional')
+                with pd.ExcelWriter(buf2, engine='openpyxl') as writer:
+                    res['df_agentes_det'].to_excel(writer, index=False, sheet_name='Divisão Proporcional')
+                    if res.get('df_eleg') is not None and not res['df_eleg'].empty:
+                        df_eleg_exp = res['df_eleg'].copy()
+                        cols_excluir = ['equipe','mes_ano','_row_id','dias_vencidos']
+                        cols_ok = [c for c in df_eleg_exp.columns if c not in cols_excluir]
+                        df_eleg_exp[cols_ok].to_excel(writer, index=False, sheet_name='Elegíveis')
                 buf2.seek(0)
                 st.download_button("⬇️ Baixar Detalhamento", buf2.getvalue(),
                     file_name=f"detalhe_divisao_{res['ma']}.xlsx",
