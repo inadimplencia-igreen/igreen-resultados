@@ -1993,7 +1993,6 @@ def pagina_quadro(ma):
         # Gráfico de evolução — apenas admin (tamires)
         if u.get('id') == 'tamires' and len(lancs) >= 2:
             from datetime import datetime as _dtm
-            import json as _json
             DATA_CORTE = _dtm(2026, 6, 24)
             pontos = []
             for l in sorted(lancs, key=lambda x: str(x.get('criadoEm',''))):
@@ -2005,33 +2004,9 @@ def pagina_quadro(ma):
                 if rg > 0:
                     pontos.append({'data': dt_obj.strftime('%d/%m'), 'valor': rg})
             if len(pontos) >= 2:
-                cor_eq = EQUIPES.get(eq, {}).get('cor', '#2e7d32')
-                labels_g = _json.dumps([p['data'] for p in pontos])
-                valores_g = _json.dumps([p['valor'] for p in pontos])
-                cid = "ch_" + eq
-                linha1 = '<div style="background:#0a1a0a;border:1px solid #1e3a1e;border-radius:0 0 12px 12px;padding:16px 24px;margin-top:-6px;margin-bottom:8px">'
-                linha2 = '<div style="font-size:10px;color:#3a6a4a;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Evolucao dos lancamentos (a partir 24/06)</div>'
-                linha3 = f'<div style="position:relative;width:100%;height:150px"><canvas id="{cid}"></canvas></div></div>'
-                linha4 = '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>'
-                js = (
-                    '<script>(function(){const L=' + labels_g + ',V=' + valores_g + ',C="' + cor_eq + '";'
-                    'const fmt=v=>v>=1000000?"R$"+(v/1e6).toFixed(1)+"M":"R$"+(v/1e3).toFixed(0)+"k";'
-                    'const canvas=document.getElementById("' + cid + '");if(!canvas)return;'
-                    'new Chart(canvas,{type:"line",data:{labels:L,datasets:[{data:V,borderColor:C,backgroundColor:C+"18",borderWidth:2,pointRadius:4,pointBackgroundColor:C,tension:0.4,fill:true}]},'
-                    'plugins:[{id:"lbl",afterDatasetsDraw(chart){const ctx=chart.ctx,meta=chart.getDatasetMeta(0);ctx.save();'
-                    'meta.data.forEach((pt,i)=>{const val=V[i],prev=i>0?V[i-1]:null;'
-                    'ctx.font="bold 9px sans-serif";ctx.fillStyle=C;ctx.textAlign="center";ctx.fillText(fmt(val),pt.x,pt.y-12);'
-                    'if(prev){const p=((val-prev)/prev*100).toFixed(0),s=p>0?"+":"";'
-                    'ctx.font="8px sans-serif";ctx.fillStyle=p>0?"#2daf5c":"#e53935";ctx.fillText(s+p+"%",pt.x,pt.y-22);}'
-                    '});ctx.restore();}}],'
-                    'options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:30}},'
-                    'plugins:{legend:{display:false},tooltip:{enabled:false}},'
-                    'scales:{x:{grid:{color:"rgba(255,255,255,0.04)"},ticks:{font:{size:8},color:"#4a7a4a",maxRotation:30}},y:{display:false}}}'
-                    '}});})();</script>'
-                )
-                linha5 = js
-                html_chart = linha1 + linha2 + linha3 + linha4 + linha5
-                st.markdown(html_chart, unsafe_allow_html=True)
+                st.markdown("<p style='color:#3a6a4a;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin:8px 0 4px'>Evolucao dos lancamentos (a partir 24/06)</p>", unsafe_allow_html=True)
+                df_chart = pd.DataFrame(pontos).set_index('data')
+                st.line_chart(df_chart, height=120, use_container_width=True)
 
         k=f"show_ops_{eq}"
         if k not in st.session_state: st.session_state[k]=False
