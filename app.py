@@ -3563,8 +3563,11 @@ def pagina_upload(ma):
                             agentes_dict[op_id] = {"valorRecebido": valor, "nome": op_nome}
                         tc_total += valor
                 # Salvar lançamento com resultado por atendente
+                # Buscar recGeral do lançamento mais recente da equipe
                 dt_eq = int(res_at.get('dias_trab', 0))
                 td_eq = int(res_at.get('total_dias', 21))
+                _lancs_eq = buscar_lancamentos(ma_at, eq_at)
+                _rec_geral_eq = next((float(l.get('recGeral',0)) for l in _lancs_eq if float(l.get('recGeral',0)) > 0), res_at.get('n_elegivel_valor', 0))
                 get_db().lancamentos.insert_one({
                     "_id": f"lanc__{ma_at}__{eq_at}__{_ts}",
                     "mesAno": ma_at, "equipeId": eq_at,
@@ -3574,12 +3577,14 @@ def pagina_upload(ma):
                     "totalEquipe": tc_total,
                     "semInteracao": 0,
                     "diasTrabalhados": dt_eq, "totalDias": td_eq,
-                    "recGeral": 0,
+                    "recGeral": _rec_geral_eq,
                     "criadoEm": _dt.now().isoformat()
                 })
                 # Se for Luciano, salvar Meet Call também
                 if eq_at == 'luciano' and tc_total_mc > 0:
                     _ts_mc = _dt.now().strftime("%Y%m%d%H%M%S%f") + "at"
+                    _lancs_mc = buscar_lancamentos(ma_at, 'metcool')
+                    _rec_geral_mc = next((float(l.get('recGeral',0)) for l in _lancs_mc if float(l.get('recGeral',0)) > 0), 0)
                     get_db().lancamentos.insert_one({
                         "_id": f"lanc__{ma_at}__metcool__{_ts_mc}",
                         "mesAno": ma_at, "equipeId": "metcool",
@@ -3589,7 +3594,7 @@ def pagina_upload(ma):
                         "totalEquipe": tc_total_mc,
                         "semInteracao": 0,
                         "diasTrabalhados": dt_eq, "totalDias": td_eq,
-                        "recGeral": 0,
+                        "recGeral": _rec_geral_mc,
                         "criadoEm": _dt.now().isoformat()
                     })
                 buscar_lancamentos.clear()
