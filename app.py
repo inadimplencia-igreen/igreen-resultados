@@ -2004,7 +2004,7 @@ def pagina_quadro(ma):
                     dt_obj = dt_lanc if isinstance(dt_lanc, _dtm) else _dtm.fromisoformat(str(dt_lanc)[:19])
                 except: continue
                 if dt_obj < DATA_CORTE: continue
-                rg = float(l.get('recGeral',0)) or float(l.get('totalEquipe',0))
+                rg = float(l.get('recGeral',0))
                 if rg <= 0: continue
                 dia = dt_obj.strftime('%d/%m')
                 if dia not in _por_dia or dt_obj > _por_dia[dia]['dt']:
