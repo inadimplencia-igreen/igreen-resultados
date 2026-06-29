@@ -2023,9 +2023,10 @@ def pagina_quadro(ma):
                 _labs = _json.dumps([p['data'] for p in _pontos])
                 _vals = _json.dumps([p['valor'] for p in _pontos])
                 _cid = f"chev_{eq}"
+                import streamlit.components.v1 as _components
                 _html = (
-                    f'<div style="width:100%;height:{_altura}px;margin-bottom:8px">'
-                    f'<canvas id="{_cid}" role="img" aria-label="Evolucao lancamentos {eq}"></canvas></div>'
+                    f'<div style="width:100%;height:{_altura}px;margin-bottom:8px;background:transparent">'
+                    f'<canvas id="{_cid}"></canvas></div>'
                     '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>'
                     '<script>(function(){'
                     f'const L={_labs},V={_vals};'
@@ -2041,7 +2042,7 @@ def pagina_quadro(ma):
                     'const val=V[i],prev=i>0?V[i-1]:null,x=pt.x,y=pt.y;'
                     'ctx.textAlign="center";'
                     'if(prev!==null){'
-                    'const diff=val-prev,seta=diff>=0?"↑":"↓",cor=diff>=0?"#1baf7a":"#e34948";'
+                    'const diff=val-prev,seta=diff>=0?"\u2191":"\u2193",cor=diff>=0?"#1baf7a":"#e34948";'
                     'ctx.font="500 11px sans-serif";ctx.fillStyle=cor;'
                     'ctx.fillText(seta+" R$ "+Math.abs(diff).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}),x,y-26);}'
                     'ctx.font="500 11px sans-serif";ctx.fillStyle="#2a78d6";'
@@ -2051,11 +2052,11 @@ def pagina_quadro(ma):
                     'layout:{padding:{top:44,left:90,right:90,bottom:4}},'
                     'plugins:{legend:{display:false},tooltip:{enabled:false}},'
                     'scales:{x:{grid:{display:false},border:{display:false},'
-                    'ticks:{font:{size:12},color:"#898781"}},'
+                    'ticks:{font:{size:12},color:"#555"}},'
                     'y:{display:false}}}});'
                     '})();</script>'
                 )
-                st.markdown(_html, unsafe_allow_html=True)
+                _components.html(_html, height=_altura + 10, scrolling=False)
 
         k=f"show_ops_{eq}"
         if k not in st.session_state: st.session_state[k]=False
