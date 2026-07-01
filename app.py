@@ -1315,7 +1315,24 @@ def ler_arquivo(arquivo, sheet_name=None):
     dtype_str = {"cpf": str, "CPF": str, "uc_cpf": str, "identificador": str,
                  "numinstalacao": str, "idcliente": str, "conta_unica": str}
     if nome.endswith('.csv'):
-        for sep in [',',';','|','	']:
+        # Tentar detectar separador lendo primeira linha
+        try:
+            arquivo.seek(0)
+            primeira = arquivo.read(2000)
+            if isinstance(primeira, bytes):
+                primeira = primeira.decode('utf-8', errors='ignore')
+            arquivo.seek(0)
+            # Contar separadores na primeira linha
+            linha1 = primeira.split('\n')[0]
+            contagens = {sep: linha1.count(sep) for sep in ['\t', ';', ',', '|']}
+            sep_detectado = max(contagens, key=contagens.get)
+            if contagens[sep_detectado] > 0:
+                df = pd.read_csv(arquivo, sep=sep_detectado, header=0, low_memory=False, dtype=dtype_str)
+                if len(df.columns) > 1:
+                    return df
+        except: pass
+        # Fallback — tentar cada separador
+        for sep in ['\t', ';', ',', '|']:
             try:
                 arquivo.seek(0)
                 df = pd.read_csv(arquivo, sep=sep, header=0, low_memory=False, dtype=dtype_str)
