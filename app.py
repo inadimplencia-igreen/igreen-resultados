@@ -1315,24 +1315,7 @@ def ler_arquivo(arquivo, sheet_name=None):
     dtype_str = {"cpf": str, "CPF": str, "uc_cpf": str, "identificador": str,
                  "numinstalacao": str, "idcliente": str, "conta_unica": str}
     if nome.endswith('.csv'):
-        # Tentar detectar separador lendo primeira linha
-        try:
-            arquivo.seek(0)
-            primeira = arquivo.read(2000)
-            if isinstance(primeira, bytes):
-                primeira = primeira.decode('utf-8', errors='ignore')
-            arquivo.seek(0)
-            # Contar separadores na primeira linha
-            linha1 = primeira.split('\n')[0]
-            contagens = {sep: linha1.count(sep) for sep in ['\t', ';', ',', '|']}
-            sep_detectado = max(contagens, key=contagens.get)
-            if contagens[sep_detectado] > 0:
-                df = pd.read_csv(arquivo, sep=sep_detectado, header=0, low_memory=False, dtype=dtype_str)
-                if len(df.columns) > 1:
-                    return df
-        except: pass
-        # Fallback — tentar cada separador
-        for sep in ['\t', ';', ',', '|']:
+        for sep in [',',';','|','	']:
             try:
                 arquivo.seek(0)
                 df = pd.read_csv(arquivo, sep=sep, header=0, low_memory=False, dtype=dtype_str)
@@ -1432,8 +1415,6 @@ def finalizar_processamento(df, contatos, abas_lidas, eq, ma):
         df["primeiro_contato"]=df["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"])))
     else: df["primeiro_contato"]=pd.NaT
     df=df.drop(columns=["_row_id"],errors="ignore").reset_index(drop=True)
-    if "data_pagamento" not in df.columns:
-        df["data_pagamento"] = pd.NaT
     df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],errors="coerce").dt.normalize()
     df["primeiro_contato"]=pd.to_datetime(df["primeiro_contato"],errors="coerce").dt.normalize()
     df["diferenca_dias"]=(df["data_pagamento"]-df["primeiro_contato"]).dt.days
@@ -1712,12 +1693,8 @@ def pagina_lancamento(ma):
             tc_manual_val=float(doc_tmp.get("tc_manual",0))
             # Se atendentes zerados usa manual, senão usa atendentes
             tc_real = tc_ops if tc_ops > 0 else tc_manual_val
-            # Recebido Geral — se não informado manualmente, preservar o último salvo
-            if usar_rec_manual:
-                rg_salvar = rec_geral_manual
-            else:
-                _lancs_ant = buscar_lancamentos(ma, eq)
-                rg_salvar = next((float(l.get('recGeral',0)) for l in _lancs_ant if float(l.get('recGeral',0)) > 0), 0)
+            # Recebido Geral — usar direto da variável (já funciona)
+            rg_salvar = rec_geral_manual if usar_rec_manual else 0
             criar_lancamento(ma,eq,str(data_sel),label,ag,tc_real,0,dt,td,rg_salvar)
             buscar_lancamentos.clear()
             buscar_metas_equipe.clear()
