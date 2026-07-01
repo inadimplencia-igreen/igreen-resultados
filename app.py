@@ -1415,6 +1415,8 @@ def finalizar_processamento(df, contatos, abas_lidas, eq, ma):
         df["primeiro_contato"]=df["uc_cpf"].map(dict(zip(pc["uc_cpf"],pc["data_contato"])))
     else: df["primeiro_contato"]=pd.NaT
     df=df.drop(columns=["_row_id"],errors="ignore").reset_index(drop=True)
+    if "data_pagamento" not in df.columns:
+        df["data_pagamento"] = pd.NaT
     df["data_pagamento"]=pd.to_datetime(df["data_pagamento"],errors="coerce").dt.normalize()
     df["primeiro_contato"]=pd.to_datetime(df["primeiro_contato"],errors="coerce").dt.normalize()
     df["diferenca_dias"]=(df["data_pagamento"]-df["primeiro_contato"]).dt.days
@@ -1693,8 +1695,12 @@ def pagina_lancamento(ma):
             tc_manual_val=float(doc_tmp.get("tc_manual",0))
             # Se atendentes zerados usa manual, senão usa atendentes
             tc_real = tc_ops if tc_ops > 0 else tc_manual_val
-            # Recebido Geral — usar direto da variável (já funciona)
-            rg_salvar = rec_geral_manual if usar_rec_manual else 0
+            # Recebido Geral — se não informado manualmente, preservar o último salvo
+            if usar_rec_manual:
+                rg_salvar = rec_geral_manual
+            else:
+                _lancs_ant = buscar_lancamentos(ma, eq)
+                rg_salvar = next((float(l.get('recGeral',0)) for l in _lancs_ant if float(l.get('recGeral',0)) > 0), 0)
             criar_lancamento(ma,eq,str(data_sel),label,ag,tc_real,0,dt,td,rg_salvar)
             buscar_lancamentos.clear()
             buscar_metas_equipe.clear()
