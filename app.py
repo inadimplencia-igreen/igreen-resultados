@@ -2716,7 +2716,7 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         'HEVERTON TAVARES','DIOGO OLIVEIRA','GRASIELLE DA SILVA SANTOS',
         'EMANUEL FERREIRA','KETLE SILVA','CAUA ALVES','VICTORIA SILVA',
         'PAULO ROBERTO','GABRIELLE MARTINS','JENNIFER ARIELLE','SAMIRES BARROS',
-        'LUCIANO'
+        'LUCIANO','JENNIFER SILVEIRA','MAYCOW GABRIEL','LAURA SILVA'
     ]}
 
     try:
