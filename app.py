@@ -2880,6 +2880,8 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
         df_int_eleg['agente'] = df_int_eleg['agente'].fillna('DESCONHECIDO').replace('', 'DESCONHECIDO').replace('NAN', 'DESCONHECIDO')
         df_int_eleg['data_contato'] = pd.to_datetime(df_int_eleg['data_contato'], errors='coerce').dt.normalize()
         df_int_eleg['segundos'] = pd.to_numeric(df_int_eleg['segundos'], errors='coerce').fillna(0)
+        # Remover duplicatas — mesmo CPF + agente + data_contato + segundos
+        df_int_eleg = df_int_eleg.drop_duplicates(subset=['uc_cpf','agente','data_contato','segundos']).copy()
 
         # PASSO 2: Mesclar por CPF — cada par (pagamento x interacao) vira uma linha
         df_cross = df_pagos[['id_pagamento','uc_cpf','valor','data_pagamento']].merge(
