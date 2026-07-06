@@ -735,9 +735,15 @@ def processar_base_inadimplencia(arquivo, eq, ma):
     df["_dvenc"] = pd.to_datetime(df[col_dvenc], errors="coerce")
     df["_dpag"] = pd.to_datetime(df[col_dpag], errors="coerce") if col_dpag else pd.NaT
     # Converter valor — aceita vírgula como decimal
-    df["_valor"] = pd.to_numeric(
-        df[col_val].astype(str).str.replace("R$","").str.replace(" ","").str.replace(".","").str.replace(",",".").str.strip(),
-        errors="coerce").fillna(0)
+    def _conv_valor_inad(s):
+        import re
+        s = str(s).strip().replace("R$","").replace(" ","")
+        # Se tem vírgula como decimal (ex: 1.234,56) -> remover ponto milhar e trocar vírgula
+        if re.search(r',\d{1,2}$', s):
+            s = s.replace(".","").replace(",",".")
+        # Se já é float com ponto (ex: 471.52) -> usar direto, sem remover ponto
+        return s
+    df["_valor"] = pd.to_numeric(df[col_val].apply(_conv_valor_inad), errors="coerce").fillna(0)
     df["_forn"] = df[col_forn].astype(str).str.strip().str.upper()
 
     # Detectar coluna Status (PAGO/VENCIDO) se existir
