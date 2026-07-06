@@ -726,9 +726,13 @@ def processar_base_inadimplencia(arquivo, eq, ma):
             return None, f"Formato de mês inválido: {ma}"
     except Exception as e:
         return None, f"Erro ao processar mês {ma}: {e}"
+    from datetime import date as _date
+    hoje = pd.Timestamp(_date.today())
     ultimo_dia = calendar.monthrange(ano, mes)[1]
-    data_ref = pd.Timestamp(ano, mes, ultimo_dia)
-    # Janela: dia 01 do mesmo mês do ano anterior até último dia do mês de referência
+    data_ref_mes = pd.Timestamp(ano, mes, ultimo_dia)
+    # Se o mês ainda não fechou, usar hoje como data de referência
+    data_ref = hoje if hoje < data_ref_mes else data_ref_mes
+    # Janela: dia 01 do mesmo mês do ano anterior até data de referência
     data_inicio = pd.Timestamp(ano - 1, mes, 1)
 
     # Converter datas
