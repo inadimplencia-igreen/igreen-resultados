@@ -1703,8 +1703,12 @@ def pagina_lancamento(ma):
             tc_manual_val=float(doc_tmp.get("tc_manual",0))
             # Se atendentes zerados usa manual, senão usa atendentes
             tc_real = tc_ops if tc_ops > 0 else tc_manual_val
-            # Recebido Geral — usar direto da variável (já funciona)
-            rg_salvar = rec_geral_manual if usar_rec_manual else 0
+            # Recebido Geral — preservar o do último lançamento, senão 0
+            if usar_rec_manual:
+                rg_salvar = rec_geral_manual
+            else:
+                _lancs_prev = buscar_lancamentos(ma, eq)
+                rg_salvar = float(_lancs_prev[0].get('recGeral', 0)) if _lancs_prev else 0
             criar_lancamento(ma,eq,str(data_sel),label,ag,tc_real,0,dt,td,rg_salvar)
             buscar_lancamentos.clear()
             buscar_metas_equipe.clear()
@@ -1772,8 +1776,14 @@ def pagina_quadro(ma):
                 # Usar o mais recente: manual vs base processada
                 rg_r=0.0
                 if eq_r=="metcool":
-                    mc_doc_r=buscar_lancamento_meetcall(ma)
-                    rg_r=float(mc_doc_r.get("recGeralTotal",mc_doc_r.get("recGeral",0)))
+                    # Tentar primeiro lançamento próprio da Meet Call
+                    if ul_r and float(ul_r.get("recGeral",0)) > 0:
+                        rg_r = float(ul_r.get("recGeral",0))
+                    elif ul_r and float(ul_r.get("totalEquipe",0)) > 0:
+                        rg_r = float(ul_r.get("totalEquipe",0))
+                    else:
+                        mc_doc_r=buscar_lancamento_meetcall(ma)
+                        rg_r=float(mc_doc_r.get("recGeralTotal",mc_doc_r.get("recGeral",0)))
                 else:
                     up_r=buscar_ultimo_processamento(ma,eq_r)
                     rec_manual_r=0.0; dt_manual_r=None
