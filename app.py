@@ -1797,8 +1797,8 @@ def pagina_quadro(ma):
                     if v > 0:
                         rg_r = v
                         break
-                # Fallback: buscar do processamento (historico_processamentos)
-                if rg_r == 0 and eq_r != "metcool":
+                # Fallback: buscar do processamento para todas as equipes
+                if rg_r == 0:
                     up_r = buscar_ultimo_processamento(ma, eq_r)
                     if up_r:
                         rg_r = float(up_r.get("valorElegivel", 0))
