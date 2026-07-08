@@ -3432,13 +3432,16 @@ def pagina_upload(ma):
             with col1:
                 if st.button('💾 Salvar Resultado', use_container_width=True, key='btn_salvar_proc',
                              disabled=st.session_state.get('salvando_proc', False)):
-                    st.session_state['salvando_proc'] = True
-                    salvar_processamento(ma,eq,df_res,st.session_state.usuario.get('nome',''))
-                    buscar_lancamentos.clear()
-                    buscar_ultimo_processamento.clear()
-                    st.session_state['df_proc_temp']=None
-                    st.session_state['salvando_proc'] = False
-                    st.success('✅ Resultado salvo com sucesso!')
+                    try:
+                        st.session_state['salvando_proc'] = True
+                        salvar_processamento(ma,eq,df_res,st.session_state.usuario.get('nome',''))
+                        buscar_lancamentos.clear()
+                        st.session_state['df_proc_temp']=None
+                        st.success('✅ Resultado salvo com sucesso!')
+                    except Exception as _e:
+                        st.error(f'Erro ao salvar: {_e}')
+                    finally:
+                        st.session_state['salvando_proc'] = False
                     st.rerun()
             with col2:
                 if st.button('Descartar',use_container_width=True,key='btn_desc'):
