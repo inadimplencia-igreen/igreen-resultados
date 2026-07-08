@@ -3434,6 +3434,8 @@ def pagina_upload(ma):
                              disabled=st.session_state.get('salvando_proc', False)):
                     st.session_state['salvando_proc'] = True
                     salvar_processamento(ma,eq,df_res,st.session_state.usuario.get('nome',''))
+                    buscar_lancamentos.clear()
+                    buscar_ultimo_processamento.clear()
                     st.session_state['df_proc_temp']=None
                     st.session_state['salvando_proc'] = False
                     st.success('✅ Resultado salvo com sucesso!')
