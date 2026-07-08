@@ -233,7 +233,7 @@ def _get_usuarios():
         "luciano": {"senha": _s("luciano","TCLemDjWSGv!yz"), "equipe":"luciano","role":"gestor", "nome":"Luciano"},
         "deborah": {"senha": _s("deborah","L4f10IJo5bGJ3O"), "equipe":"deborah","role":"gestor", "nome":"Déborah"},
         "veloso":  {"senha": _s("veloso", "U2B!niJH7W96rL"), "equipe":None,    "role":"diretor","nome":"Veloso"},
-        "moyara":  {"senha": _s("moyara", "ug8omeP4Cvt3nl"), "equipe":None,    "role":"diretor","nome":"Moyara"},
+        "moyara":  {"senha": _s("moyara", "ug8omeP4Cvt3nl"), "equipe":None,    "role":"diretor_upload","nome":"Moyara"},
         "gabriel": {"senha": _s("gabriel","gabriel123"),   "equipe":"metcool","role":"gestor", "nome":"Gabriel"},
     }
 
@@ -1221,6 +1221,8 @@ def render_sidebar():
         st.markdown("<div style='height:8px'></div>",unsafe_allow_html=True)
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Metas','Minha Conta']
+        elif u['role']=='diretor_upload':
+            pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         elif u['role']=='admin':
             pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         elif u.get('equipe')=='metcool':
@@ -1747,7 +1749,7 @@ def pagina_lancamento(ma):
 # ── QUADRO DE RESULTADOS ───────────────────────
 def pagina_quadro(ma):
     u=st.session_state.usuario
-    is_dir=u["role"]=="diretor"; is_adm=u["role"]=="admin"
+    is_dir=u["role"] in ["diretor","diretor_upload"]; is_adm=u["role"]=="admin"
     eqs_vis=["luciano","deborah","tamires"]
     # Para admin e diretor: mostrar Luciano, Déborah, Tamires + Meet Call separado
     # Ordem fixa: Luciano, Meet Call, Déborah, Tamires
@@ -2643,7 +2645,7 @@ def pagina_monitorias_diretor(ma):
 # ── ANÁLISE DOS OPERADORES ─────────────────────
 def pagina_analise_operadores(ma):
     u=st.session_state.usuario
-    eqs=list(EQUIPES.keys()) if u["role"] in ["diretor","admin"] else [u["equipe"]]
+    eqs=list(EQUIPES.keys()) if u["role"] in ["diretor","diretor_upload","admin"] else [u["equipe"]]
     header_page("Análise dos Operadores",f"Resultado comparativo · {ma.replace('-',' ')}")
     idx=MESES_NOMES.index(ma.split("-")[0]); ano=int(ma.split("-")[1])
     ma_ant=f"{MESES_NOMES[11]}-{ano-1}" if idx==0 else f"{MESES_NOMES[idx-1]}-{ano}"
