@@ -1194,7 +1194,7 @@ div[data-testid="stVerticalBlock"] label { color: #8b949e !important; }
 
 def render_sidebar():
     u=st.session_state.usuario
-    role_label='Administrador' if u['role']=='admin' else 'Diretoria' if u['role']=='diretor' else 'Gestor'
+    role_label='Administrador' if u['role']=='admin' else 'Diretoria' if u['role'] in ['diretor','diretor_upload'] else 'Gestor'
     with st.sidebar:
         st.markdown(
             f"<div style='padding:16px 12px 8px'>"
@@ -1222,7 +1222,7 @@ def render_sidebar():
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Metas','Minha Conta']
         elif u['role']=='diretor_upload':
-            pags=['Quadro de Resultados','Upload de Bases','Minha Conta']
+            pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         elif u['role']=='admin':
             pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         elif u.get('equipe')=='metcool':
@@ -1790,16 +1790,19 @@ def pagina_quadro(ma):
                 else:
                     tc_r=_get_tc(lancs_r)
                 dt_r=int(ul_r.get("diasTrabalhados",0)); td_r=int(ul_r.get("totalDias",22))
-                # Regra simples: pegar o valor mais recente de cada campo
                 # recGeral = primeiro lançamento que tem recGeral > 0
-                # totalEquipe = já calculado acima no tc_r
                 rg_r = 0.0
                 for l in lancs_r:
                     v = float(l.get("recGeral", 0))
                     if v > 0:
                         rg_r = v
                         break
-                # Fallback para Meet Call legado
+                # Fallback: buscar do processamento (historico_processamentos)
+                if rg_r == 0 and eq_r != "metcool":
+                    up_r = buscar_ultimo_processamento(ma, eq_r)
+                    if up_r:
+                        rg_r = float(up_r.get("valorElegivel", 0))
+                # Fallback Meet Call legado
                 if rg_r == 0 and eq_r == "metcool":
                     mc_doc_r = buscar_lancamento_meetcall(ma)
                     rg_r = float(mc_doc_r.get("recGeralTotal", mc_doc_r.get("recGeral", 0)))
