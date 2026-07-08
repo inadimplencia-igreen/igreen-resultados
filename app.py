@@ -3406,12 +3406,28 @@ def pagina_upload(ma):
             c2.metric('Boletos',f'{len(elig):,}')
             c3.metric('Clientes',f'{ce:,}')
             st.markdown('---')
+            # Botão de download do detalhamento antes de salvar
+            if 'elegibilidade' in df_res.columns:
+                _elig_pre = df_res[df_res['elegibilidade']=='Elegível'].copy()
+                if not _elig_pre.empty:
+                    try:
+                        import io as _io
+                        _buf_pre = _io.BytesIO()
+                        _elig_pre.to_excel(_buf_pre, index=False, sheet_name='Elegíveis')
+                        _buf_pre.seek(0)
+                        st.download_button(
+                            "⬇️ Baixar Detalhamento (Elegíveis)",
+                            _buf_pre.getvalue(),
+                            file_name=f"elegiveis_{eq}_{ma}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                            key='btn_dl_pre'
+                        )
+                    except: pass
+
             col1,col2=st.columns(2)
             with col1:
-                # Verificar se já existe processamento salvo
-                proc_existente = buscar_ultimo_processamento(ma, eq)
-                label_btn = '🔄 Substituir Resultado' if proc_existente else 'Salvar Resultado'
-                if st.button(label_btn, use_container_width=True, key='btn_salvar_proc',
+                if st.button('💾 Salvar Resultado', use_container_width=True, key='btn_salvar_proc',
                              disabled=st.session_state.get('salvando_proc', False)):
                     st.session_state['salvando_proc'] = True
                     salvar_processamento(ma,eq,df_res,st.session_state.usuario.get('nome',''))
@@ -3485,9 +3501,22 @@ def pagina_upload(ma):
                 key="dl_detalhe_at")
 
         st.markdown("**⚠️ Confirme os valores antes de salvar:**")
+        # Download detalhamento antes de salvar (resultado por atendente)
+        if res_at.get('df_detalhe') is not None and not res_at['df_detalhe'].empty:
+            try:
+                import io as _io2
+                _buf_at = _io2.BytesIO()
+                res_at['df_detalhe'].to_excel(_buf_at, index=False, sheet_name='Detalhamento')
+                _buf_at.seek(0)
+                st.download_button("⬇️ Baixar Detalhamento", _buf_at.getvalue(),
+                    file_name=f"detalhe_{res_at.get('eq','')}_{res_at.get('ma','')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True, key='btn_dl_at')
+            except: pass
+
         col_ok2, col_cancel2 = st.columns(2)
         with col_ok2:
-            if st.button("✅ Confirmar e Salvar", use_container_width=True, key="btn_confirmar_at"):
+            if st.button("💾 Salvar Resultado", use_container_width=True, key="btn_confirmar_at"):
                 from datetime import datetime as _dt
                 _ts = _dt.now().strftime("%Y%m%d%H%M%S%f")
                 eq_at = res_at['eq']
