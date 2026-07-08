@@ -909,7 +909,7 @@ def seletor_equipe(default=None, key_suffix=""):
     u=st.session_state.usuario
     if u["role"] in ["gestor","diretor"]:
         return u["equipe"]
-    if u["role"]=="admin":
+    if u["role"] in ["admin","diretor_upload"]:
         eq_opts=list(EQUIPES.keys())
         eq_labels=[f"Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
         default_idx=eq_opts.index(default) if default and default in eq_opts else 0
@@ -1222,7 +1222,7 @@ def render_sidebar():
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Metas','Minha Conta']
         elif u['role']=='diretor_upload':
-            pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
+            pags=['Quadro de Resultados','Upload de Bases','Minha Conta']
         elif u['role']=='admin':
             pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         elif u.get('equipe')=='metcool':
@@ -1768,46 +1768,41 @@ def pagina_quadro(ma):
                 ul_r=lancs_r[0] if lancs_r else {}
                 if not lancs_r and not buscar_ultimo_processamento(ma,eq_r): continue
                 mg_r=float(buscar_meta_gestora(ma,eq_r).get("metaGestora",0))
+                # Buscar tc_r do lançamento mais recente que tem agentes com valor
+                def _get_tc(lancs, excluir_nomes=None):
+                    for l in lancs:
+                        ag = l.get("agentes", {})
+                        if not isinstance(ag, dict): continue
+                        # Usar totalEquipe se disponível
+                        te = float(l.get("totalEquipe", 0))
+                        if te > 0:
+                            return te
+                        # Calcular da soma dos agentes
+                        total = sum(float(v.get("valorRecebido",0)) for v in ag.values()
+                                   if isinstance(v,dict) and (not excluir_nomes or v.get("nome","") not in excluir_nomes))
+                        if total > 0:
+                            return total
+                    return 0.0
                 if eq_r=="metcool":
-                    tc_r=sum(float(v.get("valorRecebido",0)) for v in ul_r.get("agentes",{}).values() if isinstance(v,dict))
+                    tc_r=_get_tc(lancs_r)
                 elif eq_r=="luciano":
-                    tc_r=sum(float(v.get("valorRecebido",0)) for v in ul_r.get("agentes",{}).values() if isinstance(v,dict) and v.get("nome","") not in OPERADORES_MEETCALL)
+                    tc_r=_get_tc(lancs_r, excluir_nomes=OPERADORES_MEETCALL)
                 else:
-                    tc_r=sum(float(v.get("valorRecebido",0)) for v in ul_r.get("agentes",{}).values() if isinstance(v,dict))
+                    tc_r=_get_tc(lancs_r)
                 dt_r=int(ul_r.get("diasTrabalhados",0)); td_r=int(ul_r.get("totalDias",22))
-                # Usar o mais recente: manual vs base processada
-                rg_r=0.0
-                if eq_r=="metcool":
-                    # Usar lançamento próprio da Meet Call
-                    if ul_r and float(ul_r.get("recGeral",0)) > 0:
-                        rg_r = float(ul_r.get("recGeral",0))
-                    elif ul_r and float(ul_r.get("totalEquipe",0)) > 0:
-                        rg_r = float(ul_r.get("totalEquipe",0))
-                    else:
-                        mc_doc_r=buscar_lancamento_meetcall(ma)
-                        rg_r=float(mc_doc_r.get("recGeralTotal",mc_doc_r.get("recGeral",0)))
-                else:
-                    up_r=buscar_ultimo_processamento(ma,eq_r)
-                    rec_manual_r=0.0; dt_manual_r=None
-                    for l in lancs_r:
-                        if l.get("recGeral",0)>0:
-                            rec_manual_r=float(l["recGeral"])
-                            _cm_r=l.get("criadoEm")
-                            dt_manual_r=_cm_r.isoformat() if hasattr(_cm_r,'isoformat') else str(_cm_r or "")
-                            break
-                    rec_base_r=float(up_r.get("valorElegivel",0)) if up_r else 0
-                    dt_base_r=up_r.get("atualizadoEm") if up_r else None
-                    if rec_manual_r>0 and rec_base_r>0:
-                        try:
-                            _dm=dt_manual_r.isoformat() if hasattr(dt_manual_r,'isoformat') else str(dt_manual_r or "")
-                            _db=dt_base_r.isoformat() if hasattr(dt_base_r,'isoformat') else str(dt_base_r or "")
-                            rg_r=rec_manual_r if _dm>_db else rec_base_r
-                        except:
-                            rg_r=rec_manual_r
-                    elif rec_manual_r>0:
-                        rg_r=rec_manual_r
-                    elif rec_base_r>0:
-                        rg_r=rec_base_r
+                # Regra simples: pegar o valor mais recente de cada campo
+                # recGeral = primeiro lançamento que tem recGeral > 0
+                # totalEquipe = já calculado acima no tc_r
+                rg_r = 0.0
+                for l in lancs_r:
+                    v = float(l.get("recGeral", 0))
+                    if v > 0:
+                        rg_r = v
+                        break
+                # Fallback para Meet Call legado
+                if rg_r == 0 and eq_r == "metcool":
+                    mc_doc_r = buscar_lancamento_meetcall(ma)
+                    rg_r = float(mc_doc_r.get("recGeralTotal", mc_doc_r.get("recGeral", 0)))
                 si_r=max(0,rg_r-tc_r); proj_r=calc_projecao(rg_r,dt_r,td_r)
                 pct_r=(rg_r/mg_r*100) if mg_r>0 else 0
                 tot_rec+=rg_r; tot_ci+=tc_r; tot_si+=si_r; tot_meta+=mg_r; tot_proj+=proj_r
