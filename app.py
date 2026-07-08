@@ -1776,7 +1776,7 @@ def pagina_quadro(ma):
                 # Usar o mais recente: manual vs base processada
                 rg_r=0.0
                 if eq_r=="metcool":
-                    # Tentar primeiro lançamento próprio da Meet Call
+                    # Usar lançamento próprio da Meet Call
                     if ul_r and float(ul_r.get("recGeral",0)) > 0:
                         rg_r = float(ul_r.get("recGeral",0))
                     elif ul_r and float(ul_r.get("totalEquipe",0)) > 0:
@@ -1827,8 +1827,12 @@ def pagina_quadro(ma):
                 try:
                     nome_ant="Meet Call" if eq_ant=="metcool" else EQUIPES[eq_ant]["nome"]
                     if eq_ant=="metcool":
-                        mc_ant=buscar_lancamento_meetcall(ma_ant)
-                        rg_ant[nome_ant]=float(mc_ant.get("recGeralTotal",mc_ant.get("recGeral",0)))
+                        lancs_mc_ant=buscar_lancamentos(ma_ant,"metcool")
+                        if lancs_mc_ant:
+                            rg_ant[nome_ant]=float(lancs_mc_ant[0].get("recGeral",0)) or float(lancs_mc_ant[0].get("totalEquipe",0))
+                        else:
+                            mc_ant=buscar_lancamento_meetcall(ma_ant)
+                            rg_ant[nome_ant]=float(mc_ant.get("recGeralTotal",mc_ant.get("recGeral",0)))
                     else:
                         lancs_ant=buscar_lancamentos(ma_ant,eq_ant); v=0.0
                         for l in (lancs_ant or []):
