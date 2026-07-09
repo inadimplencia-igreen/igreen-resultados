@@ -1858,12 +1858,13 @@ def pagina_quadro(ma):
                             mc_ant=buscar_lancamento_meetcall(ma_ant)
                             rg_ant[nome_ant]=float(mc_ant.get("recGeralTotal",mc_ant.get("recGeral",0)))
                     else:
-                        lancs_ant=buscar_lancamentos(ma_ant,eq_ant); v=0.0
-                        for l in (lancs_ant or []):
-                            if l.get("recGeral",0)>0: v=float(l["recGeral"]); break
+                        # Usar processamento como fonte principal (igual à tabela atual)
+                        up_ant=buscar_ultimo_processamento(ma_ant,eq_ant)
+                        v=float(up_ant.get("valorElegivel",0)) if up_ant else 0
                         if v==0:
-                            up_ant=buscar_ultimo_processamento(ma_ant,eq_ant)
-                            v=float(up_ant.get("valorElegivel",0)) if up_ant else 0
+                            lancs_ant=buscar_lancamentos(ma_ant,eq_ant)
+                            for l in (lancs_ant or []):
+                                if l.get("recGeral",0)>0: v=float(l["recGeral"]); break
                         rg_ant[nome_ant]=v
                 except: pass
 
