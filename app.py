@@ -4291,6 +4291,15 @@ def pagina_meetcall(ma):
 
 # ── MAIN ───────────────────────────────────────
 def main():
+    # CSS global para adaptar ao tema claro/escuro
+    st.markdown("""<style>
+[data-testid="stSidebar"] { color: var(--text-color) !important; }
+[data-testid="stSidebar"] * { color: var(--text-color) !important; }
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label p { color: var(--text-color) !important; }
+[data-testid="stSidebar"] .stSelectbox * { color: var(--text-color) !important; }
+[data-testid="stSidebar"] .stButton button { color: var(--text-color) !important; }
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: var(--text-color) !important; }
+</style>""", unsafe_allow_html=True)
     if "usuario" not in st.session_state:
         tela_login()
         return
