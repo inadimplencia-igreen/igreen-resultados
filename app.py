@@ -529,6 +529,29 @@ def salvar_processamento(ma, eq, df, usuario_nome=""):
         upsert=True)
     try: salvar_historico_processamento(ma,eq,usuario_nome,df)
     except: pass
+    # Criar lançamento com recGeral para aparecer no quadro dos diretores
+    try:
+        from datetime import datetime as _dtlp
+        _ts = _dtlp.now().strftime("%Y%m%d%H%M%S%f")
+        _lancs_prev = list(get_db().lancamentos.find({"mesAno":ma,"equipeId":eq}).sort("criadoEm",-1).limit(1))
+        _tc_prev = float(_lancs_prev[0].get("totalEquipe",0)) if _lancs_prev else 0
+        _ag_prev = _lancs_prev[0].get("agentes",{}) if _lancs_prev else {}
+        _dt_prev = int(_lancs_prev[0].get("diasTrabalhados",0)) if _lancs_prev else 0
+        _td_prev = int(_lancs_prev[0].get("totalDias",0)) if _lancs_prev else 0
+        get_db().lancamentos.insert_one({
+            "_id": f"lanc__{ma}__{eq}__{_ts}",
+            "mesAno": ma, "equipeId": eq,
+            "dataRef": str(_dtlp.now().date()),
+            "label": _dtlp.now().strftime("%d/%m/%Y"),
+            "agentes": _ag_prev,
+            "totalEquipe": _tc_prev,
+            "semInteracao": 0,
+            "diasTrabalhados": _dt_prev,
+            "totalDias": _td_prev,
+            "recGeral": valor_elig,
+            "criadoEm": _dtlp.now().isoformat()
+        })
+    except: pass
 
 def buscar_ultimo_processamento(ma, eq):
     doc = get_db().processamentos.find_one(
@@ -1790,18 +1813,19 @@ def pagina_quadro(ma):
                 else:
                     tc_r=_get_tc(lancs_r)
                 dt_r=int(ul_r.get("diasTrabalhados",0)); td_r=int(ul_r.get("totalDias",22))
-                # recGeral = primeiro lançamento que tem recGeral > 0
+                # recGeral: usar processamento como fonte principal (mais confiável)
+                # depois lançamentos como fallback
                 rg_r = 0.0
-                for l in lancs_r:
-                    v = float(l.get("recGeral", 0))
-                    if v > 0:
-                        rg_r = v
-                        break
-                # Fallback: buscar do processamento para todas as equipes
+                up_r = buscar_ultimo_processamento(ma, eq_r)
+                if up_r:
+                    rg_r = float(up_r.get("valorElegivel", 0))
+                # Fallback: lançamentos
                 if rg_r == 0:
-                    up_r = buscar_ultimo_processamento(ma, eq_r)
-                    if up_r:
-                        rg_r = float(up_r.get("valorElegivel", 0))
+                    for l in lancs_r:
+                        v = float(l.get("recGeral", 0))
+                        if v > 0:
+                            rg_r = v
+                            break
                 # Fallback Meet Call legado
                 if rg_r == 0 and eq_r == "metcool":
                     mc_doc_r = buscar_lancamento_meetcall(ma)
@@ -3251,7 +3275,22 @@ def processar_contatos_com_agente(df_raw, segundos_fixos=None):
 def pagina_upload(ma):
     u=st.session_state.usuario
     header_page('Upload de Bases Mensais','Processamento automatico')
-    eq=seletor_equipe(u['equipe'] or 'tamires')
+    # Seletor obrigatório — começa vazio para admin/diretor_upload
+    if u['role'] in ['admin','diretor_upload']:
+        eq_opts = list(EQUIPES.keys())
+        eq_labels = ['-- Selecione a equipe --'] + [f"Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
+        import traceback as _tb
+        _caller = _tb.extract_stack()[-2].name
+        eq_sel = st.selectbox("Gerenciando equipe:", eq_labels, index=0, key=f"admin_eq_{_caller}_upload")
+        if eq_sel == '-- Selecione a equipe --':
+            st.warning("⚠️ Selecione a equipe antes de processar.")
+            eq = None
+        else:
+            eq = eq_opts[eq_labels.index(eq_sel) - 1]
+    else:
+        eq = u['equipe']
+    if not eq:
+        return
     col_up,col_hist=st.columns([1,1])
 
     with col_up:
@@ -3291,9 +3330,11 @@ def pagina_upload(ma):
         if tipo_proc == "Resultado por Atendente":
             col_dt1, col_dt2 = st.columns(2)
             with col_dt1:
-                dias_trab_at = st.number_input("Dias Trabalhados", min_value=0, max_value=31, value=0, key=f"dt_at_{eq}_{ma}")
+                dias_trab_at = st.number_input("Dias Trabalhados *", min_value=0, max_value=31, value=None, placeholder="Obrigatório", key=f"dt_at_{eq}_{ma}")
+                dias_trab_at = dias_trab_at if dias_trab_at is not None else 0
             with col_dt2:
-                total_dias_at = st.number_input("Total Dias do Mês", min_value=0, max_value=31, value=21, key=f"td_at_{eq}_{ma}")
+                total_dias_at = st.number_input("Total Dias do Mês *", min_value=0, max_value=31, value=None, placeholder="Obrigatório", key=f"td_at_{eq}_{ma}")
+                total_dias_at = total_dias_at if total_dias_at is not None else 0
 
         if st.button('PROCESSAR',use_container_width=True):
             if not arq: st.error('Selecione a base de pagos antes de processar!'); return
