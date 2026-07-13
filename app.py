@@ -2762,7 +2762,7 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
     AGENTES_LUCIANO = {n.upper().strip() for n in [
         'JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA',
         'MICHELLE BATISTA','LORENZZO PEREIRA','EDUARDA SANQUETA','MARIA CLARA',
-        'HEVERTON TAVARES','DIOGO OLIVEIRA','GRASIELLE DA SILVA SANTOS',
+        'HEVERTON TAVARES','DIOGO OLIVEIRA','GRASIELLE DA SILVA SANTOS','GRASIELLE SANTOS',
         'EMANUEL FERREIRA','KETLE SILVA','CAUA ALVES','VICTORIA SILVA',
         'PAULO ROBERTO','GABRIELLE MARTINS','JENNIFER ARIELLE','SAMIRES BARROS',
         'LUCIANO','JENNIFER SILVEIRA','MAYCOW GABRIEL','LAURA SILVA'
@@ -2999,7 +2999,7 @@ def calcular_divisao_proporcional_luciano(df_eleg, arq_interacoes, ma):
                 s=int(s); return f"{s//3600:02d}:{(s%3600)//60:02d}:{s%60:02d}"
             except: return "00:00:00"
 
-        _ags_luc_det = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
+        _ags_luc_det = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','GRASIELLE SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
 
         # Detalhe — usar df_seg diretamente (já tem valor_proporcional por boleto)
         df_seg_det = df_seg.copy()
@@ -3169,7 +3169,7 @@ def calcular_resultado_atendentes(arq_pagos, arq_interacoes, eq, ma):
             except: return "00:00:00"
 
         # Detalhe — usa df_cross_at que já tem id_pagamento e valor_proporcional correto
-        _ags_luc_full = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
+        _ags_luc_full = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','GRASIELLE SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
         df_det = df_cross_at.copy()
         df_det['Tempo'] = df_det['segundos'].apply(seg_to_hms)
         df_det['Empresa'] = df_det['agente'].str.upper().str.strip().apply(
@@ -3511,7 +3511,7 @@ def pagina_upload(ma):
 
         # Para Luciano — mostrar separado por equipe
         if res_at.get('eq') == 'luciano':
-            _ags_luc_full = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
+            _ags_luc_full = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','GRASIELLE SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
             df_result = res_at['df_result'].copy()
             df_luc = df_result[df_result['agente'].str.upper().str.strip().isin(_ags_luc_full)].copy()
             df_mc = df_result[~df_result['agente'].str.upper().str.strip().isin(_ags_luc_full)].copy()
@@ -3619,7 +3619,7 @@ def pagina_upload(ma):
                         valor = float(row['valor'])
                         nome_upper = nome.upper().strip()
                         # Verificar se é agente do Luciano pela lista
-                        _ags_luc_save = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
+                        _ags_luc_save = {n.upper().strip() for n in ['JHENIFFER SANTOS','MARCOS MARTINS','JUNIOR OTAIDES','CAMILA NARA','HEVERTON TAVARES','MARIA CLARA','LORENZZO PEREIRA','GRASIELLE DA SILVA SANTOS','GRASIELLE SANTOS','DIOGO OLIVEIRA','MICHELLE BATISTA','KETLE SILVA','EMANUEL FERREIRA','EDUARDA SANQUETA','GABRIELLE MARTINS','VICTORIA SILVA','CAUA ALVES','PAULO ROBERTO','SAMIRES BARROS','JENNIFER ARIELLE','LUCIANO','MAYCOW GABRIEL','LAURA SILVA']}
                         is_luciano = nome_upper in _ags_luc_save
                         if is_luciano:
                             op_id, op_nome = match_operador(nome, ops_luc)
