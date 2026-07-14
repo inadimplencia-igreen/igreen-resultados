@@ -2172,9 +2172,11 @@ def pagina_quadro(ma):
                             for uf,duf in sorted(por_uf.items(),key=lambda x:x[1].get("valor",0),reverse=True):
                                 forn_rows.append({"Fornecedora":f"  └ {forn} — {uf}","Valor Recebido":fmt_brl(float(duf.get("valor",0))),"Boletos":duf.get("boletos",0)})
                     if forn_rows:
-                        forn_rows.append({"Fornecedora":"TOTAL GERAL","Valor Recebido":fmt_brl(total_forn),"Boletos":""})
+                        forn_rows.append({"Fornecedora":"TOTAL GERAL","Valor Recebido":fmt_brl(total_forn),"Boletos":None})
                         st.markdown("<p style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px'>POR FORNECEDORA</p>",unsafe_allow_html=True)
-                        df_forn=pd.DataFrame(forn_rows); df_forn.index=range(1,len(df_forn)+1)
+                        df_forn=pd.DataFrame(forn_rows)
+                        df_forn["Boletos"]=pd.to_numeric(df_forn["Boletos"],errors="coerce").astype("Int64")
+                        df_forn.index=range(1,len(df_forn)+1)
                         st.dataframe(df_forn,use_container_width=True,hide_index=False)
             except: pass
 
