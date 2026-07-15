@@ -8,6 +8,20 @@ import re
 import warnings
 warnings.filterwarnings('ignore')
 
+def safe_dataframe(df, **kwargs):
+    """Exibe dataframe tratando colunas com tipos mistos que causam erro no PyArrow."""
+    df = df.copy()
+    for col in df.columns:
+        if df[col].dtype == object:
+            # Substituir strings vazias por None e tentar converter numéricas
+            df[col] = df[col].replace('', None)
+            try:
+                converted = pd.to_numeric(df[col], errors='raise')
+                df[col] = converted.astype('Int64') if converted.dropna().apply(float.is_integer).all() else converted
+            except (ValueError, TypeError):
+                pass
+    return st.dataframe(df, **kwargs)
+
 st.set_page_config(page_title="Inadimplência Performance", page_icon="logo.png", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
@@ -2156,7 +2170,7 @@ def pagina_quadro(ma):
                 st.markdown(f"<p style='color:#81c784;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px'>🏆 Ranking — {EQUIPES.get(eq,{}).get('nome','') if eq!='metcool' else 'Meet Call'}</p>",unsafe_allow_html=True)
                 df=pd.DataFrame(rows_final).reset_index(drop=True)
                 df.index=range(1,len(df)+1)
-                st.dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
+                safe_dataframe(df,use_container_width=True,height=min(600,(len(df)+1)*38+40))
         if up and up.get("porFornecedora"):
             try:
                 pf=up["porFornecedora"]
@@ -2177,7 +2191,7 @@ def pagina_quadro(ma):
                         df_forn=pd.DataFrame(forn_rows)
                         df_forn["Boletos"]=pd.to_numeric(df_forn["Boletos"],errors="coerce").astype("Int64")
                         df_forn.index=range(1,len(df_forn)+1)
-                        st.dataframe(df_forn,use_container_width=True,hide_index=False)
+                        safe_dataframe(df_forn,use_container_width=True,hide_index=False)
             except: pass
 
         st.markdown("---")
@@ -2696,7 +2710,7 @@ def pagina_analise_operadores(ma):
         st.markdown(f"**Equipe {EQUIPES[eq]['nome']}**")
         df=pd.DataFrame(rows).sort_values("_v",ascending=False).drop(columns=["_v"]).reset_index(drop=True)
         df.index=range(1,len(df)+1)
-        st.dataframe(df,use_container_width=True)
+        safe_dataframe(df,use_container_width=True)
         st.markdown("---")
 
 # ── VISUALIZAÇÃO RCA ───────────────────────────
@@ -3491,7 +3505,7 @@ def pagina_upload(ma):
                 if st.button('Descartar',use_container_width=True,key='btn_desc'):
                     st.session_state['df_proc_temp']=None; st.rerun()
             cols_show=[c for c in ['uc_cpf','data_pagamento','valor','fornecedora','elegibilidade','aging'] if c in df_res.columns]
-            st.dataframe(df_res[cols_show].head(30) if cols_show else df_res.head(30),use_container_width=True)
+            safe_dataframe(df_res[cols_show].head(30) if cols_show else df_res.head(30),use_container_width=True)
 
             # Botão para baixar apenas Elegíveis em CSV — todas as colunas originais
             st.markdown("---")
