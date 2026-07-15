@@ -2023,8 +2023,13 @@ def pagina_quadro(ma):
                 lancs_mc=buscar_lancamentos(ma,"metcool")
                 if lancs_mc:
                     ul_mc=lancs_mc[0]
-                    rg_mc=float(ul_mc.get("totalEquipe",0))
                     dt_mc=int(ul_mc.get("diasTrabalhados",dt)); td_mc=int(ul_mc.get("totalDias",td))
+                    # Buscar totalEquipe do lançamento mais recente que tem valor
+                    for _lmc in lancs_mc:
+                        _te = float(_lmc.get("totalEquipe",0))
+                        if _te > 0:
+                            rg_mc = _te
+                            break
                 mg_mc=float(buscar_meta_gestora(ma,"metcool").get("metaGestora",0))
                 si_mc=max(0,rg_mc-ci_mc); proj_mc=calc_projecao(rg_mc,dt_mc,td_mc)
                 pct_mc=(rg_mc/mg_mc*100) if mg_mc>0 else 0; cv_mc=cor_pct(pct_mc)
@@ -2136,11 +2141,11 @@ def pagina_quadro(ma):
             rows_com_meta=[]
             rows_sem_meta=[]
             for op in ops_show:
-                v=get_val_op(ul.get("agentes",{}),op["_id"],op["nome"])
+                v=get_val_op(ul_agentes.get("agentes",{}),op["_id"],op["nome"])
                 meta=float(mops.get(op["_id"],0))
                 pc=(v/meta*100) if meta>0 else 0
                 proj_op=calc_projecao(v,dt,td) if v>0 else 0
-                lig_op=int(ul.get("agentes",{}).get(op["_id"],{}).get("ligacoes",0) if isinstance(ul.get("agentes",{}).get(op["_id"]),dict) else 0)
+                lig_op=int(ul_agentes.get("agentes",{}).get(op["_id"],{}).get("ligacoes",0) if isinstance(ul_agentes.get("agentes",{}).get(op["_id"]),dict) else 0)
                 row={"Operador":op["nome"]+(" ★" if op.get("pleno") else ""),
                      "Recebido":fmt_brl(v) if v>0 else "—",
                      "Meta":fmt_brl(meta) if meta>0 else "—",
