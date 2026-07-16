@@ -1827,23 +1827,30 @@ def pagina_quadro(ma):
                 else:
                     tc_r=_get_tc(lancs_r)
                 dt_r=int(ul_r.get("diasTrabalhados",0)); td_r=int(ul_r.get("totalDias",22))
-                # recGeral: usar processamento como fonte principal (mais confiável)
-                # depois lançamentos como fallback
                 rg_r = 0.0
-                up_r = buscar_ultimo_processamento(ma, eq_r)
-                if up_r:
-                    rg_r = float(up_r.get("valorElegivel", 0))
-                # Fallback: lançamentos
-                if rg_r == 0:
+                if eq_r == "metcool":
+                    # Meet Call: lançamento tem prioridade sobre processamento
                     for l in lancs_r:
                         v = float(l.get("recGeral", 0))
                         if v > 0:
                             rg_r = v
                             break
-                # Fallback Meet Call legado
-                if rg_r == 0 and eq_r == "metcool":
-                    mc_doc_r = buscar_lancamento_meetcall(ma)
-                    rg_r = float(mc_doc_r.get("recGeralTotal", mc_doc_r.get("recGeral", 0)))
+                    if rg_r == 0:
+                        up_r = buscar_ultimo_processamento(ma, eq_r)
+                        if up_r: rg_r = float(up_r.get("valorElegivel", 0))
+                    if rg_r == 0:
+                        mc_doc_r = buscar_lancamento_meetcall(ma)
+                        rg_r = float(mc_doc_r.get("recGeralTotal", mc_doc_r.get("recGeral", 0)))
+                else:
+                    # Outras equipes: processamento tem prioridade
+                    up_r = buscar_ultimo_processamento(ma, eq_r)
+                    if up_r: rg_r = float(up_r.get("valorElegivel", 0))
+                    if rg_r == 0:
+                        for l in lancs_r:
+                            v = float(l.get("recGeral", 0))
+                            if v > 0:
+                                rg_r = v
+                                break
                 si_r=max(0,rg_r-tc_r); proj_r=calc_projecao(rg_r,dt_r,td_r)
                 pct_r=(rg_r/mg_r*100) if mg_r>0 else 0
                 tot_rec+=rg_r; tot_ci+=tc_r; tot_si+=si_r; tot_meta+=mg_r; tot_proj+=proj_r
