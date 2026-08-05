@@ -1259,7 +1259,7 @@ def render_sidebar():
         if u['role']=='diretor':
             pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Análise de Inadimplência','Metas','Minha Conta']
         elif u['role']=='diretor_upload':
-            pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
+            pags=['Quadro de Resultados','Visualização RCA','Análise dos Operadores','Cadastro de Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         elif u['role']=='admin':
             pags=['Quadro de Resultados','Lançamento','Visualização RCA','Análise dos Operadores','Monitorias','Upload de Bases','Análise de Inadimplência','Metas','Minha Conta']
         elif u.get('equipe')=='metcool':
@@ -4422,6 +4422,7 @@ def main():
         else:
             if   "Quadro"        in pag: pagina_quadro(ma)
             elif "Lançamento"    in pag: pagina_lancamento(ma)
+            elif "Cadastro de Operadores" in pag: pagina_operadores()
             elif "Operadores"    in pag: pagina_analise_operadores(ma)
             elif "Monitorias"    in pag: pagina_monitorias(ma)
             elif "Meet Call"     in pag: pagina_meetcall(ma)
