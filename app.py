@@ -4120,8 +4120,8 @@ def pagina_minha_conta():
             elif sn!=sc2: st.error('Confirmação não confere.')
             else: salvar_senha_usuario(uid,sn); buscar_senha_usuario.clear(); st.success('✅ Senha alterada com sucesso!')
     with t2:
-        # Diretor pode editar operadores de qualquer equipe
-        if u["role"]=="diretor":
+        # Diretor e diretor_upload podem editar operadores de qualquer equipe
+        if u["role"] in ["diretor","diretor_upload"]:
             eq_opts=list(EQUIPES.keys())
             eq_labels=[f"Equipe {EQUIPES[e]['nome']}" for e in eq_opts]
             eq_sel=st.selectbox("Selecionar equipe:",eq_labels,key="dir_eq_ops")
