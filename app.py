@@ -1164,241 +1164,626 @@ def buscar_premiacao(ma):
 
 # ── PREMIAÇÃO — PÁGINA ────────────────────────────
 def pagina_premiacao(ma):
+    import json
+    import streamlit.components.v1 as components
+
     header_page("Premiação", f"Cálculo mensal · {ma.replace('-', ' ')}")
 
-    # Carregar dados salvos
+    # Carregar dados salvos do banco
     dados_salvos = buscar_premiacao(ma)
 
-    # Configurações
-    with st.expander("⚙️ Parâmetros", expanded=False):
-        c1,c2,c3,c4 = st.columns(4)
-        with c1: cfg_total = st.number_input("Valor total (R$)", value=3000, step=100, key="p_total")
-        with c2: cfg_meta_min = st.number_input("Meta mínima (%)", value=100, key="p_meta_min")
-        with c3: cfg_super = st.number_input("Super meta (%)", value=125, key="p_super")
-        with c4: cfg_bonus = st.number_input("Bônus super meta (%)", value=20, key="p_bonus")
-        c1,c2,c3,c4 = st.columns(4)
-        with c1: cfg_qual_at = st.number_input("Qualidade mín. atendentes (%)", value=95, key="p_qual_at")
-        with c2: cfg_qual_lid = st.number_input("Qualidade mín. liderança (%)", value=90, key="p_qual_lid")
-        with c3: cfg_assi_at = st.number_input("Assiduidade mín. atendentes (%)", value=100, key="p_assi_at")
-        with c4: cfg_assi_lid = st.number_input("Assiduidade mín. liderança (%)", value=97, key="p_assi_lid")
-        c1,c2,c3 = st.columns(3)
-        with c1: cfg_senior = st.number_input("Gestora sênior (R$)", value=200, key="p_senior")
-        with c2: cfg_pleno = st.number_input("Gestor pleno (R$)", value=150, key="p_pleno")
-        with c3: cfg_assist = st.number_input("Assistente pleno (R$)", value=100, key="p_assist")
-        cfg_dias = 21
+    # HTML da calculadora (inline)
+    HTML_CALC = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iGreen — Calculadora de Premiação</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f0f2f5;--white:#fff;--border:#e2e6ea;--text:#1a1d2e;--text2:#6b7280;--text3:#9ca3af;
+  --green:#16a34a;--green-light:#dcfce7;--green-border:#22c55e;
+  --orange:#ea580c;--orange-light:#fff7ed;
+  --red:#dc2626;--red-light:#fef2f2;
+  --blue:#2563eb;--purple:#7c3aed;--gray:#f9fafb;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;height:64px;box-shadow:var(--shadow)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-mark{width:38px;height:38px;background:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px}
+.logo-text{font-size:16px;font-weight:700;color:var(--text)}
+.logo-sub{font-size:12px;color:var(--text3);margin-top:1px}
+.wrap{max-width:1300px;margin:0 auto;padding:2rem}
+.page-title{font-size:24px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-bottom:2px}
+.page-sub{font-size:14px;color:var(--text3);margin-bottom:1.75rem}
+.card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.25rem;box-shadow:var(--shadow)}
+.card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between}
+.sum-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.25rem}
+.sum-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.25rem 1.5rem;box-shadow:var(--shadow);border-top:4px solid var(--border)}
+.sum-card.c-green{border-top-color:var(--green-border)}.sum-card.c-blue{border-top-color:var(--blue)}.sum-card.c-purple{border-top-color:var(--purple)}.sum-card.c-red{border-top-color:var(--red)}
+.sum-label{font-size:11px;font-weight:600;color:var(--text3);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.4px}
+.sum-num{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.5px;line-height:1}
+.sum-sub{font-size:12px;color:var(--text3);margin-top:.3rem}
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:1rem}
+.cfg-item{display:flex;flex-direction:column;gap:5px}
+.cfg-item label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+.cfg-item input{padding:9px 12px;font-size:14px;font-family:'Inter',sans-serif;border:1.5px solid var(--border);border-radius:9px;background:var(--white);color:var(--text);transition:border .15s}
+.cfg-item input:focus{outline:none;border-color:var(--green)}
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table.dt{width:100%;border-collapse:collapse;font-size:13px}
+table.dt th{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--gray);white-space:nowrap}
+table.dt td{padding:8px 14px;border-bottom:1px solid var(--border);vertical-align:middle;background:var(--white)}
+table.dt tr:last-child td{border-bottom:none}
+table.dt tr:hover td{background:#fafbff}
+table.dt td input,table.dt td select{padding:7px 10px;font-size:13px;font-family:'Inter',sans-serif;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);transition:border .15s}
+table.dt td input:focus,table.dt td select:focus{outline:none;border-color:var(--green)}
+.col-money{font-weight:700;color:var(--green);text-align:right;white-space:nowrap}
+.col-money.dim{color:var(--text3);font-weight:400;text-align:right}
+.col-pct{font-weight:600;text-align:right;white-space:nowrap}
+.col-right{text-align:right;white-space:nowrap;color:var(--text3);font-size:12px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.b-ok{background:var(--green-light);color:var(--green)}.b-super{background:var(--orange-light);color:var(--orange)}.b-no{background:var(--red-light);color:var(--red)}.b-wait{background:var(--gray);color:var(--text3);border:1px solid var(--border)}
+.b-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.motivo{font-size:10px;color:var(--red);margin-top:2px;line-height:1.4}
+.gestor-row td{background:#f0fdf4!important;font-weight:600}
+.gestor-row td:first-child{border-left:3px solid var(--green)}
+.add-btn{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-family:'Inter',sans-serif;padding:7px 16px;border:1.5px solid var(--border);border-radius:9px;background:var(--white);color:var(--text2);cursor:pointer;margin-top:1rem;font-weight:500;transition:all .15s}
+.add-btn:hover{border-color:var(--green);color:var(--green);background:var(--green-light)}
+.del-btn{padding:4px 9px;border:1.5px solid var(--border);border-radius:7px;background:var(--white);color:var(--text3);cursor:pointer;font-size:11px;font-family:'Inter',sans-serif;transition:all .15s}
+.del-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+.clr-btn:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-light)}
+.reveal-btn{font-size:11px;padding:4px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text2);cursor:pointer;font-family:'Inter',sans-serif}
+.reveal-btn:hover{border-color:var(--green);color:var(--green)}
+.hidden{display:none}
+@media(max-width:900px){.sum-row{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">
+    <div class="logo-mark">iG</div>
+    <div>
+      <div class="logo-text">iGreen Performance</div>
+      <div class="logo-sub">Calculadora de Premiação</div>
+    </div>
+  </div>
+</div>
+<div class="wrap">
+  <div class="page-title">Premiação Mensal</div>
+  <div class="page-sub">Preencha metas e valores recebidos — o cálculo atualiza automaticamente</div>
 
-    cfg = dict(total=cfg_total, metaMin=cfg_meta_min, super=cfg_super, bonus=cfg_bonus,
-               qualAt=cfg_qual_at, qualLid=cfg_qual_lid, assiAt=cfg_assi_at,
-               assiLid=cfg_assi_lid, senior=cfg_senior, pleno=cfg_pleno,
-               assist=cfg_assist, dias=cfg_dias)
+  <div class="card">
+    <div class="card-title">Parâmetros <button class="reveal-btn" onclick="toggleEl('cfg-box')">Mostrar / Ocultar</button></div>
+    <div id="cfg-box" class="hidden">
+      <div class="cfg-grid">
+        <div class="cfg-item"><label>Valor total (R$)</label><input type="number" id="cfg-total" value="3000" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Meta mínima (%)</label><input type="number" id="cfg-meta-min" value="100" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Super meta (%)</label><input type="number" id="cfg-super" value="125" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Bônus super meta (%)</label><input type="number" id="cfg-bonus" value="20" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Qualidade mín. atendentes (%)</label><input type="number" id="cfg-qual-at" value="95" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Qualidade mín. liderança (%)</label><input type="number" id="cfg-qual-lid" value="90" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Assiduidade exigida atendentes (%)</label><input type="number" id="cfg-assi" value="100" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Assiduidade exigida liderança (%)</label><input type="number" id="cfg-assi-lid" value="97" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Dias úteis do mês</label><input type="number" id="cfg-dias" value="21" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Gestora sênior (R$)</label><input type="number" id="cfg-senior" value="200" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Gestor pleno (R$)</label><input type="number" id="cfg-pleno" value="150" oninput="updateResults()"></div>
+        <div class="cfg-item"><label>Assistente pleno (R$)</label><input type="number" id="cfg-assist" value="100" oninput="updateResults()"></div>
+      </div>
+    </div>
+  </div>
 
-    # Liderança padrão
-    lids_default = [
-        {"name":"Moyara","cargo":"senior","qual":"","diretoria":True},
-        {"name":"Danilo","cargo":"pleno","qual":"","diretoria":False},
-        {"name":"Déborah","cargo":"pleno","qual":"","diretoria":False},
-        {"name":"Tamires","cargo":"pleno","qual":"","diretoria":False},
-        {"name":"Mikael","cargo":"assist","qual":"","diretoria":True},
-    ]
-    ats_default = [
-        {"name":"Heverton Tavares","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Eduarda Sanqueta","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Ketle Silva","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Maria Clara","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Laura Silva","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Amanda Clara","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Amanda Eduarda","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Nicole Kamilly","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Sara Pereira","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Silye Ferreira","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Diego Soares","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Italo Henrique","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Breno Mendonça","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Wynara Parreira","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"André Gomes","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Wanessa Cardoso","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Lorena Cristina","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Camila Nara","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Jheniffer Santos","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Marcelle Sampaio","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
-        {"name":"Grasielle Santos","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
-    ]
+  <div id="resumo" class="sum-row"></div>
 
-    # Usar dados salvos se existirem
+  <div class="card">
+    <div class="card-title">Liderança</div>
+    <div class="tbl-wrap">
+      <table class="dt">
+        <thead><tr>
+          <th style="min-width:130px">Nome</th>
+          <th style="min-width:130px">Cargo</th>
+          <th style="min-width:130px">Meta equipe (R$)</th>
+          <th style="min-width:130px">Recebido equipe (R$)</th>
+          <th style="min-width:80px">% Meta</th>
+          <th style="min-width:90px">Qualidade %</th>
+          <th style="min-width:80px">Faltas equipe</th>
+          <th style="min-width:80px">Assid. %</th>
+          <th style="min-width:140px">Situação</th>
+          <th style="min-width:100px;text-align:right">Prêmio</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="lid-body"></tbody>
+      </table>
+    </div>
+    <button class="add-btn" onclick="addLider()">＋ Adicionar</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Atendentes</div>
+    <div class="tbl-wrap">
+      <table class="dt">
+        <thead><tr>
+          <th style="min-width:140px">Nome</th>
+          <th style="min-width:110px">Gestor</th>
+          <th style="min-width:140px">Meta (R$)</th>
+          <th style="min-width:140px">Recebido (R$)</th>
+          <th style="min-width:80px">% Meta</th>
+          <th style="min-width:90px">Qualidade %</th>
+          <th style="min-width:80px">Faltas</th>
+          <th style="min-width:80px">Assid. %</th>
+          <th style="min-width:140px">Situação</th>
+          <th style="min-width:100px;text-align:right">Prêmio</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="at-body"></tbody>
+      </table>
+    </div>
+    <button class="add-btn" onclick="addAtendente()">＋ Adicionar</button>
+  </div>
+</div>
+
+<script>
+function toggleEl(id){document.getElementById(id).classList.toggle('hidden')}
+
+// ── FORMATAÇÃO BRL ──
+function parseBRL(s){
+  if(s===''||s===null||s===undefined)return '';
+  // Remove R$, espaços
+  let c=s.toString().replace(/R\\$\\s*/,'').trim();
+  // Se tem vírgula decimal brasileira (ex: 50.000,00)
+  if(c.includes(',')&&c.includes('.')){
+    c=c.replace(/\\./g,'').replace(',','.');
+  } else if(c.includes(',')){
+    // Só vírgula — pode ser decimal BR (50,5) ou milhar (50,000)
+    const partes=c.split(',');
+    if(partes[1]&&partes[1].length<=2){
+      c=c.replace(',','.');
+    } else {
+      c=c.replace(/,/g,'');
+    }
+  }
+  const v=parseFloat(c);
+  return isNaN(v)?'':v;
+}
+function formatBRL(inp){
+  let v=inp.value.replace(/\\D/g,'');
+  if(v===''){inp.value='';return;}
+  v=(parseInt(v)/100).toFixed(2);
+  inp.value='R$ '+parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtR(v){
+  if(v===''||v===null||isNaN(+v)||+v===0)return '—';
+  return 'R$ '+(+v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fn(v,d=1){if(v===''||isNaN(+v))return '—';return(+v).toFixed(d);}
+
+function getCfg(){return{
+  total:+document.getElementById('cfg-total').value||3000,
+  metaMin:+document.getElementById('cfg-meta-min').value||100,
+  super:+document.getElementById('cfg-super').value||125,
+  bonus:+document.getElementById('cfg-bonus').value||20,
+  qualAt:+document.getElementById('cfg-qual-at').value||95,
+  qualLid:+document.getElementById('cfg-qual-lid').value||90,
+  assiMin:+document.getElementById('cfg-assi').value||100,
+  assiLid:+document.getElementById('cfg-assi-lid').value||97,
+  dias:+document.getElementById('cfg-dias').value||21,
+  senior:+document.getElementById('cfg-senior').value||200,
+  pleno:+document.getElementById('cfg-pleno').value||150,
+  assist:+document.getElementById('cfg-assist').value||100,
+};}
+
+// ── DADOS ──
+let lideres=[
+  {name:'Moyara',  cargo:'senior',qual:'',faltas:'',diretoria:true},
+  {name:'Danilo',  cargo:'pleno', qual:'',faltas:'',diretoria:false},
+  {name:'Déborah', cargo:'pleno', qual:'',faltas:'',diretoria:false},
+  {name:'Tamires', cargo:'pleno', qual:'',faltas:'',diretoria:false},
+  {name:'Mikael',  cargo:'assist',qual:'',faltas:'',diretoria:true},
+];
+let atendentes=[
+  {name:'Heverton Tavares', gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
+  {name:'Eduarda Sanqueta', gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
+  {name:'Ketle Silva',      gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
+  {name:'Maria Clara',      gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
+  {name:'Laura Silva',      gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
+  {name:'Amanda Clara',     gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
+  {name:'Amanda Eduarda',   gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Nicole Kamilly',   gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Sara Pereira',     gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Silye Ferreira',   gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Diego Soares',     gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Italo Henrique',   gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Breno Mendonça',   gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Wynara Parreira',  gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
+  {name:'André Gomes',      gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Wanessa Cardoso',  gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Lorena Cristina',  gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Camila Nara',      gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Jheniffer Santos', gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Marcelle Sampaio', gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
+  {name:'Grasielle Santos', gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
+];
+
+// ── CÁLCULO ──
+function calcPrem(){
+  const cfg=getCfg();
+  // Somar metas/recebidos por gestor
+  const metaG={},recG={};
+  atendentes.forEach(a=>{
+    const g=a.gestor;
+    if(!metaG[g])metaG[g]=0;
+    if(!recG[g])recG[g]=0;
+    const m=parseBRL(a.meta);const r=parseBRL(a.rec);
+    if(m!=='')metaG[g]+=+m;
+    if(r!=='')recG[g]+=+r;
+  });
+  // Liderança
+  const totalMeta=Object.values(metaG).reduce((s,v)=>s+v,0);
+  const totalRec=Object.values(recG).reduce((s,v)=>s+v,0);
+  const lr=lideres.map(l=>{
+    const base=l.cargo==='senior'?cfg.senior:l.cargo==='pleno'?cfg.pleno:cfg.assist;
+    // Diretoria: usa total de todos; gestor: usa só sua equipe
+    const mEq=l.diretoria?totalMeta:(metaG[l.name]||0);
+    const rEq=l.diretoria?totalRec:(recG[l.name]||0);
+    const pct=mEq>0?(rEq/mEq*100):0;
+    const qual=l.qual!==''?+l.qual:null;
+    // Diretoria usa todos os atendentes; gestor usa só a sua equipe
+    const atScope=l.diretoria?atendentes:atendentes.filter(a=>a.gestor===l.name);
+    const nPessoas=atScope.length||1;
+    const totalFaltasEq=atScope.reduce((s,a)=>s+(a.faltas!==''?+a.faltas:0),0);
+    const assiPct=Math.round((1-(totalFaltasEq/(nPessoas*cfg.dias)))*1000)/10;
+    const mot=[];
+    if(mEq===0||pct<cfg.metaMin)mot.push(`recebido abaixo de ${cfg.metaMin}% da meta`);
+    if(qual===null||qual<cfg.qualLid)mot.push(`qualidade abaixo de ${cfg.qualLid}%`);
+    if(assiPct<cfg.assiLid)mot.push(`assiduidade ${assiPct}% abaixo de ${cfg.assiLid}%`);
+    const bateu=mot.length===0, sup=bateu&&pct>=cfg.super;
+    return{l,base,mEq,rEq,pct,qual,assiPct,bateu,sup,mot,premio:bateu?Math.round(base*(sup?1+cfg.bonus/100:1)*100)/100:0};
+  });
+  const premLid=lr.reduce((s,r)=>s+r.premio,0);
+  const baseTot=lr.reduce((s,r)=>s+r.base,0);
+  const poolAt=cfg.total-baseTot+(baseTot-premLid);
+  // Atendentes
+  const ar=atendentes.map(a=>{
+    const m=parseBRL(a.meta), r=parseBRL(a.rec);
+    if(m===''&&r==='')return{a,bateu:false,sup:false,mot:[],peso:0,premio:0,skip:true,pct:0,m:0,r:0};
+    const mv=m!==''?+m:0, rv=r!==''?+r:0;
+    const pct=mv>0?(rv/mv*100):0;
+    const qual=a.qual!==''?+a.qual:null;
+    const assiPct=a.faltas!==''?Math.round((1-(+a.faltas/cfg.dias))*100):100;
+    const mot=[];
+    if(mv===0||pct<cfg.metaMin)mot.push(`recebido abaixo de ${cfg.metaMin}% da meta`);
+    if(qual===null||qual<cfg.qualAt)mot.push(`qualidade abaixo de ${cfg.qualAt}%`);
+    if(assiPct<cfg.assiMin)mot.push(`assiduidade ${assiPct}% abaixo de ${cfg.assiMin}%`);
+    const bateu=mot.length===0, sup=bateu&&pct>=cfg.super;
+    return{a,bateu,sup,mot,peso:bateu?(sup?1+cfg.bonus/100:1):0,premio:0,skip:false,pct,m:mv,r:rv};
+  });
+  const atFilt=ar.filter(r=>!r.skip);
+  const totPeso=atFilt.reduce((s,r)=>s+r.peso,0);
+  if(totPeso>0)atFilt.forEach(r=>{r.premio=Math.round((poolAt*(r.peso/totPeso))*100)/100;});
+  else{const lb=lr.filter(r=>r.bateu);if(lb.length>0)lb.forEach(r=>{r.premio+=poolAt/lb.length;});}
+  const totAt=atFilt.reduce((s,r)=>s+r.premio,0);
+  return{lr,ar,premLid,totAt,cfg,semDest:Math.max(0,Math.round((cfg.total-premLid-totAt)*100)/100),metaG,recG};
+}
+
+function badge(r,isLider=false){
+  if(!isLider&&r.skip)return'<span class="badge b-wait">Aguardando</span>';
+  if(r.bateu&&r.sup)return'<span class="badge b-super"><span class="b-dot"></span>Super meta</span>';
+  if(r.bateu)return'<span class="badge b-ok"><span class="b-dot"></span>Bateu a meta</span>';
+  return`<span class="badge b-no"><span class="b-dot"></span>Não recebe</span>${r.mot.length?'<div class="motivo">'+r.mot.join(' · ')+'</div>':''}`;
+}
+function pctStyle(pct,cfg){
+  return pct>=cfg.super?'color:var(--orange);font-weight:700':pct>=cfg.metaMin?'color:var(--green);font-weight:700':'color:var(--red)';
+}
+
+// ── BUILD TABLES (uma vez) ──
+function buildTables(){
+  buildLidTable();
+  buildAtTable();
+  updateResults();
+}
+
+function buildLidTable(){
+  const lb=document.getElementById('lid-body');lb.innerHTML='';
+  lideres.forEach((l,idx)=>{
+    const tr=document.createElement('tr');
+    tr.dataset.idx=idx;
+    tr.innerHTML=`
+      <td><input type="text" value="${l.name}" data-f="name" data-idx="${idx}" data-src="lid" style="width:120px"></td>
+      <td><select data-f="cargo" data-idx="${idx}" data-src="lid" style="padding:7px 10px;font-size:13px;font-family:Inter,sans-serif;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);width:100%">
+        <option value="senior" ${l.cargo==='senior'?'selected':''}>Gestora sênior</option>
+        <option value="pleno"  ${l.cargo==='pleno'?'selected':''}>Gestor pleno</option>
+        <option value="assist" ${l.cargo==='assist'?'selected':''}>Assistente pleno</option>
+      </select></td>
+      <td class="r-meta-eq col-right" style="color:var(--text3);font-size:13px">—</td>
+      <td class="r-rec-eq col-right" style="color:var(--text3);font-size:13px">—</td>
+      <td class="r-pct col-pct">—</td>
+      <td><input type="number" placeholder="%" value="${l.qual}" data-f="qual" data-idx="${idx}" data-src="lid" style="width:70px"></td>
+      <td class="r-faltas-lid col-right" style="color:var(--text3);font-size:13px">—</td>
+      <td class="r-assi-lid col-right" style="font-size:13px">—</td>
+      <td class="r-badge"></td>
+      <td class="r-premio col-money dim">—</td>
+      <td><button class="del-btn" data-delidx="${idx}" data-src="lid">✕</button></td>
+    `;
+    lb.appendChild(tr);
+    tr.querySelectorAll('input,select').forEach(inp=>inp.addEventListener('input',e=>{
+      lideres[+e.target.dataset.idx][e.target.dataset.f]=e.target.value;
+      updateResults();
+    }));
+    tr.querySelector('.del-btn').addEventListener('click',e=>{
+      const i=+e.target.dataset.delidx;
+      if(lideres.length>1){lideres.splice(i,1);buildLidTable();buildAtTable();updateResults();}
+    });
+  });
+}
+
+function buildAtTable(){
+  const ab=document.getElementById('at-body');ab.innerHTML='';
+  const gestNomes=lideres.map(l=>l.name).filter(Boolean);
+  const gestores=[...new Set(atendentes.map(a=>a.gestor))];
+
+  gestores.forEach(gest=>{
+    // Linha de grupo
+    const trG=document.createElement('tr');
+    trG.className='gestor-row';
+    trG.dataset.gest=gest;
+    trG.innerHTML=`
+      <td colspan="2" style="font-size:12px;color:var(--green);font-weight:700">📋 Equipe ${gest}</td>
+      <td class="rg-meta col-right">—</td>
+      <td class="rg-rec col-right">—</td>
+      <td class="rg-pct col-pct">—</td>
+      <td colspan="2"></td>
+      <td></td>
+      <td class="rg-premio col-money dim">—</td>
+      <td></td>
+    `;
+    ab.appendChild(trG);
+
+    atendentes.forEach((a,idx)=>{
+      if(a.gestor!==gest)return;
+      const og=`<option value="">—</option>`+gestNomes.map(g=>`<option value="${g}" ${a.gestor===g?'selected':''}>${g}</option>`).join('');
+      const tr=document.createElement('tr');
+      tr.dataset.idx=idx;
+      tr.innerHTML=`
+        <td><input type="text" value="${a.name}" data-f="name" data-idx="${idx}" data-src="at" style="min-width:120px"></td>
+        <td><select data-f="gestor" data-idx="${idx}" data-src="at" style="padding:7px 10px;font-size:13px;font-family:Inter,sans-serif;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);width:100%">${og}</select></td>
+        <td><input type="text" placeholder="Ex: 100000" value="${a.meta}" data-f="meta" data-idx="${idx}" data-src="at" style="width:130px;text-align:right" class="brl-inp"></td>
+        <td><input type="text" placeholder="Ex: 50000" value="${a.rec}"  data-f="rec"  data-idx="${idx}" data-src="at" style="width:130px;text-align:right" class="brl-inp"></td>
+        <td class="r-pct-at col-pct">—</td>
+        <td><input type="number" placeholder="%" value="${a.qual}" data-f="qual" data-idx="${idx}" data-src="at" style="width:70px"></td>
+        <td><input type="number" placeholder="0" value="${a.faltas}" data-f="faltas" data-idx="${idx}" data-src="at" style="width:65px" min="0" max="21"></td>
+        <td class="r-assi-at" style="text-align:right;font-size:12px;color:var(--text3)">—</td>
+        <td class="r-badge-at"></td>
+        <td class="r-premio-at col-money dim">—</td>
+        <td style="white-space:nowrap">
+          <button class="clr-btn" data-clearidx="${idx}" title="Limpar dados" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;background:var(--white);color:var(--text3);cursor:pointer;font-size:11px;font-family:Inter,sans-serif;margin-right:4px;transition:all .15s">↺</button>
+          <button class="del-btn" data-delidx="${idx}" data-src="at">✕</button>
+        </td>
+      `;
+      ab.appendChild(tr);
+
+      // Listeners — sem rebuild
+      tr.querySelectorAll('input[data-f="name"],input[data-f="qual"],input[data-f="faltas"],select').forEach(inp=>{
+        inp.addEventListener('input',e=>{
+          const i=+e.target.dataset.idx;
+          atendentes[i][e.target.dataset.f]=e.target.value;
+          if(e.target.dataset.f==='gestor'){buildAtTable();updateResults();}
+          else updateResults();
+        });
+      });
+      // Campos BRL
+      tr.querySelectorAll('.brl-inp').forEach(inp=>{
+        inp.addEventListener('focus',e=>{
+          // Mostra só número para digitar
+          const v=parseBRL(e.target.value);
+          e.target.value=v!==''?v:'';
+        });
+        inp.addEventListener('input',e=>{
+          const i=+e.target.dataset.idx, f=e.target.dataset.f;
+          atendentes[i][f]=e.target.value;
+          updateResults();
+        });
+        inp.addEventListener('blur',e=>{
+          const i=+e.target.dataset.idx, f=e.target.dataset.f;
+          const v=parseFloat(e.target.value.replace(',','.'))||0;
+          if(v>0){
+            atendentes[i][f]=v.toString();
+            e.target.value='R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+          } else {
+            atendentes[i][f]='';
+            e.target.value='';
+          }
+        });
+      });
+      tr.querySelector('.clr-btn').addEventListener('click',e=>{
+        const i=+e.target.dataset.clearidx;
+        atendentes[i].meta='';
+        atendentes[i].rec='';
+        atendentes[i].qual='';
+        atendentes[i].faltas='';
+        buildAtTable();
+        updateResults();
+      });
+      tr.querySelector('.del-btn').addEventListener('click',e=>{
+        const i=+e.target.dataset.delidx;
+        if(atendentes.length>1){atendentes.splice(i,1);buildAtTable();updateResults();}
+      });
+    });
+  });
+}
+
+// ── UPDATE RESULTS (sem rebuild) ──
+function updateResults(){
+  const{lr,ar,premLid,totAt,cfg,semDest}=calcPrem();
+  const prem=ar.filter(r=>r.bateu).length, lprem=lr.filter(r=>r.bateu).length;
+
+  // Resumo
+  document.getElementById('resumo').innerHTML=`
+    <div class="sum-card c-green"><div class="sum-label">Valor total</div><div class="sum-num">${fmtR(cfg.total)}</div></div>
+    <div class="sum-card c-blue"><div class="sum-label">Liderança premiada</div><div class="sum-num">${fmtR(premLid)}</div><div class="sum-sub">${lprem} de ${lr.length} líderes</div></div>
+    <div class="sum-card c-purple"><div class="sum-label">Atendentes premiados</div><div class="sum-num">${fmtR(totAt)}</div><div class="sum-sub">${prem} de ${ar.filter(r=>!r.skip).length} com dados</div></div>
+    <div class="sum-card ${semDest>0.01?'c-red':'c-green'}"><div class="sum-label">Sem destino</div><div class="sum-num">${fmtR(semDest)}</div></div>
+  `;
+
+  // Liderança — só atualiza células de resultado
+  document.querySelectorAll('#lid-body tr').forEach((tr,i)=>{
+    if(i>=lr.length)return;
+    const r=lr[i];
+    const metaEqEl=tr.querySelector('.r-meta-eq');
+    const recEqEl=tr.querySelector('.r-rec-eq');
+    if(metaEqEl) metaEqEl.textContent=fmtR(r.mEq)+(r.l.diretoria?' (total)':'');
+    if(recEqEl) recEqEl.textContent=fmtR(r.rEq)+(r.l.diretoria?' (total)':'');
+    const pctEl=tr.querySelector('.r-pct');
+    pctEl.textContent=r.mEq>0?fn(r.pct)+'%':'—';
+    pctEl.style.cssText=r.mEq>0?pctStyle(r.pct,cfg):'';
+    const faltasEl=tr.querySelector('.r-faltas-lid');
+    const assiEl=tr.querySelector('.r-assi-lid');
+    if(faltasEl||assiEl){
+      const atScope=r.l.diretoria?atendentes:atendentes.filter(a=>a.gestor===r.l.name);
+      const nPessoas=atScope.length||1;
+      const totalFaltas=atScope.reduce((s,a)=>s+(a.faltas!==''?+a.faltas:0),0);
+      const assiPct=Math.round((1-(totalFaltas/(nPessoas*cfg.dias)))*1000)/10;
+      if(faltasEl) faltasEl.textContent=totalFaltas+' falta'+(totalFaltas!==1?'s':'');
+      if(assiEl){
+        assiEl.textContent=assiPct.toFixed(1)+'%';
+        assiEl.style.color=assiPct>=cfg.assiLid?'var(--green)':'var(--red)';
+      }
+    }
+    tr.querySelector('.r-badge').innerHTML=badge(r,true);
+    const pm=tr.querySelector('.r-premio');
+    pm.textContent=fmtR(r.premio);
+    pm.className='r-premio '+(r.premio>0?'col-money':'col-money dim');
+  });
+
+  // Atendentes — atualiza por idx
+  const gestores=[...new Set(atendentes.map(a=>a.gestor))];
+  gestores.forEach(gest=>{
+    // Totais do grupo
+    const trG=document.querySelector(`#at-body tr.gestor-row[data-gest="${gest}"]`);
+    if(trG){
+      const atG=ar.filter(r=>r.a.gestor===gest&&!r.skip);
+      const mG=atG.reduce((s,r)=>s+r.m,0);
+      const rG=atG.reduce((s,r)=>s+r.r,0);
+      const pG=mG>0?(rG/mG*100):0;
+      const premG=atG.reduce((s,r)=>s+r.premio,0);
+      trG.querySelector('.rg-meta').textContent=fmtR(mG);
+      trG.querySelector('.rg-rec').textContent=fmtR(rG);
+      const pEl=trG.querySelector('.rg-pct');
+      pEl.textContent=mG>0?fn(pG)+'%':'—';
+      pEl.style.cssText=mG>0?pctStyle(pG,cfg):'';
+      const pmG=trG.querySelector('.rg-premio');
+      pmG.textContent=fmtR(premG);
+      pmG.className='rg-premio '+(premG>0?'col-money':'col-money dim');
+    }
+  });
+
+  // Atendentes individuais
+  document.querySelectorAll('#at-body tr:not(.gestor-row)').forEach(tr=>{
+    const idx=+tr.dataset.idx;
+    if(isNaN(idx)||idx>=ar.length)return;
+    const r=ar[idx];
+    const pctEl=tr.querySelector('.r-pct-at');
+    if(pctEl){
+      pctEl.textContent=r.skip||r.m===0?'—':fn(r.pct)+'%';
+      pctEl.style.cssText=(!r.skip&&r.m>0)?pctStyle(r.pct,cfg):'';
+    }
+    const assiEl=tr.querySelector('.r-assi-at');
+    if(assiEl){
+      const assiPct=r.a.faltas!==''?Math.round((1-(+r.a.faltas/cfg.dias))*100):100;
+      assiEl.textContent=assiPct+'%';
+      assiEl.style.color=assiPct>=cfg.assiMin?'var(--green)':'var(--red)';
+    }
+    const bdg=tr.querySelector('.r-badge-at');
+    if(bdg)bdg.innerHTML=badge(r);
+    const pm=tr.querySelector('.r-premio-at');
+    if(pm){pm.textContent=fmtR(r.premio);pm.className='r-premio-at '+(r.premio>0?'col-money':'col-money dim');}
+  });
+}
+
+function addLider(){lideres.push({name:'',cargo:'pleno',qual:'',faltas:''});buildLidTable();updateResults();}
+function addAtendente(){atendentes.push({name:'',gestor:lideres[0]?.name||'',meta:'',rec:'',qual:'',faltas:''});buildAtTable();updateResults();}
+
+document.querySelectorAll('#cfg-box input').forEach(i=>i.addEventListener('input',updateResults));
+buildTables();
+
+// Carregar dados salvos do banco (injetado pelo Streamlit)
+function carregarDados(d){
+  if(!d) return;
+  if(d.lideres) lideres=d.lideres;
+  if(d.atendentes) atendentes=d.atendentes;
+  if(d.cfg){
+    const cfg=d.cfg;
+    const campos={
+      'cfg-total':'total','cfg-meta-min':'metaMin','cfg-super':'super',
+      'cfg-bonus':'bonus','cfg-qual-at':'qualAt','cfg-qual-lid':'qualLid',
+      'cfg-assi':'assiMin','cfg-assi-lid':'assiLid','cfg-dias':'dias',
+      'cfg-senior':'senior','cfg-pleno':'pleno','cfg-assist':'assist'
+    };
+    Object.entries(campos).forEach(([id,key])=>{
+      const el=document.getElementById(id);
+      if(el&&cfg[key]!==undefined) el.value=cfg[key];
+    });
+  }
+  buildTables();
+  updateResults();
+}
+
+// Função para coletar todos os dados e enviar para o Streamlit
+function coletarDados(){
+  return JSON.stringify({lideres, atendentes});
+}
+
+// Botão copiar dados para o campo oculto do Streamlit
+function enviarParaStreamlit(){
+  const dados=coletarDados();
+  // Tenta via window.parent (iframe)
+  try{
+    const inputs=window.parent.document.querySelectorAll('textarea');
+    inputs.forEach(inp=>{
+      if(inp.getAttribute('aria-label')==='dados_json'||inp.dataset.testid==='stTextArea'){
+        const nativeInputValueSetter=Object.getOwnPropertyDescriptor(window.parent.HTMLTextAreaElement.prototype,'value').set;
+        nativeInputValueSetter.call(inp,dados);
+        inp.dispatchEvent(new Event('input',{bubbles:true}));
+      }
+    });
+  } catch(e){}
+  alert('Dados copiados! Clique em "Salvar Premiação" abaixo.');
+}
+
+// __DADOS_SALVOS__
+</script>
+</body>
+</html>
+"""
+
+    # Injetar dados salvos no HTML se existirem
     if dados_salvos:
-        lids = dados_salvos.get("lideres", lids_default)
-        ats  = dados_salvos.get("atendentes", ats_default)
-        cfg  = dados_salvos.get("cfg", cfg)
+        dados_json = json.dumps(dados_salvos, ensure_ascii=False)
+        html_final = HTML_CALC.replace(
+            "// __DADOS_SALVOS__",
+            f"const DADOS_SALVOS = {dados_json}; carregarDados(DADOS_SALVOS);"
+        )
     else:
-        lids = lids_default
-        ats  = ats_default
+        html_final = HTML_CALC.replace("// __DADOS_SALVOS__", "")
 
-    def fmtR(v):
-        try:
-            v = float(v)
-            if v == 0: return "R$ 0,00"
-            return f"R$ {v:,.2f}".replace(",","X").replace(".",",").replace("X",".")
-        except:
-            return "—"
+    # Renderizar HTML
+    result = components.html(html_final, height=1800, scrolling=True)
 
-    def calc_pct(rec, meta):
-        try:
-            r, m = float(rec), float(meta)
-            if m <= 0: return 0
-            return round(r / m * 100, 1)
-        except:
-            return 0
-
-    def assi_at(faltas):
-        try:
-            return round((1 - int(faltas)/cfg['dias']) * 100, 1)
-        except:
-            return 100.0
-
-    def assi_lid(gestor, diretoria):
-        scope = ats if diretoria else [a for a in ats if a['gestor'] == gestor]
-        n = len(scope) or 1
-        total_f = sum(int(a['faltas']) for a in scope if a['faltas'] != '')
-        return round((1 - total_f / (n * cfg['dias'])) * 100, 1)
-
-    def meta_lid(gestor, diretoria):
-        scope = ats if diretoria else [a for a in ats if a['gestor'] == gestor]
-        return sum(float(a['meta']) for a in scope if a['meta'] != '')
-
-    def rec_lid(gestor, diretoria):
-        scope = ats if diretoria else [a for a in ats if a['gestor'] == gestor]
-        return sum(float(a['rec']) for a in scope if a['rec'] != '')
-
-    def calc_premio_lid(l):
-        base = cfg['senior'] if l['cargo']=='senior' else cfg['pleno'] if l['cargo']=='pleno' else cfg['assist']
-        meta = meta_lid(l['name'], l.get('diretoria', False))
-        rec  = rec_lid(l['name'], l.get('diretoria', False))
-        pct  = calc_pct(rec, meta)
-        assi = assi_lid(l['name'], l.get('diretoria', False))
-        qual = float(l['qual']) if l['qual'] != '' else None
-        mots = []
-        if meta == 0 or pct < cfg['metaMin']: mots.append(f"recebido abaixo de {cfg['metaMin']}%")
-        if qual is None or qual < cfg['qualLid']: mots.append(f"qualidade abaixo de {cfg['qualLid']}%")
-        if assi < cfg['assiLid']: mots.append(f"assiduidade {assi}% abaixo de {cfg['assiLid']}%")
-        bateu = len(mots) == 0
-        sup   = bateu and pct >= cfg['super']
-        premio = round(base * (1 + cfg['bonus']/100 if sup else 1), 2) if bateu else 0
-        return dict(base=base, meta=meta, rec=rec, pct=pct, assi=assi, bateu=bateu, sup=sup, mots=mots, premio=premio)
-
-    def calc_premios_at():
-        prem_lid = sum(calc_premio_lid(l)['premio'] for l in lids)
-        base_tot = sum((cfg['senior'] if l['cargo']=='senior' else cfg['pleno'] if l['cargo']=='pleno' else cfg['assist']) for l in lids)
-        pool = cfg['total'] - prem_lid
-        resultados = []
-        for a in ats:
-            if a['meta']=='' and a['rec']=='':
-                resultados.append(dict(skip=True, bateu=False, sup=False, mots=[], peso=0, premio=0, pct=0, assi=100))
-                continue
-            pct  = calc_pct(a['rec'], a['meta'])
-            assi = assi_at(a['faltas'])
-            qual = float(a['qual']) if a['qual'] != '' else None
-            mots = []
-            if float(a['meta'] or 0)==0 or pct < cfg['metaMin']: mots.append(f"recebido abaixo de {cfg['metaMin']}%")
-            if qual is None or qual < cfg['qualAt']: mots.append(f"qualidade abaixo de {cfg['qualAt']}%")
-            if assi < cfg['assiAt']: mots.append(f"assiduidade {assi}% abaixo de {cfg['assiAt']}%")
-            bateu = len(mots) == 0
-            sup   = bateu and pct >= cfg['super']
-            peso  = (1 + cfg['bonus']/100) if sup else (1.0 if bateu else 0)
-            resultados.append(dict(skip=False, bateu=bateu, sup=sup, mots=mots, peso=peso, premio=0, pct=pct, assi=assi))
-        tot_peso = sum(r['peso'] for r in resultados)
-        if tot_peso > 0:
-            for r in resultados:
-                r['premio'] = round(pool * r['peso'] / tot_peso, 2)
-        else:
-            lid_bateu = [l for l in lids if calc_premio_lid(l)['bateu']]
-            if lid_bateu:
-                extra = pool / len(lid_bateu)
-                # redistribui para liderança — não para atendentes
-        return resultados
-
-    # ── RESUMO ──
-    res_lids = [calc_premio_lid(l) for l in lids]
-    res_ats  = calc_premios_at()
-    prem_lid = sum(r['premio'] for r in res_lids)
-    prem_at  = sum(r['premio'] for r in res_ats)
-    sem_dest = max(0, round(cfg['total'] - prem_lid - prem_at, 2))
-
-    c1,c2,c3,c4 = st.columns(4)
-    with c1: st.metric("Valor Total", fmtR(cfg['total']))
-    with c2: st.metric("Liderança premiada", fmtR(prem_lid), f"{sum(1 for r in res_lids if r['bateu'])} de {len(lids)}")
-    with c3: st.metric("Atendentes premiados", fmtR(prem_at), f"{sum(1 for r in res_ats if r['bateu'])} de {sum(1 for r in res_ats if not r['skip'])}")
-    with c4: st.metric("Sem destino", fmtR(sem_dest))
-
+    # Botão salvar — recebe dados via query params ou session state
     st.markdown("---")
+    dados_input = st.text_area("dados_json", value="", label_visibility="collapsed", key="prem_dados_json", height=1)
+    if st.button("💾 Salvar Premiação", use_container_width=True, key="btn_salvar_prem"):
+        try:
+            raw = st.session_state.get("prem_dados_json","").strip()
+            if raw:
+                dados = json.loads(raw)
+                salvar_premiacao(ma, dados)
+                st.success("✅ Premiação salva!")
+                st.cache_data.clear()
+        except Exception as e:
+            st.error(f"Erro ao salvar: {e}")
 
-    # ── LIDERANÇA ──
-    st.markdown("#### Liderança")
-    for i, l in enumerate(lids):
-        r = res_lids[i]
-        cor = "#2e7d32" if r['bateu'] else "#c62828"
-        badge = ("🟠 Super meta" if r['sup'] else "🟢 Bateu a meta") if r['bateu'] else "🔴 Não recebe"
-        tipo = "DIRETORIA" if l.get('diretoria') else "GESTOR"
-        with st.expander(f"{l['name']} — {badge} — {fmtR(r['premio'])}", expanded=False):
-            c1,c2,c3 = st.columns(3)
-            with c1:
-                st.markdown(f"**Meta equipe:** {fmtR(r['meta'])}")
-                st.markdown(f"**Recebido:** {fmtR(r['rec'])}")
-                st.markdown(f"**% Meta:** {r['pct']:.1f}%")
-            with c2:
-                novo_qual = st.number_input(f"Qualidade % — {l['name']}", value=float(l['qual']) if l['qual']!='' else 0.0, min_value=0.0, max_value=100.0, step=0.1, key=f"lid_qual_{i}")
-                lids[i]['qual'] = str(novo_qual) if novo_qual > 0 else ''
-            with c3:
-                st.markdown(f"**Assiduidade equipe:** {r['assi']:.1f}%")
-                st.markdown(f"**Tipo:** {tipo}")
-            if r['mots']:
-                st.warning(" · ".join(r['mots']))
-
-    st.markdown("---")
-
-    # ── ATENDENTES ──
-    st.markdown("#### Atendentes")
-    gestores = list(dict.fromkeys(a['gestor'] for a in ats))
-    for gest in gestores:
-        st.markdown(f"**📋 Equipe {gest}**")
-        idxs = [i for i,a in enumerate(ats) if a['gestor']==gest]
-        header = st.columns([2,1.5,1.5,.8,.8,.8,1.2,.8])
-        header[0].markdown("<small>**Nome**</small>", unsafe_allow_html=True)
-        header[1].markdown("<small>**Meta (R$)**</small>", unsafe_allow_html=True)
-        header[2].markdown("<small>**Recebido (R$)**</small>", unsafe_allow_html=True)
-        header[3].markdown("<small>**% Meta**</small>", unsafe_allow_html=True)
-        header[4].markdown("<small>**Qual %**</small>", unsafe_allow_html=True)
-        header[5].markdown("<small>**Faltas**</small>", unsafe_allow_html=True)
-        header[6].markdown("<small>**Situação**</small>", unsafe_allow_html=True)
-        header[7].markdown("<small>**Prêmio**</small>", unsafe_allow_html=True)
-        for i in idxs:
-            a = ats[i]
-            r = res_ats[i]
-            cols = st.columns([2,1.5,1.5,.8,.8,.8,1.2,.8])
-            with cols[0]: st.markdown(f"<div style='padding-top:8px;font-size:13px'>{a['name']}</div>", unsafe_allow_html=True)
-            with cols[1]: ats[i]['meta'] = st.text_input("m", value=a['meta'], placeholder="0", label_visibility="collapsed", key=f"at_meta_{i}")
-            with cols[2]: ats[i]['rec']  = st.text_input("r", value=a['rec'],  placeholder="0", label_visibility="collapsed", key=f"at_rec_{i}")
-            with cols[3]:
-                pct_str = f"{r['pct']:.0f}%" if not r['skip'] and float(a['meta'] or 0)>0 else "—"
-                cor_pct = "color:#16a34a" if r['pct']>=cfg['metaMin'] else "color:#dc2626"
-                st.markdown(f"<div style='padding-top:8px;font-size:13px;font-weight:600;{cor_pct}'>{pct_str}</div>", unsafe_allow_html=True)
-            with cols[4]: ats[i]['qual']   = st.text_input("q", value=a['qual'],   placeholder="%",  label_visibility="collapsed", key=f"at_qual_{i}")
-            with cols[5]: ats[i]['faltas'] = st.text_input("f", value=a['faltas'], placeholder="0",  label_visibility="collapsed", key=f"at_falt_{i}")
-            with cols[6]:
-                if r['skip']: badge_at = "⬜ Aguardando"
-                elif r['sup']: badge_at = "🟠 Super meta"
-                elif r['bateu']: badge_at = "🟢 Bateu"
-                else: badge_at = "🔴 Não recebe"
-                st.markdown(f"<div style='padding-top:8px;font-size:12px'>{badge_at}</div>", unsafe_allow_html=True)
-            with cols[7]:
-                cor_p = "color:#16a34a;font-weight:700" if r['premio']>0 else "color:#9ca3af"
-                st.markdown(f"<div style='padding-top:8px;font-size:13px;{cor_p}'>{fmtR(r['premio'])}</div>", unsafe_allow_html=True)
-        st.markdown("<hr style='margin:8px 0'>", unsafe_allow_html=True)
-
-    # ── SALVAR ──
-    if st.button("💾 Salvar Premiação", use_container_width=True):
-        salvar_premiacao(ma, {"lideres": lids, "atendentes": ats, "cfg": cfg})
-        st.success("✅ Premiação salva!")
-        st.rerun()
 
 # ── MINHA CONTA ──────────────────────────────────
 def pagina_minha_conta():
