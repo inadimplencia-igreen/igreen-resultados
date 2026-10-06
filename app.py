@@ -8,6 +8,11 @@ import io
 import warnings
 warnings.filterwarnings('ignore')
 
+import base64 as _b64
+_HTML_B64 = "cyBzdAppbXBvcnQgcGFuZGFzIGFzIHBkCmZyb20gcHltb25nbyBpbXBvcnQgTW9uZ29DbGllbnQKZnJvbSBkYXRldGltZSBpbXBvcnQgZGF0ZXRpbWUsIGRhdGUKaW1wb3J0IGJhc2U2NAppbXBvcnQgcmUKaW1wb3J0IGlvCmltcG9ydCB3YXJuaW5ncwp3YXJuaW5ncy5maWx0ZXJ3YXJuaW5ncygnaWdub3JlJykKCnN0LnNldF9wYWdlX2NvbmZpZygKICAgIHBhZ2VfdGl0bGU9ImlHcmVlbiBNb25pdG9yaWFzIiwKICAgIHBhZ2VfaWNvbj0i8J+MvyIsCiAgICBsYXlvdXQ9IndpZGUiLAogICAgaW5pdGlhbF9zaWRlYmFyX3N0YXRlPSJleHBhbmRlZCIKKQoKc3QubWFya2Rvd24oIiIiCjxzdHlsZT4KQGltcG9ydCB1cmwoJ2h0dHBzOi8vZm9udHMuZ29vZ2xlYXBpcy5jb20vY3NzMj9mYW1pbHk9SW50ZXI6d2dodEAzMDA7NDAwOzUwMDs2MDA7NzAwOzgwMCZkaXNwbGF5PXN3YXAnKTsKKiB7IGZvbnQtZmFtaWx5OiAnSW50ZXInLCBzYW5zLXNlcmlmICFpbXBvcnRhbnQ7IH0KLnN0QXBwIHsgYmFja2dyb3VuZC1jb2xvcjogI2YwZjdmMCAhaW1wb3J0YW50OyB9CltkYXRhLXRlc3RpZD0ic3RTaWRlYmFyIl0geyBiYWNrZ3JvdW5kOiAjZjVmYmY1ICFpbXBvcnRhbnQ7IGJvcmRlci1yaWdodDogMXB4IHNvbGlkICNkMGU4ZDAgIWltcG9ydGFudDsgfQpbZGF0YS10ZXN0aWQ9InN0U2lkZWJhciJdIC5zdFJhZGlvID4gZGl2ID4gcCB7IGRpc3BsYXk6IG5vbmUgIWltcG9ydGFudDsgfQpbZGF0YS10ZXN0aWQ9InN0U2lkZWJhciJdIC5zdFJhZGlvIGxhYmVsIHsKICAgIGNvbG9yOiAjMmQ0YTJkICFpbXBvcnRhbnQ7IGZvbnQtc2l6ZTogMTNweCAhaW1wb3J0YW50OyBmb250LXdlaWdodDogNTAwICFpbXBvcnRhbnQ7CiAgICBwYWRkaW5nOiAxMHB4IDE2cHggIWltcG9ydGFudDsgZGlzcGxheTogZmxleCAhaW1wb3J0YW50OyBhbGlnbi1pdGVtczogY2VudGVyICFpbXBvcnRhbnQ7CiAgICBib3JkZXItcmFkaXVzOiA4cHggIWltcG9ydGFudDsgbWFyZ2luOiAxcHggMCAhaW1wb3J0YW50OyB3aWR0aDogMTAwJSAhaW1wb3J0YW50OwogICAgYmFja2dyb3VuZDogI2ZmZmZmZiAhaW1wb3J0YW50OyBib3JkZXI6IDFweCBzb2xpZCAjZDhlYWQ4ICFpbXBvcnRhbnQ7CiAgICBtaW4taGVpZ2h0OiA0MHB4ICFpbXBvcnRhbnQ7IHRyYW5zaXRpb246IGFsbCAwLjE1cyAhaW1wb3J0YW50Owp9CltkYXRhLXRlc3RpZD0ic3RTaWRlYmFyIl0gLnN0UmFkaW8gbGFiZWw6aG92ZXIgeyBiYWNrZ3JvdW5kOiAjZWRmN2VkICFpbXBvcnRhbnQ7IGJvcmRlci1jb2xvcjogIzJlN2QzMiAhaW1wb3J0YW50OyB9CltkYXRhLXRlc3RpZD0ic3RTaWRlYmFyIl0gLnN0UmFkaW8gW2RhdGEtYmFzZXdlYj0icmFkaW8iXSA+IGRpdjpmaXJzdC1jaGlsZCB7IGRpc3BsYXk6IG5vbmUgIWltcG9ydGFudDsgfQpbZGF0YS10ZXN0aWQ9InN0U2lkZWJhciJdIC5zdFJhZGlvIGxhYmVsW2RhdGEtY2hlY2tlZD0idHJ1ZSJdIHsKICAgIGNvbG9yOiAjZmZmZmZmICFpbXBvcnRhbnQ7IGJhY2tncm91bmQ6ICMyZTdkMzIgIWltcG9ydGFudDsgYm9yZGVyLWNvbG9yOiAjMmU3ZDMyICFpbXBvcnRhbnQ7IGZvbnQtd2VpZ2h0OiA2MDAgIWltcG9ydGFudDsKfQpbZGF0YS10ZXN0aWQ9InN0TWV0cmljIl0geyBiYWNrZ3JvdW5kOiAjZmZmZmZmICFpbXBvcnRhbnQ7IGJvcmRlcjogMXB4IHNvbGlkICNlMGU4ZTAgIWltcG9ydGFudDsgYm9yZGVyLXJhZGl1czogMTBweCAhaW1wb3J0YW50OyBwYWRkaW5nOiAxNnB4IDIwcHggIWltcG9ydGFudDsgYm9yZGVyLXRvcDogM3B4IHNvbGlkICMyZTdkMzIgIWltcG9ydGFudDsgfQpbZGF0YS10ZXN0aWQ9InN0TWV0cmljVmFsdWUiXSB7IGNvbG9yOiAjMWEyZTFhICFpbXBvcnRhbnQ7IGZvbnQtc2l6ZTogMTZweCAhaW1wb3J0YW50OyBmb250LXdlaWdodDogNzAwICFpbXBvcnRhbnQ7IH0KW2RhdGEtdGVzdGlkPSJzdE1ldHJpY0xhYmVsIl0geyBjb2xvcjogIzVhOGE1YSAhaW1wb3J0YW50OyBmb250LXNpemU6IDEwcHggIWltcG9ydGFudDsgdGV4dC10cmFuc2Zvcm06IHVwcGVyY2FzZTsgbGV0dGVyLXNwYWNpbmc6IDEuNXB4OyBmb250LXdlaWdodDogNjAwOyB9Ci5zdEJ1dHRvbiA+IGJ1dHRvbiB7IGJhY2tncm91bmQ6ICNmMGY3ZjAgIWltcG9ydGFudDsgY29sb3I6ICMyZTdkMzIgIWltcG9ydGFudDsgYm9yZGVyOiAxcHggc29saWQgI2M4ZTBjOCAhaW1wb3J0YW50OyBib3JkZXItcmFkaXVzOiA2cHggIWltcG9ydGFudDsgZm9udC13ZWlnaHQ6IDUwMCAhaW1wb3J0YW50OyBmb250LXNpemU6IDEycHggIWltcG9ydGFudDsgfQouc3RCdXR0b24gPiBidXR0b246aG92ZXIgeyBiYWNrZ3JvdW5kOiAjMmU3ZDMyICFpbXBvcnRhbnQ7IGNvbG9yOiAjZmZmZmZmICFpbXBvcnRhbnQ7IH0KaDEgeyBjb2xvcjogIzFhMmUxYSAhaW1wb3J0YW50OyBmb250LXNpemU6IDIwcHggIWltcG9ydGFudDsgZm9udC13ZWlnaHQ6IDcwMCAhaW1wb3J0YW50OyB9CmgyIHsgY29sb3I6ICMyZDRhMmQgIWltcG9ydGFudDsgZm9udC1zaXplOiAxNnB4ICFpbXBvcnRhbnQ7IGZvbnQtd2VpZ2h0OiA2MDAgIWltcG9ydGFudDsgfQpwIHsgY29sb3I6ICMxYTNhMWEgIWltcG9ydGFudDsgZm9udC1zaXplOiAxM3B4OyB9CmhyIHsgYm9yZGVyOiBub25lICFpbXBvcnRhbnQ7IGJvcmRlci10b3A6IDFweCBzb2xpZCAjZTBlOGUwICFpbXBvcnRhbnQ7IG1hcmdpbjogMTRweCAwICFpbXBvcnRhbnQ7IH0KLnN0VGV4dElucHV0IGlucHV0LCAuc3ROdW1iZXJJbnB1dCBpbnB1dCwgLnN0VGV4dEFyZWEgdGV4dGFyZWEgeyBiYWNrZ3JvdW5kOiAjZmZmZmZmICFpbXBvcnRhbnQ7IGJvcmRlcjogMXB4IHNvbGlkICNjOGUwYzggIWltcG9ydGFudDsgY29sb3I6ICMxYTJlMWEgIWltcG9ydGFudDsgYm9yZGVyLXJhZGl1czogOHB4ICFpbXBvcnRhbnQ7IGZvbnQtc2l6ZTogMTNweCAhaW1wb3J0YW50OyB9Ci5zdFNlbGVjdGJveCA+IGRpdiA+IGRpdiB7IGJhY2tncm91bmQ6ICNmZmZmZmYgIWltcG9ydGFudDsgYm9yZGVyOiAxcHggc29saWQgI2M4ZTBjOCAhaW1wb3J0YW50OyBjb2xvcjogIzFhMmUxYSAhaW1wb3J0YW50OyBib3JkZXItcmFkaXVzOiA4cHggIWltcG9ydGFudDsgfQouc3RUYWJzIFtkYXRhLWJhc2V3ZWI9InRhYi1saXN0Il0geyBiYWNrZ3JvdW5kOiAjZjBmN2YwICFpbXBvcnRhbnQ7IGJvcmRlci1yYWRpdXM6IDhweCAhaW1wb3J0YW50OyBwYWRkaW5nOiA0cHggIWltcG9ydGFudDsgYm9yZGVyOiAxcHggc29saWQgI2M4ZTBjOCAhaW1wb3J0YW50OyB9Ci5zdFRhYnMgW2RhdGEtYmFzZXdlYj0idGFiIl0geyBjb2xvcjogIzVhOGE1YSAhaW1wb3J0YW50OyBib3JkZXItcmFkaXVzOiA2cHggIWltcG9ydGFudDsgZm9udC1zaXplOiAxMnB4ICFpbXBvcnRhbnQ7IH0KLnN0VGFicyBbYXJpYS1zZWxlY3RlZD0idHJ1ZSJdIHsgYmFja2dyb3VuZDogIzJlN2QzMiAhaW1wb3J0YW50OyBjb2xvcjogI2ZmZmZmZiAhaW1wb3J0YW50OyB9Ci5zdFN1Y2Nlc3MgPiBkaXYgeyBiYWNrZ3JvdW5kOiAjZjBmYWYwICFpbXBvcnRhbnQ7IGJvcmRlci1sZWZ0OiAzcHggc29saWQgIzJlN2QzMiAhaW1wb3J0YW50OyBjb2xvcjogIzJlN2QzMiAhaW1wb3J0YW50OyBib3JkZXItcmFkaXVzOiA4cHggIWltcG9ydGFudDsgfQouc3RFcnJvciA+IGRpdiB7IGJhY2tncm91bmQ6ICNmZmY1ZjUgIWltcG9ydGFudDsgYm9yZGVyLWxlZnQ6IDNweCBzb2xpZCAjYzYyODI4ICFpbXBvcnRhbnQ7IGNvbG9yOiAjYzYyODI4ICFpbXBvcnRhbnQ7IGJvcmRlci1yYWRpdXM6IDhweCAhaW1wb3J0YW50OyB9Ci5zdFdhcm5pbmcgPiBkaXYgeyBiYWNrZ3JvdW5kOiAjZmZmYmYwICFpbXBvcnRhbnQ7IGJvcmRlci1sZWZ0OiAzcHggc29saWQgI2YwYzAwMCAhaW1wb3J0YW50OyBjb2xvcjogIzhhNmEwMCAhaW1wb3J0YW50OyBib3JkZXItcmFkaXVzOiA4cHggIWltcG9ydGFudDsgfQpbZGF0YS10ZXN0aWQ9InN0U2lkZWJhckNvbGxhcHNlQnV0dG9uIl0geyBkaXNwbGF5OiBub25lICFpbXBvcnRhbnQ7IH0KW2RhdGEtdGVzdGlkPSJjb2xsYXBzZWRDb250cm9sIl0geyBkaXNwbGF5OiBub25lICFpbXBvcnRhbnQ7IH0KW2RhdGEtdGVzdGlkPSJzdFNpZGViYXJDb2xsYXBzZWRDb250cm9sIl0geyBkaXNwbGF5OiBub25lICFpbXBvcnRhbnQ7IH0KYnV0dG9uW2RhdGEtdGVzdGlkPSJiYXNlQnV0dG9uLWhlYWRlciJdIHsgZGlzcGxheTogbm9uZSAhaW1wb3J0YW50OyB9CiNNYWluTWVudSB7IHZpc2liaWxpdHk6IGhpZGRlbiAhaW1wb3J0YW50OyB9CmhlYWRlcltkYXRhLXRlc3RpZD0ic3RIZWFkZXIiXSB7IGRpc3BsYXk6IG5vbmUgIWltcG9ydGFudDsgfQpmb290ZXIgeyBkaXNwbGF5OiBub25lICFpbXBvcnRhbnQ7IH0KW2RhdGEtdGVzdGlkPSJzdFRvb2xiYXIiXSB7IGRpc3BsYXk6IG5vbmUgIWltcG9ydGFudDsgfQpbZGF0YS10ZXN0aWQ9InN0RGVjb3JhdGlvbiJdIHsgZGlzcGxheTogbm9uZSAhaW1wb3J0YW50OyB9CltkYXRhLXRlc3RpZD0ic3RTaWRlYmFyIl0geyBkaXNwbGF5OiBmbGV4ICFpbXBvcnRhbnQ7IHZpc2liaWxpdHk6IHZpc2libGUgIWltcG9ydGFudDsgb3BhY2l0eTogMSAhaW1wb3J0YW50OyB3aWR0aDogMjYwcHggIWltcG9ydGFudDsgbWluLXdpZHRoOiAyNjBweCAhaW1wb3J0YW50OyB0cmFuc2Zvcm06IG5vbmUgIWltcG9ydGFudDsgcG9zaXRpb246IHJlbGF0aXZlICFpbXBvcnRhbnQ7IH0Kc2VjdGlvbltkYXRhLXRlc3RpZD0ic3RTaWRlYmFyIl0geyBkaXNwbGF5OiBmbGV4ICFpbXBvcnRhbnQ7IH0KLmJsb2NrLWNvbnRhaW5lciB7IHBhZGRpbmc6IDJyZW0gMnJlbSAycmVtICFpbXBvcnRhbnQ7IG1heC13aWR0aDogMTIwMHB4ICFpbXBvcnRhbnQ7IH0KPC9zdHlsZT4KIiIiLCB1bnNhZmVfYWxsb3dfaHRtbD1UcnVlKQoKIyDilIDilIAgQ09OU1RBTlRFUyDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKVVNVQVJJT1MgPSB7CiAgICAidGFtaXJlcyI6IHsic2VuaGEiOiAiOWNkMnIxMVF2T3FEOGEiLCAiZXF1aXBlIjogInRhbWlyZXMiLCAicm9sZSI6ICJhZG1pbiIsICAibm9tZSI6ICJUYW1pcmVzIn0sCiAgICAibHVjaWFubyI6IHsic2VuaGEiOiAiVENMZW1EaldTR3YheXoiLCAiZXF1aXBlIjogImx1Y2lhbm8iLCAicm9sZSI6ICJnZXN0b3IiLCAibm9tZSI6ICJMdWNpYW5vIn0sCiAgICAiZGVib3JhaCI6IHsic2VuaGEiOiAiTDRmMTBJSm81YkdKM08iLCAiZXF1aXBlIjogImRlYm9yYWgiLCAicm9sZSI6ICJnZXN0b3IiLCAibm9tZSI6ICJEw6lib3JhaCJ9LAogICAgInZlbG9zbyI6ICB7InNlbmhhIjogIlUyQiFuaUpIN1c5NnJMIiwgImVxdWlwZSI6IE5vbmUsICAgICAgInJvbGUiOiAiZGlyZXRvciIsIm5vbWUiOiAiVmVsb3NvIn0sCiAgICAibW95YXJhIjogIHsic2VuaGEiOiAidWc4b21lUDRDdnQzbmwiLCAiZXF1aXBlIjogTm9uZSwgICAgICAicm9sZSI6ICJkaXJldG9yIiwibm9tZSI6ICJNb3lhcmEifSwKICAgICJnYWJyaWVsIjogeyJzZW5oYSI6ICJnYWJyaWVsMTIzIiwgICAgICAiZXF1aXBlIjogIm1ldGNvb2wiLCAicm9sZSI6ICJnZXN0b3IiLCAibm9tZSI6ICJHYWJyaWVsIn0sCn0KCkVRVUlQRVMgPSB7CiAgICAiZGFuaWxvIjogIHsibm9tZSI6ICJEYW5pbG8iLCAgImNvciI6ICIjMmRhZjVjIn0sCiAgICAiZGVib3JhaCI6IHsibm9tZSI6ICJEw6lib3JhaCIsICJjb3IiOiAiI2E4NTVmNyJ9LAogICAgInRhbWlyZXMiOiB7Im5vbWUiOiAiVGFtaXJlcyIsICJjb3IiOiAiI2Y5NzMxNiJ9LAp9CgojIE1hcGVhbWVudG8gbm9tZSDihpIgZXF1aXBlICgyIHByaW1laXJvcyBub21lcyBwYXJhIG1hdGNoKQpPUEVSQURPUkVTX0VRVUlQRSA9IHsKICAgICMgRXF1aXBlIERhbmlsbyDigJQgbm9tZXMgZXhhdG9zIGRvIGJhbmNvCiAgICAiaGV2ZXJ0b24gdGF2YXJlcyI6ICAgICAgImRhbmlsbyIsCiAgICAiaGV2ZXJ0b24gZmVsaWNpYW5vIjogICAgImRhbmlsbyIsCiAgICAiaGV2ZXJ0b24gZG9zIjogICAgICAgICAgImRhbmlsbyIsCiAgICAiZWR1YXJkYSBzYW5xdWV0YSI6ICAgICAgImRhbmlsbyIsCiAgICAiZWR1YXJkYSBjYXJ2YWxobyI6ICAgICAgImRhbmlsbyIsCiAgICAia2V0bGUgc2lsdmEiOiAgICAgICAgICAgImRhbmlsbyIsCiAgICAia2V0bGUgbG95YW5lIjogICAgICAgICAgImRhbmlsbyIsCiAgICAia2V0bGUgZGlhcyI6ICAgICAgICAgICAgImRhbmlsbyIsCiAgICAibWFyaWEgY2xhcmEiOiAgICAgICAgICAgImRhbmlsbyIsCiAgICAibGF1cmEgc2lsdmEiOiAgICAgICAgICAgImRhbmlsbyIsCiAgICAibGF1cmEgYmVhdHJpeiI6ICAgICAgICAgImRhbmlsbyIsCiAgICAiYW1hbmRhIGNsYXJhIjogICAgICAgICAgImRhbmlsbyIsCiAgICAjIEVxdWlwZSBEw6lib3JhaAogICAgImFtYW5kYSBlZHVhcmRhIjogICAgICAgICJkZWJvcmFoIiwKICAgICJuaWNvbGUga2FtaWxseSI6ICAgICAgICAiZGVib3JhaCIsCiAgICAibmljb2xlIGFtYXJhbCI6ICAgICAgICAgImRlYm9yYWgiLAogICAgInNhcmEgcGVyZWlyYSI6ICAgICAgICAgICJkZWJvcmFoIiwKICAgICJzaWx5ZSBmZXJyZWlyYSI6ICAgICAgICAiZGVib3JhaCIsCiAgICAic3lsaWUgZmVycmVpcmEiOiAgICAgICAgImRlYm9yYWgiLAogICAgImRpZWdvIHNvYXJlcyI6ICAgICAgICAgICJkZWJvcmFoIiwKICAgICJpdGFsbyBoZW5yaXF1ZSI6ICAgICAgICAiZGVib3JhaCIsCiAgICAiYnJlbm8gbWVuZG9uw6dhIjogICAgICAgICJkZWJvcmFoIiwKICAgICJicmVubyBtZW5kb25jYSI6ICAgICAgICAiZGVib3JhaCIsCiAgICAjIEVxdWlwZSBUYW1pcmVzCiAgICAid3luYXJhIGRvcyI6ICAgICAgICAgICAgInRhbWlyZXMiLAogICAgInd5bmFyYSByZWlzIjogICAgICAgICAgICJ0YW1pcmVzIiwKICAgICJhbmRyZSBnb21lcyI6ICAgICAgICAgICAidGFtaXJlcyIsCiAgICAiYW5kcsOpIGdvbWVzIjogICAgICAgICAgICJ0YW1pcmVzIiwKICAgICJ3YW5lc3NhIGRhIjogICAgICAgICAgICAidGFtaXJlcyIsCiAgICAid2FuZXNzYSBjYXJkb3NvIjogICAgICAgInRhbWlyZXMiLAogICAgImxvcmVuYSBjcmlzdGluYSI6ICAgICAgICJ0YW1pcmVzIiwKICAgICJsb3JlbmEgZ2FyY2lhIjogICAgICAgICAidGFtaXJlcyIsCiAgICAiY2FtaWxhIG5hcmEiOiAgICAgICAgICAgInRhbWlyZXMiLAogICAgImpoZW5pZmZlciBoZWxsZW4iOiAgICAgICJ0YW1pcmVzIiwKICAgICJqaGVuaWZmZXIgc2FudG9zIjogICAgICAidGFtaXJlcyIsCiAgICAibWFyY2VsbGUgc2FtcGFpbyI6ICAgICAgInRhbWlyZXMiLAogICAgImdyYXNpZWxsZSBkYSI6ICAgICAgICAgICJ0YW1pcmVzIiwKICAgICJncmFzaWVsbGUgc2FudG9zIjogICAgICAidGFtaXJlcyIsCn0KCk1FU0VTX05PTUVTID0gWyJKYW5laXJvIiwiRmV2ZXJlaXJvIiwiTWFyw6dvIiwiQWJyaWwiLCJNYWlvIiwiSnVuaG8iLAogICAgICAgICAgICAgICAiSnVsaG8iLCJBZ29zdG8iLCJTZXRlbWJybyIsIk91dHVicm8iLCJOb3ZlbWJybyIsIkRlemVtYnJvIl0KClNFTUFOQVNfTU9OSVRPUklBID0gWwogICAgIjHCqiBTZW1hbmEg4oCUIDHCqiBNb25pdG9yaWEiLCAiMcKqIFNlbWFuYSDigJQgMsKqIE1vbml0b3JpYSIsCiAgICAiMsKqIFNlbWFuYSDigJQgMcKqIE1vbml0b3JpYSIsICIywqogU2VtYW5hIOKAlCAywqogTW9uaXRvcmlhIiwKICAgICIzwqogU2VtYW5hIOKAlCAxwqogTW9uaXRvcmlhIiwgIjPCqiBTZW1hbmEg4oCUIDLCqiBNb25pdG9yaWEiLAogICAgIjTCqiBTZW1hbmEg4oCUIDHCqiBNb25pdG9yaWEiLCAiNMKqIFNlbWFuYSDigJQgMsKqIE1vbml0b3JpYSIsCl0KCiMg4pSA4pSAIE5PVk9TIENSSVTDiVJJT1MgKEZpY2hhIGlHcmVlbiAyMDI2KSDilIDilIDilIDilIDilIDilIDilIDilIAKQ1JJVEVSSU9TX1BBRFJBTyA9IFsKICAgIHsKICAgICAgICAiaWQiOiAiYzEiLCAibnVtIjogIjHCuiIsICJub21lIjogIkFiZXJ0dXJhIGUgSWRlbnRpZmljYcOnw6NvIiwgInBlc28iOiA1LCAib2JyaWdhdG9yaW8iOiBGYWxzZSwKICAgICAgICAiaXRlbnMiOiBbCiAgICAgICAgICAgICJSZWFsaXphIGEgcHJpbWVpcmEgaW50ZXJhw6fDo28gZW0gYXTDqSA1IHNlZ3VuZG9zIGFww7NzIG8gaW7DrWNpbyBkYSBsaWdhw6fDo28iLAogICAgICAgICAgICAiQ2hhbWEgbyBjbGllbnRlIHBlbG8gbm9tZSIsCiAgICAgICAgICAgICJBcHJlc2VudGEtc2UgcGVsbyBwcsOzcHJpbyBub21lIiwKICAgICAgICAgICAgIklkZW50aWZpY2EgYSBlbXByZXNhIGNvbW8gaUdyZWVuIgogICAgICAgIF0KICAgIH0sCiAgICB7CiAgICAgICAgImlkIjogImMyIiwgIm51bSI6ICIywroiLCAibm9tZSI6ICJDb211bmljYcOnw6NvIGUgUG9zdHVyYSIsICJwZXNvIjogMzAsICJvYnJpZ2F0b3JpbyI6IEZhbHNlLAogICAgICAgICJpdGVucyI6IFsKICAgICAgICAgICAgIlV0aWxpemEgdG9tIGNvcmRpYWwgZSBlbXDDoXRpY28iLAogICAgICAgICAgICAiRGVtb25zdHJhIGludGVyZXNzZSwgZW5nYWphbWVudG8gZSBzZW5zbyBkZSB1cmfDqm5jaWEgbmEgdHJhdGF0aXZhIiwKICAgICAgICAgICAgIkFwcmVzZW50YSAnc29ycmlzbyBuYSB2b3onLCBlc2N1dGEgYXRpdmEgZSBwb3N0dXJhIGNvbGFib3JhdGl2YS9wb3NpdGl2YSIsCiAgICAgICAgICAgICJVdGlsaXphIGNvbXVuaWNhw6fDo28gY2xhcmEgZSBhZGVxdWFkYSIsCiAgICAgICAgICAgICJFdml0YSBlcnJvcyBkZSBwcm9uw7puY2lhIGUgdsOtY2lvcyBkZSBsaW5ndWFnZW0gKGfDrXJpYXMsIGdlcnVuZGlzbW8sIGFicmV2aWHDp8O1ZXMgaW5hZGVxdWFkYXMpIgogICAgICAgIF0KICAgIH0sCiAgICB7CiAgICAgICAgImlkIjogImMzIiwgIm51bSI6ICIzwroiLCAibm9tZSI6ICJEaWFnbsOzc3RpY28gZGEgRMOtdmlkYSIsICJwZXNvIjogMjUsICJvYnJpZ2F0b3JpbyI6IEZhbHNlLAogICAgICAgICJpdGVucyI6IFsKICAgICAgICAgICAgIlJlYWxpemEgcGVyZ3VudGFzIGNsYXJhcywgb2JqZXRpdmFzIGUgcmVsZXZhbnRlcyBwYXJhIGNvbXByZWVuZGVyIGEgc2l0dWHDp8OjbyIsCiAgICAgICAgICAgICJJZGVudGlmaWNhIGNvcnJldGFtZW50ZSBvIG1vdGl2byBkYSBpbmFkaW1wbMOqbmNpYSIsCiAgICAgICAgICAgICJWZXJpZmljYSBzZSBvIGNsaWVudGUgc2UgcmVjb3JkYSBkbyBjb250cmF0byIsCiAgICAgICAgICAgICJDb25maXJtYSBzZSBvIGNsaWVudGUgcmVjZWJldSBvIGJvbGV0byIsCiAgICAgICAgICAgICJJbnZlc3RpZ2EgYSBwcmV2aXPDo28gZGUgcGFnYW1lbnRvIGUgZGVtYWlzIGluZm9ybWHDp8O1ZXMgbmVjZXNzw6FyaWFzIgogICAgICAgIF0KICAgIH0sCiAgICB7CiAgICAgICAgImlkIjogImM0IiwgIm51bSI6ICI0wroiLCAibm9tZSI6ICJSZWdpc3Ryb3MgZSBQcm9jZWRpbWVudG9zIiwgInBlc28iOiA1LCAib2JyaWdhdG9yaW8iOiBGYWxzZSwKICAgICAgICAiaXRlbnMiOiBbCiAgICAgICAgICAgICJSZWFsaXphIG8gcmVnaXN0cm8gY29ycmV0byBubyBzaXN0ZW1hIiwKICAgICAgICAgICAgIkNsYXNzaWZpY2EgYWRlcXVhZGFtZW50ZSBhIGxpZ2HDp8OjbyIKICAgICAgICBdCiAgICB9LAogICAgewogICAgICAgICJpZCI6ICJjNSIsICJudW0iOiAiNcK6IiwgIm5vbWUiOiAiQ29uZm9ybWlkYWRlIC8gQ29uZHXDp8OjbyBkYSBSZXRlbsOnw6NvIiwgInBlc28iOiAxMCwgIm9icmlnYXRvcmlvIjogRmFsc2UsCiAgICAgICAgIml0ZW5zIjogWwogICAgICAgICAgICAiSWRlbnRpZmljYSBhIGNhdXNhIGRvIGNhbmNlbGFtZW50byBlIGNvbmR1eiBhIHRyYXRhdGl2YSBkZSBmb3JtYSBhc3NlcnRpdmEiLAogICAgICAgICAgICAiVXRpbGl6YSBhcmd1bWVudG9zIHBlcnNvbmFsaXphZG9zIHBhcmEgc3VwZXJhciBvYmplw6fDtWVzIiwKICAgICAgICAgICAgIkRlbW9uc3RyYSBjcmlhdGl2aWRhZGUsIHBlcmNlcMOnw6NvIGUgcGVyc3Vhc8OjbyIsCiAgICAgICAgICAgICJBdHVhIG5hIGNhdXNhLXJhaXogZGEgb2JqZcOnw6NvIGUgY29uZHV6IGEgcmV0ZW7Dp8OjbyBkZSBhY29yZG8gY29tIGEgc2l0dWHDp8OjbyBkbyBjbGllbnRlIgogICAgICAgIF0KICAgIH0sCiAgICB7CiAgICAgICAgImlkIjogImM2IiwgIm51bSI6ICI2wroiLCAibm9tZSI6ICJpR3JlZW4gQ2x1YiDigJQgYXByZXNlbnRhw6fDo28gZSBiZW5lZsOtY2lvcyIsICJwZXNvIjogMjAsICJvYnJpZ2F0b3JpbyI6IFRydWUsCiAgICAgICAgIml0ZW5zIjogWwogICAgICAgICAgICAiISBPYnJpZ2F0w7NyaW86IFZlcmlmaWNhIHNlIG8gY2xpZW50ZSBqw6EgcG9zc3VpIG8gYXBsaWNhdGl2byBpR3JlZW4gQ2x1YiIsCiAgICAgICAgICAgICIhIE9icmlnYXTDs3JpbzogQXByZXNlbnRhIHZlcmJhbG1lbnRlIHBlbG8gbWVub3MgMiB2YW50YWdlbnMvYmVuZWbDrWNpb3MgZG8gaUdyZWVuIENsdWIgZHVyYW50ZSBhIGxpZ2HDp8OjbyIKICAgICAgICBdCiAgICB9LAogICAgewogICAgICAgICJpZCI6ICJjNyIsICJudW0iOiAiN8K6IiwgIm5vbWUiOiAiRW5jZXJyYW1lbnRvIiwgInBlc28iOiA1LCAib2JyaWdhdG9yaW8iOiBGYWxzZSwKICAgICAgICAiaXRlbnMiOiBbCiAgICAgICAgICAgICJSZWFsaXphIG8gZW5jZXJyYW1lbnRvIGRlIGZvcm1hIGFkZXF1YWRhIGUgY29yZGlhbCIsCiAgICAgICAgICAgICJQZXJndW50YSBzZSBvIGNsaWVudGUgcG9zc3VpIGFsZ3VtYSBkw7p2aWRhIG91IG5lY2Vzc2lkYWRlIGFkaWNpb25hbCIsCiAgICAgICAgICAgICJRdWFuZG8gaG91dmVyIG5lZ29jaWHDp8OjbywgcmVmb3LDp2EgYXMgY29uZGnDp8O1ZXMgZGEgbmVnb2NpYcOnw6NvIHJlYWxpemFkYSIKICAgICAgICBdCiAgICB9LApdCgpFUlJPU19DUklUSUNPU19QQURSQU8gPSBbCiAgICB7ImlkIjogImUxIiwgIm5vbWUiOiAiUG9zdHVyYSByw61zcGlkYSwgZGVzcmVzcGVpdG9zYSBvdSBhbnRpw6l0aWNhIiwKICAgICAiZGVzYyI6ICJSdWRlemEsIGltcGFjacOqbmNpYSwgaXJyaXRhw6fDo28sIHByZXNzw6NvIGluZGV2aWRhLCBkZXNyZXNwZWl0bywgaXJvbmlhLCBkZWJvY2hlLCBsaW5ndWFnZW0gZGUgYmFpeG8gY2Fsw6NvLCBjb252ZXJzYXMgcGFyYWxlbGFzIGVtIGNhbmFsIGFiZXJ0bywgZGlmYW1hw6fDo28vY2Fsw7puaWEgY29udHJhIGEgaUdyZWVuIG91IHBhcmNlaXJvcyJ9LAogICAgeyJpZCI6ICJlMiIsICJub21lIjogIkZhbGhhIGdyYXZlIG5hIGFiZXJ0dXJhIG91IGVuY2VycmFtZW50byIsCiAgICAgImRlc2MiOiAiTsOjbyByZWFsaXphciBhIHByaW1laXJhIGludGVyYcOnw6NvIGVtIGF0w6kgMTAgc2VndW5kb3Mgb3UgZWZldHVhciBkZXNjb25leMOjby9lbmNlcnJhbWVudG8gaW5hZGVxdWFkbyBzZW0gY29uY2x1c8OjbyBkYSB0cmF0YXRpdmEifSwKICAgIHsiaWQiOiAiZTMiLCAibm9tZSI6ICJBYmFuZG9ubyBkbyBjbGllbnRlIiwKICAgICAiZGVzYyI6ICJOw6NvIHJlc3BvbmRlciBxdWFuZG8gbyBjbGllbnRlIHJldG9ybmFyIGR1cmFudGUgdW1hIHBhdXNhIG91IGNvbnN1bHRhIn0sCiAgICB7ImlkIjogImU0IiwgIm5vbWUiOiAiSW5mb3JtYcOnw6NvIGluY29ycmV0YSwgaW5jb21wbGV0YSBvdSBpbnZlcsOtZGljYSIsCiAgICAgImRlc2MiOiAiQ29tIHBvdGVuY2lhbCBkZSBjYXVzYXIgcHJlanXDrXpvIGZpbmFuY2Vpcm8gb3UgZGUgaW1hZ2VtLCBpbmNsdWluZG8gcHJvbWV0ZXIgYm9sZXRvLCBsaWdhw6fDo28sIHByaW9yaXphw6fDo28gb3UgcXVhbHF1ZXIgYcOnw6NvIG7Do28gcmVhbGl6YWRhLCBiZW0gY29tbyBlbnZpbyBpbmNvcnJldG8gZGUgYm9sZXRvIn0sCiAgICB7ImlkIjogImU1IiwgIm5vbWUiOiAiRmFsaGEgZ3JhdmUgbmEgYXJndW1lbnRhw6fDo28gZGUgcmV0ZW7Dp8OjbyIsCiAgICAgImRlc2MiOiAiTsOjbyByZWFsaXphciB0ZW50YXRpdmEgZWZldGl2YSBkZSByZXRlbsOnw6NvIGRpYW50ZSBkZSBpbnRlbsOnw6NvIGNsYXJhIGRlIGNhbmNlbGFtZW50bywgbsOjbyBidXNjYXIgc3VwZXJhciBhIG9iamXDp8OjbyBvdSBuw6NvIGFwcmVzZW50YXIgYWx0ZXJuYXRpdmEgcXVlIHBvZGVyaWEgZXZpdGFyIG8gY2FuY2VsYW1lbnRvIn0sCiAgICB7ImlkIjogImU2IiwgIm5vbWUiOiAiUmV0ZW7Dp8OjbyBpbmRldmlkYSBkYSBsaWdhw6fDo28iLAogICAgICJkZXNjIjogIk1hbnRlciBvIGNsaWVudGUgZW0gZXNwZXJhL2xpbmhhIHNlbSBuZWNlc3NpZGFkZSBvdSBqdXN0aWZpY2F0aXZhIn0sCl0KCkZBSVhBU19QT05UT1MgPSBbKDAsNzAsMCksKDcxLDgwLDMwMCksKDgxLDkwLDUwMCksKDkxLDk1LDcwMCksKDk2LDk5LDEwMDApLCgxMDAsMTAwLDExMDApXQoKIyDilIDilIAgTU9OR09EQiDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKQHN0LmNhY2hlX3Jlc291cmNlCmRlZiBnZXRfZGIoKToKICAgIGNsaWVudCA9IE1vbmdvQ2xpZW50KAogICAgICAgIHN0LnNlY3JldHNbIm1vbmdvIl1bInVyaSJdLAogICAgICAgIHNlcnZlclNlbGVjdGlvblRpbWVvdXRNUz01MDAwLAogICAgICAgIGNvbm5lY3RUaW1lb3V0TVM9NTAwMCwKICAgICAgICBzb2NrZXRUaW1lb3V0TVM9MTUwMDAsCiAgICAgICAgbWF4UG9vbFNpemU9MTAsCiAgICAgICAgcmV0cnlXcml0ZXM9VHJ1ZSwKICAgICkKICAgIHJldHVybiBjbGllbnRbc3Quc2VjcmV0c1sibW9uZ28iXVsiZGIiXV0KCmRlZiBnZXRfY3JpdGVyaW9zKCk6CiAgICB0cnk6CiAgICAgICAgZG9jID0gZ2V0X2RiKCkuY29uZmlndXJhY29lcy5maW5kX29uZSh7Il9pZCI6ICJjcml0ZXJpb3NfbW9uaXRvcmlhIn0pCiAgICAgICAgaWYgZG9jIGFuZCBkb2MuZ2V0KCJjcml0ZXJpb3MiKToKICAgICAgICAgICAgcmV0dXJuIGRvY1siY3JpdGVyaW9zIl0KICAgIGV4Y2VwdDoKICAgICAgICBwYXNzCiAgICByZXR1cm4gQ1JJVEVSSU9TX1BBRFJBTwoKZGVmIHNhbHZhcl9jcml0ZXJpb3MoYyk6CiAgICBnZXRfZGIoKS5jb25maWd1cmFjb2VzLnVwZGF0ZV9vbmUoCiAgICAgICAgeyJfaWQiOiAiY3JpdGVyaW9zX21vbml0b3JpYSJ9LAogICAgICAgIHsiJHNldCI6IHsiX2lkIjogImNyaXRlcmlvc19tb25pdG9yaWEiLCAiY3JpdGVyaW9zIjogYywgImF0dWFsaXphZG9FbSI6IGRhdGV0aW1lLm5vdygpfX0sCiAgICAgICAgdXBzZXJ0PVRydWUKICAgICkKCmRlZiBnZXRfZXJyb3NfY3JpdGljb3MoKToKICAgIHRyeToKICAgICAgICBkb2MgPSBnZXRfZGIoKS5jb25maWd1cmFjb2VzLmZpbmRfb25lKHsiX2lkIjogImVycm9zX2NyaXRpY29zX21vbml0b3JpYSJ9KQogICAgICAgIGlmIGRvYyBhbmQgZG9jLmdldCgiZXJyb3MiKToKICAgICAgICAgICAgcmV0dXJuIGRvY1siZXJyb3MiXQogICAgZXhjZXB0OgogICAgICAgIHBhc3MKICAgIHJldHVybiBFUlJPU19DUklUSUNPU19QQURSQU8KCmRlZiBzYWx2YXJfZXJyb3NfY3JpdGljb3MoZSk6CiAgICBnZXRfZGIoKS5jb25maWd1cmFjb2VzLnVwZGF0ZV9vbmUoCiAgICAgICAgeyJfaWQiOiAiZXJyb3NfY3JpdGljb3NfbW9uaXRvcmlhIn0sCiAgICAgICAgeyIkc2V0IjogeyJfaWQiOiAiZXJyb3NfY3JpdGljb3NfbW9uaXRvcmlhIiwgImVycm9zIjogZSwgImF0dWFsaXphZG9FbSI6IGRhdGV0aW1lLm5vdygpfX0sCiAgICAgICAgdXBzZXJ0PVRydWUKICAgICkKCkBzdC5jYWNoZV9kYXRhKHR0bD0zNjAwKQpkZWYgYnVzY2FyX29wZXJhZG9yZXMoZXEpOgogICAgb3BzID0gbGlzdChnZXRfZGIoKS5vcGVyYWRvcmVzLmZpbmQoeyJlcXVpcGVJZCI6IGVxfSkuc29ydCgibm9tZSIsIDEpKQogICAgdmlzdG9zID0gc2V0KCkKICAgIHVuaWNvcyA9IFtdCiAgICBmb3Igb3AgaW4gb3BzOgogICAgICAgIG5vbWVfbm9ybSA9IG9wLmdldCgibm9tZSIsICIiKS5zdHJpcCgpLmxvd2VyKCkKICAgICAgICBpZiBub21lX25vcm0gbm90IGluIHZpc3RvczoKICAgICAgICAgICAgdmlzdG9zLmFkZChub21lX25vcm0pCiAgICAgICAgICAgIHVuaWNvcy5hcHBlbmQob3ApCiAgICByZXR1cm4gdW5pY29zCgpkZWYgbWlncmFyX29wZXJhZG9yZXMoKTo="
+PREMIACAO_HTML = _b64.b64decode(_HTML_B64).decode("utf-8")
+
+
 st.set_page_config(
     page_title="iGreen Monitorias",
     page_icon="🌿",
@@ -1164,659 +1169,66 @@ def buscar_premiacao(ma):
 
 # ── PREMIAÇÃO — PÁGINA ────────────────────────────
 def pagina_premiacao(ma):
-    import json
     import streamlit.components.v1 as components
-
+    import os
     header_page("Premiação", f"Cálculo mensal · {ma.replace('-', ' ')}")
-
-    # Carregar dados salvos do banco
-    dados_salvos = buscar_premiacao(ma)
-
-    # HTML da calculadora (inline)
-    HTML_CALC = """<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>iGreen — Calculadora de Premiação</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#f0f2f5;--white:#fff;--border:#e2e6ea;--text:#1a1d2e;--text2:#6b7280;--text3:#9ca3af;
-  --green:#16a34a;--green-light:#dcfce7;--green-border:#22c55e;
-  --orange:#ea580c;--orange-light:#fff7ed;
-  --red:#dc2626;--red-light:#fef2f2;
-  --blue:#2563eb;--purple:#7c3aed;--gray:#f9fafb;
-  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--radius:14px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.header{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;height:64px;box-shadow:var(--shadow)}
-.logo{display:flex;align-items:center;gap:12px}
-.logo-mark{width:38px;height:38px;background:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px}
-.logo-text{font-size:16px;font-weight:700;color:var(--text)}
-.logo-sub{font-size:12px;color:var(--text3);margin-top:1px}
-.wrap{max-width:1300px;margin:0 auto;padding:2rem}
-.page-title{font-size:24px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-bottom:2px}
-.page-sub{font-size:14px;color:var(--text3);margin-bottom:1.75rem}
-.card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.25rem;box-shadow:var(--shadow)}
-.card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between}
-.sum-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.25rem}
-.sum-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.25rem 1.5rem;box-shadow:var(--shadow);border-top:4px solid var(--border)}
-.sum-card.c-green{border-top-color:var(--green-border)}.sum-card.c-blue{border-top-color:var(--blue)}.sum-card.c-purple{border-top-color:var(--purple)}.sum-card.c-red{border-top-color:var(--red)}
-.sum-label{font-size:11px;font-weight:600;color:var(--text3);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.4px}
-.sum-num{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.5px;line-height:1}
-.sum-sub{font-size:12px;color:var(--text3);margin-top:.3rem}
-.cfg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:1rem}
-.cfg-item{display:flex;flex-direction:column;gap:5px}
-.cfg-item label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
-.cfg-item input{padding:9px 12px;font-size:14px;font-family:'Inter',sans-serif;border:1.5px solid var(--border);border-radius:9px;background:var(--white);color:var(--text);transition:border .15s}
-.cfg-item input:focus{outline:none;border-color:var(--green)}
-.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
-table.dt{width:100%;border-collapse:collapse;font-size:13px}
-table.dt th{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--gray);white-space:nowrap}
-table.dt td{padding:8px 14px;border-bottom:1px solid var(--border);vertical-align:middle;background:var(--white)}
-table.dt tr:last-child td{border-bottom:none}
-table.dt tr:hover td{background:#fafbff}
-table.dt td input,table.dt td select{padding:7px 10px;font-size:13px;font-family:'Inter',sans-serif;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);transition:border .15s}
-table.dt td input:focus,table.dt td select:focus{outline:none;border-color:var(--green)}
-.col-money{font-weight:700;color:var(--green);text-align:right;white-space:nowrap}
-.col-money.dim{color:var(--text3);font-weight:400;text-align:right}
-.col-pct{font-weight:600;text-align:right;white-space:nowrap}
-.col-right{text-align:right;white-space:nowrap;color:var(--text3);font-size:12px}
-.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
-.b-ok{background:var(--green-light);color:var(--green)}.b-super{background:var(--orange-light);color:var(--orange)}.b-no{background:var(--red-light);color:var(--red)}.b-wait{background:var(--gray);color:var(--text3);border:1px solid var(--border)}
-.b-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
-.motivo{font-size:10px;color:var(--red);margin-top:2px;line-height:1.4}
-.gestor-row td{background:#f0fdf4!important;font-weight:600}
-.gestor-row td:first-child{border-left:3px solid var(--green)}
-.add-btn{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-family:'Inter',sans-serif;padding:7px 16px;border:1.5px solid var(--border);border-radius:9px;background:var(--white);color:var(--text2);cursor:pointer;margin-top:1rem;font-weight:500;transition:all .15s}
-.add-btn:hover{border-color:var(--green);color:var(--green);background:var(--green-light)}
-.del-btn{padding:4px 9px;border:1.5px solid var(--border);border-radius:7px;background:var(--white);color:var(--text3);cursor:pointer;font-size:11px;font-family:'Inter',sans-serif;transition:all .15s}
-.del-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
-.clr-btn:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-light)}
-.reveal-btn{font-size:11px;padding:4px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text2);cursor:pointer;font-family:'Inter',sans-serif}
-.reveal-btn:hover{border-color:var(--green);color:var(--green)}
-.hidden{display:none}
-@media(max-width:900px){.sum-row{grid-template-columns:1fr 1fr}}
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="logo">
-    <div class="logo-mark">iG</div>
-    <div>
-      <div class="logo-text">iGreen Performance</div>
-      <div class="logo-sub">Calculadora de Premiação</div>
-    </div>
-  </div>
-</div>
-<div class="wrap">
-  <div class="page-title">Premiação Mensal</div>
-  <div class="page-sub">Preencha metas e valores recebidos — o cálculo atualiza automaticamente</div>
-
-  <div class="card">
-    <div class="card-title">Parâmetros <button class="reveal-btn" onclick="toggleEl('cfg-box')">Mostrar / Ocultar</button></div>
-    <div id="cfg-box" class="hidden">
-      <div class="cfg-grid">
-        <div class="cfg-item"><label>Valor total (R$)</label><input type="number" id="cfg-total" value="3000" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Meta mínima (%)</label><input type="number" id="cfg-meta-min" value="100" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Super meta (%)</label><input type="number" id="cfg-super" value="125" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Bônus super meta (%)</label><input type="number" id="cfg-bonus" value="20" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Qualidade mín. atendentes (%)</label><input type="number" id="cfg-qual-at" value="95" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Qualidade mín. liderança (%)</label><input type="number" id="cfg-qual-lid" value="90" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Assiduidade exigida atendentes (%)</label><input type="number" id="cfg-assi" value="100" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Assiduidade exigida liderança (%)</label><input type="number" id="cfg-assi-lid" value="97" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Dias úteis do mês</label><input type="number" id="cfg-dias" value="21" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Gestora sênior (R$)</label><input type="number" id="cfg-senior" value="200" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Gestor pleno (R$)</label><input type="number" id="cfg-pleno" value="150" oninput="updateResults()"></div>
-        <div class="cfg-item"><label>Assistente pleno (R$)</label><input type="number" id="cfg-assist" value="100" oninput="updateResults()"></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="resumo" class="sum-row"></div>
-
-  <div class="card">
-    <div class="card-title">Liderança</div>
-    <div class="tbl-wrap">
-      <table class="dt">
-        <thead><tr>
-          <th style="min-width:130px">Nome</th>
-          <th style="min-width:130px">Cargo</th>
-          <th style="min-width:130px">Meta equipe (R$)</th>
-          <th style="min-width:130px">Recebido equipe (R$)</th>
-          <th style="min-width:80px">% Meta</th>
-          <th style="min-width:90px">Qualidade %</th>
-          <th style="min-width:80px">Faltas equipe</th>
-          <th style="min-width:80px">Assid. %</th>
-          <th style="min-width:140px">Situação</th>
-          <th style="min-width:100px;text-align:right">Prêmio</th>
-          <th></th>
-        </tr></thead>
-        <tbody id="lid-body"></tbody>
-      </table>
-    </div>
-    <button class="add-btn" onclick="addLider()">＋ Adicionar</button>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Atendentes</div>
-    <div class="tbl-wrap">
-      <table class="dt">
-        <thead><tr>
-          <th style="min-width:140px">Nome</th>
-          <th style="min-width:110px">Gestor</th>
-          <th style="min-width:140px">Meta (R$)</th>
-          <th style="min-width:140px">Recebido (R$)</th>
-          <th style="min-width:80px">% Meta</th>
-          <th style="min-width:90px">Qualidade %</th>
-          <th style="min-width:80px">Faltas</th>
-          <th style="min-width:80px">Assid. %</th>
-          <th style="min-width:140px">Situação</th>
-          <th style="min-width:100px;text-align:right">Prêmio</th>
-          <th></th>
-        </tr></thead>
-        <tbody id="at-body"></tbody>
-      </table>
-    </div>
-    <button class="add-btn" onclick="addAtendente()">＋ Adicionar</button>
-  </div>
-</div>
-
-<script>
-function toggleEl(id){document.getElementById(id).classList.toggle('hidden')}
-
-// ── FORMATAÇÃO BRL ──
-function parseBRL(s){
-  if(s===''||s===null||s===undefined)return '';
-  // Remove R$, espaços
-  let c=s.toString().replace(/R\\$\\s*/,'').trim();
-  // Se tem vírgula decimal brasileira (ex: 50.000,00)
-  if(c.includes(',')&&c.includes('.')){
-    c=c.replace(/\\./g,'').replace(',','.');
-  } else if(c.includes(',')){
-    // Só vírgula — pode ser decimal BR (50,5) ou milhar (50,000)
-    const partes=c.split(',');
-    if(partes[1]&&partes[1].length<=2){
-      c=c.replace(',','.');
-    } else {
-      c=c.replace(/,/g,'');
-    }
-  }
-  const v=parseFloat(c);
-  return isNaN(v)?'':v;
-}
-function formatBRL(inp){
-  let v=inp.value.replace(/\\D/g,'');
-  if(v===''){inp.value='';return;}
-  v=(parseInt(v)/100).toFixed(2);
-  inp.value='R$ '+parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-}
-function fmtR(v){
-  if(v===''||v===null||isNaN(+v)||+v===0)return '—';
-  return 'R$ '+(+v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-}
-function fn(v,d=1){if(v===''||isNaN(+v))return '—';return(+v).toFixed(d);}
-
-function getCfg(){return{
-  total:+document.getElementById('cfg-total').value||3000,
-  metaMin:+document.getElementById('cfg-meta-min').value||100,
-  super:+document.getElementById('cfg-super').value||125,
-  bonus:+document.getElementById('cfg-bonus').value||20,
-  qualAt:+document.getElementById('cfg-qual-at').value||95,
-  qualLid:+document.getElementById('cfg-qual-lid').value||90,
-  assiMin:+document.getElementById('cfg-assi').value||100,
-  assiLid:+document.getElementById('cfg-assi-lid').value||97,
-  dias:+document.getElementById('cfg-dias').value||21,
-  senior:+document.getElementById('cfg-senior').value||200,
-  pleno:+document.getElementById('cfg-pleno').value||150,
-  assist:+document.getElementById('cfg-assist').value||100,
-};}
-
-// ── DADOS ──
-let lideres=[
-  {name:'Moyara',  cargo:'senior',qual:'',faltas:'',diretoria:true},
-  {name:'Danilo',  cargo:'pleno', qual:'',faltas:'',diretoria:false},
-  {name:'Déborah', cargo:'pleno', qual:'',faltas:'',diretoria:false},
-  {name:'Tamires', cargo:'pleno', qual:'',faltas:'',diretoria:false},
-  {name:'Mikael',  cargo:'assist',qual:'',faltas:'',diretoria:true},
-];
-let atendentes=[
-  {name:'Heverton Tavares', gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
-  {name:'Eduarda Sanqueta', gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
-  {name:'Ketle Silva',      gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
-  {name:'Maria Clara',      gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
-  {name:'Laura Silva',      gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
-  {name:'Amanda Clara',     gestor:'Danilo',  meta:'',rec:'',qual:'',faltas:''},
-  {name:'Amanda Eduarda',   gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Nicole Kamilly',   gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Sara Pereira',     gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Silye Ferreira',   gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Diego Soares',     gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Italo Henrique',   gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Breno Mendonça',   gestor:'Déborah', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Wynara Parreira',  gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
-  {name:'André Gomes',      gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Wanessa Cardoso',  gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Lorena Cristina',  gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Camila Nara',      gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Jheniffer Santos', gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Marcelle Sampaio', gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
-  {name:'Grasielle Santos', gestor:'Tamires', meta:'',rec:'',qual:'',faltas:''},
-];
-
-// ── CÁLCULO ──
-function calcPrem(){
-  const cfg=getCfg();
-  // Somar metas/recebidos por gestor
-  const metaG={},recG={};
-  atendentes.forEach(a=>{
-    const g=a.gestor;
-    if(!metaG[g])metaG[g]=0;
-    if(!recG[g])recG[g]=0;
-    const m=parseBRL(a.meta);const r=parseBRL(a.rec);
-    if(m!=='')metaG[g]+=+m;
-    if(r!=='')recG[g]+=+r;
-  });
-  // Liderança
-  const totalMeta=Object.values(metaG).reduce((s,v)=>s+v,0);
-  const totalRec=Object.values(recG).reduce((s,v)=>s+v,0);
-  const lr=lideres.map(l=>{
-    const base=l.cargo==='senior'?cfg.senior:l.cargo==='pleno'?cfg.pleno:cfg.assist;
-    // Diretoria: usa total de todos; gestor: usa só sua equipe
-    const mEq=l.diretoria?totalMeta:(metaG[l.name]||0);
-    const rEq=l.diretoria?totalRec:(recG[l.name]||0);
-    const pct=mEq>0?(rEq/mEq*100):0;
-    const qual=l.qual!==''?+l.qual:null;
-    // Diretoria usa todos os atendentes; gestor usa só a sua equipe
-    const atScope=l.diretoria?atendentes:atendentes.filter(a=>a.gestor===l.name);
-    const nPessoas=atScope.length||1;
-    const totalFaltasEq=atScope.reduce((s,a)=>s+(a.faltas!==''?+a.faltas:0),0);
-    const assiPct=Math.round((1-(totalFaltasEq/(nPessoas*cfg.dias)))*1000)/10;
-    const mot=[];
-    if(mEq===0||pct<cfg.metaMin)mot.push(`recebido abaixo de ${cfg.metaMin}% da meta`);
-    if(qual===null||qual<cfg.qualLid)mot.push(`qualidade abaixo de ${cfg.qualLid}%`);
-    if(assiPct<cfg.assiLid)mot.push(`assiduidade ${assiPct}% abaixo de ${cfg.assiLid}%`);
-    const bateu=mot.length===0, sup=bateu&&pct>=cfg.super;
-    return{l,base,mEq,rEq,pct,qual,assiPct,bateu,sup,mot,premio:bateu?Math.round(base*(sup?1+cfg.bonus/100:1)*100)/100:0};
-  });
-  const premLid=lr.reduce((s,r)=>s+r.premio,0);
-  const baseTot=lr.reduce((s,r)=>s+r.base,0);
-  const poolAt=cfg.total-baseTot+(baseTot-premLid);
-  // Atendentes
-  const ar=atendentes.map(a=>{
-    const m=parseBRL(a.meta), r=parseBRL(a.rec);
-    if(m===''&&r==='')return{a,bateu:false,sup:false,mot:[],peso:0,premio:0,skip:true,pct:0,m:0,r:0};
-    const mv=m!==''?+m:0, rv=r!==''?+r:0;
-    const pct=mv>0?(rv/mv*100):0;
-    const qual=a.qual!==''?+a.qual:null;
-    const assiPct=a.faltas!==''?Math.round((1-(+a.faltas/cfg.dias))*100):100;
-    const mot=[];
-    if(mv===0||pct<cfg.metaMin)mot.push(`recebido abaixo de ${cfg.metaMin}% da meta`);
-    if(qual===null||qual<cfg.qualAt)mot.push(`qualidade abaixo de ${cfg.qualAt}%`);
-    if(assiPct<cfg.assiMin)mot.push(`assiduidade ${assiPct}% abaixo de ${cfg.assiMin}%`);
-    const bateu=mot.length===0, sup=bateu&&pct>=cfg.super;
-    return{a,bateu,sup,mot,peso:bateu?(sup?1+cfg.bonus/100:1):0,premio:0,skip:false,pct,m:mv,r:rv};
-  });
-  const atFilt=ar.filter(r=>!r.skip);
-  const totPeso=atFilt.reduce((s,r)=>s+r.peso,0);
-  if(totPeso>0)atFilt.forEach(r=>{r.premio=Math.round((poolAt*(r.peso/totPeso))*100)/100;});
-  else{const lb=lr.filter(r=>r.bateu);if(lb.length>0)lb.forEach(r=>{r.premio+=poolAt/lb.length;});}
-  const totAt=atFilt.reduce((s,r)=>s+r.premio,0);
-  return{lr,ar,premLid,totAt,cfg,semDest:Math.max(0,Math.round((cfg.total-premLid-totAt)*100)/100),metaG,recG};
-}
-
-function badge(r,isLider=false){
-  if(!isLider&&r.skip)return'<span class="badge b-wait">Aguardando</span>';
-  if(r.bateu&&r.sup)return'<span class="badge b-super"><span class="b-dot"></span>Super meta</span>';
-  if(r.bateu)return'<span class="badge b-ok"><span class="b-dot"></span>Bateu a meta</span>';
-  return`<span class="badge b-no"><span class="b-dot"></span>Não recebe</span>${r.mot.length?'<div class="motivo">'+r.mot.join(' · ')+'</div>':''}`;
-}
-function pctStyle(pct,cfg){
-  return pct>=cfg.super?'color:var(--orange);font-weight:700':pct>=cfg.metaMin?'color:var(--green);font-weight:700':'color:var(--red)';
-}
-
-// ── BUILD TABLES (uma vez) ──
-function buildTables(){
-  buildLidTable();
-  buildAtTable();
-  updateResults();
-}
-
-function buildLidTable(){
-  const lb=document.getElementById('lid-body');lb.innerHTML='';
-  lideres.forEach((l,idx)=>{
-    const tr=document.createElement('tr');
-    tr.dataset.idx=idx;
-    tr.innerHTML=`
-      <td><input type="text" value="${l.name}" data-f="name" data-idx="${idx}" data-src="lid" style="width:120px"></td>
-      <td><select data-f="cargo" data-idx="${idx}" data-src="lid" style="padding:7px 10px;font-size:13px;font-family:Inter,sans-serif;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);width:100%">
-        <option value="senior" ${l.cargo==='senior'?'selected':''}>Gestora sênior</option>
-        <option value="pleno"  ${l.cargo==='pleno'?'selected':''}>Gestor pleno</option>
-        <option value="assist" ${l.cargo==='assist'?'selected':''}>Assistente pleno</option>
-      </select></td>
-      <td class="r-meta-eq col-right" style="color:var(--text3);font-size:13px">—</td>
-      <td class="r-rec-eq col-right" style="color:var(--text3);font-size:13px">—</td>
-      <td class="r-pct col-pct">—</td>
-      <td><input type="number" placeholder="%" value="${l.qual}" data-f="qual" data-idx="${idx}" data-src="lid" style="width:70px"></td>
-      <td class="r-faltas-lid col-right" style="color:var(--text3);font-size:13px">—</td>
-      <td class="r-assi-lid col-right" style="font-size:13px">—</td>
-      <td class="r-badge"></td>
-      <td class="r-premio col-money dim">—</td>
-      <td><button class="del-btn" data-delidx="${idx}" data-src="lid">✕</button></td>
-    `;
-    lb.appendChild(tr);
-    tr.querySelectorAll('input,select').forEach(inp=>inp.addEventListener('input',e=>{
-      lideres[+e.target.dataset.idx][e.target.dataset.f]=e.target.value;
-      updateResults();
-    }));
-    tr.querySelector('.del-btn').addEventListener('click',e=>{
-      const i=+e.target.dataset.delidx;
-      if(lideres.length>1){lideres.splice(i,1);buildLidTable();buildAtTable();updateResults();}
-    });
-  });
-}
-
-function buildAtTable(){
-  const ab=document.getElementById('at-body');ab.innerHTML='';
-  const gestNomes=lideres.map(l=>l.name).filter(Boolean);
-  const gestores=[...new Set(atendentes.map(a=>a.gestor))];
-
-  gestores.forEach(gest=>{
-    // Linha de grupo
-    const trG=document.createElement('tr');
-    trG.className='gestor-row';
-    trG.dataset.gest=gest;
-    trG.innerHTML=`
-      <td colspan="2" style="font-size:12px;color:var(--green);font-weight:700">📋 Equipe ${gest}</td>
-      <td class="rg-meta col-right">—</td>
-      <td class="rg-rec col-right">—</td>
-      <td class="rg-pct col-pct">—</td>
-      <td colspan="2"></td>
-      <td></td>
-      <td class="rg-premio col-money dim">—</td>
-      <td></td>
-    `;
-    ab.appendChild(trG);
-
-    atendentes.forEach((a,idx)=>{
-      if(a.gestor!==gest)return;
-      const og=`<option value="">—</option>`+gestNomes.map(g=>`<option value="${g}" ${a.gestor===g?'selected':''}>${g}</option>`).join('');
-      const tr=document.createElement('tr');
-      tr.dataset.idx=idx;
-      tr.innerHTML=`
-        <td><input type="text" value="${a.name}" data-f="name" data-idx="${idx}" data-src="at" style="min-width:120px"></td>
-        <td><select data-f="gestor" data-idx="${idx}" data-src="at" style="padding:7px 10px;font-size:13px;font-family:Inter,sans-serif;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);width:100%">${og}</select></td>
-        <td><input type="text" placeholder="Ex: 100000" value="${a.meta}" data-f="meta" data-idx="${idx}" data-src="at" style="width:130px;text-align:right" class="brl-inp"></td>
-        <td><input type="text" placeholder="Ex: 50000" value="${a.rec}"  data-f="rec"  data-idx="${idx}" data-src="at" style="width:130px;text-align:right" class="brl-inp"></td>
-        <td class="r-pct-at col-pct">—</td>
-        <td><input type="number" placeholder="%" value="${a.qual}" data-f="qual" data-idx="${idx}" data-src="at" style="width:70px"></td>
-        <td><input type="number" placeholder="0" value="${a.faltas}" data-f="faltas" data-idx="${idx}" data-src="at" style="width:65px" min="0" max="21"></td>
-        <td class="r-assi-at" style="text-align:right;font-size:12px;color:var(--text3)">—</td>
-        <td class="r-badge-at"></td>
-        <td class="r-premio-at col-money dim">—</td>
-        <td style="white-space:nowrap">
-          <button class="clr-btn" data-clearidx="${idx}" title="Limpar dados" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;background:var(--white);color:var(--text3);cursor:pointer;font-size:11px;font-family:Inter,sans-serif;margin-right:4px;transition:all .15s">↺</button>
-          <button class="del-btn" data-delidx="${idx}" data-src="at">✕</button>
-        </td>
-      `;
-      ab.appendChild(tr);
-
-      // Listeners — sem rebuild
-      tr.querySelectorAll('input[data-f="name"],input[data-f="qual"],input[data-f="faltas"],select').forEach(inp=>{
-        inp.addEventListener('input',e=>{
-          const i=+e.target.dataset.idx;
-          atendentes[i][e.target.dataset.f]=e.target.value;
-          if(e.target.dataset.f==='gestor'){buildAtTable();updateResults();}
-          else updateResults();
-        });
-      });
-      // Campos BRL
-      tr.querySelectorAll('.brl-inp').forEach(inp=>{
-        inp.addEventListener('focus',e=>{
-          // Mostra só número para digitar
-          const v=parseBRL(e.target.value);
-          e.target.value=v!==''?v:'';
-        });
-        inp.addEventListener('input',e=>{
-          const i=+e.target.dataset.idx, f=e.target.dataset.f;
-          atendentes[i][f]=e.target.value;
-          updateResults();
-        });
-        inp.addEventListener('blur',e=>{
-          const i=+e.target.dataset.idx, f=e.target.dataset.f;
-          const v=parseFloat(e.target.value.replace(',','.'))||0;
-          if(v>0){
-            atendentes[i][f]=v.toString();
-            e.target.value='R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-          } else {
-            atendentes[i][f]='';
-            e.target.value='';
-          }
-        });
-      });
-      tr.querySelector('.clr-btn').addEventListener('click',e=>{
-        const i=+e.target.dataset.clearidx;
-        atendentes[i].meta='';
-        atendentes[i].rec='';
-        atendentes[i].qual='';
-        atendentes[i].faltas='';
-        buildAtTable();
-        updateResults();
-      });
-      tr.querySelector('.del-btn').addEventListener('click',e=>{
-        const i=+e.target.dataset.delidx;
-        if(atendentes.length>1){atendentes.splice(i,1);buildAtTable();updateResults();}
-      });
-    });
-  });
-}
-
-// ── UPDATE RESULTS (sem rebuild) ──
-function updateResults(){
-  const{lr,ar,premLid,totAt,cfg,semDest}=calcPrem();
-  const prem=ar.filter(r=>r.bateu).length, lprem=lr.filter(r=>r.bateu).length;
-
-  // Resumo
-  document.getElementById('resumo').innerHTML=`
-    <div class="sum-card c-green"><div class="sum-label">Valor total</div><div class="sum-num">${fmtR(cfg.total)}</div></div>
-    <div class="sum-card c-blue"><div class="sum-label">Liderança premiada</div><div class="sum-num">${fmtR(premLid)}</div><div class="sum-sub">${lprem} de ${lr.length} líderes</div></div>
-    <div class="sum-card c-purple"><div class="sum-label">Atendentes premiados</div><div class="sum-num">${fmtR(totAt)}</div><div class="sum-sub">${prem} de ${ar.filter(r=>!r.skip).length} com dados</div></div>
-    <div class="sum-card ${semDest>0.01?'c-red':'c-green'}"><div class="sum-label">Sem destino</div><div class="sum-num">${fmtR(semDest)}</div></div>
-  `;
-
-  // Liderança — só atualiza células de resultado
-  document.querySelectorAll('#lid-body tr').forEach((tr,i)=>{
-    if(i>=lr.length)return;
-    const r=lr[i];
-    const metaEqEl=tr.querySelector('.r-meta-eq');
-    const recEqEl=tr.querySelector('.r-rec-eq');
-    if(metaEqEl) metaEqEl.textContent=fmtR(r.mEq)+(r.l.diretoria?' (total)':'');
-    if(recEqEl) recEqEl.textContent=fmtR(r.rEq)+(r.l.diretoria?' (total)':'');
-    const pctEl=tr.querySelector('.r-pct');
-    pctEl.textContent=r.mEq>0?fn(r.pct)+'%':'—';
-    pctEl.style.cssText=r.mEq>0?pctStyle(r.pct,cfg):'';
-    const faltasEl=tr.querySelector('.r-faltas-lid');
-    const assiEl=tr.querySelector('.r-assi-lid');
-    if(faltasEl||assiEl){
-      const atScope=r.l.diretoria?atendentes:atendentes.filter(a=>a.gestor===r.l.name);
-      const nPessoas=atScope.length||1;
-      const totalFaltas=atScope.reduce((s,a)=>s+(a.faltas!==''?+a.faltas:0),0);
-      const assiPct=Math.round((1-(totalFaltas/(nPessoas*cfg.dias)))*1000)/10;
-      if(faltasEl) faltasEl.textContent=totalFaltas+' falta'+(totalFaltas!==1?'s':'');
-      if(assiEl){
-        assiEl.textContent=assiPct.toFixed(1)+'%';
-        assiEl.style.color=assiPct>=cfg.assiLid?'var(--green)':'var(--red)';
-      }
-    }
-    tr.querySelector('.r-badge').innerHTML=badge(r,true);
-    const pm=tr.querySelector('.r-premio');
-    pm.textContent=fmtR(r.premio);
-    pm.className='r-premio '+(r.premio>0?'col-money':'col-money dim');
-  });
-
-  // Atendentes — atualiza por idx
-  const gestores=[...new Set(atendentes.map(a=>a.gestor))];
-  gestores.forEach(gest=>{
-    // Totais do grupo
-    const trG=document.querySelector(`#at-body tr.gestor-row[data-gest="${gest}"]`);
-    if(trG){
-      const atG=ar.filter(r=>r.a.gestor===gest&&!r.skip);
-      const mG=atG.reduce((s,r)=>s+r.m,0);
-      const rG=atG.reduce((s,r)=>s+r.r,0);
-      const pG=mG>0?(rG/mG*100):0;
-      const premG=atG.reduce((s,r)=>s+r.premio,0);
-      trG.querySelector('.rg-meta').textContent=fmtR(mG);
-      trG.querySelector('.rg-rec').textContent=fmtR(rG);
-      const pEl=trG.querySelector('.rg-pct');
-      pEl.textContent=mG>0?fn(pG)+'%':'—';
-      pEl.style.cssText=mG>0?pctStyle(pG,cfg):'';
-      const pmG=trG.querySelector('.rg-premio');
-      pmG.textContent=fmtR(premG);
-      pmG.className='rg-premio '+(premG>0?'col-money':'col-money dim');
-    }
-  });
-
-  // Atendentes individuais
-  document.querySelectorAll('#at-body tr:not(.gestor-row)').forEach(tr=>{
-    const idx=+tr.dataset.idx;
-    if(isNaN(idx)||idx>=ar.length)return;
-    const r=ar[idx];
-    const pctEl=tr.querySelector('.r-pct-at');
-    if(pctEl){
-      pctEl.textContent=r.skip||r.m===0?'—':fn(r.pct)+'%';
-      pctEl.style.cssText=(!r.skip&&r.m>0)?pctStyle(r.pct,cfg):'';
-    }
-    const assiEl=tr.querySelector('.r-assi-at');
-    if(assiEl){
-      const assiPct=r.a.faltas!==''?Math.round((1-(+r.a.faltas/cfg.dias))*100):100;
-      assiEl.textContent=assiPct+'%';
-      assiEl.style.color=assiPct>=cfg.assiMin?'var(--green)':'var(--red)';
-    }
-    const bdg=tr.querySelector('.r-badge-at');
-    if(bdg)bdg.innerHTML=badge(r);
-    const pm=tr.querySelector('.r-premio-at');
-    if(pm){pm.textContent=fmtR(r.premio);pm.className='r-premio-at '+(r.premio>0?'col-money':'col-money dim');}
-  });
-}
-
-function addLider(){lideres.push({name:'',cargo:'pleno',qual:'',faltas:''});buildLidTable();updateResults();}
-function addAtendente(){atendentes.push({name:'',gestor:lideres[0]?.name||'',meta:'',rec:'',qual:'',faltas:''});buildAtTable();updateResults();}
-
-document.querySelectorAll('#cfg-box input').forEach(i=>i.addEventListener('input',updateResults));
-// Inicialização correta
-buildTables();      // 1. Constrói com dados padrão
-connectSave();      // 2. Conecta salvamento
-// 3. Tenta carregar dados (localStorage ou banco)
-// (será feito após injeção do Streamlit via __DADOS_SALVOS__)
+    st.markdown(
+        "<style>iframe{width:100%!important;min-width:100%!important;border:none!important}"
+        ".block-container{padding:1rem!important;max-width:100%!important}</style>",
+        unsafe_allow_html=True
+    )
+    # HTML inline
+    _html = PREMIACAO_HTML
+    components.html(_html, height=2600, scrolling=True)
 
 
-// ── PERSISTÊNCIA ──────────────────────────────
-const LS_KEY='igreen_prem_v1';
+# ── MINHA CONTA ──────────────────────────────────
+def pagina_minha_conta():
+    u = st.session_state.usuario
+    header_page('Minha Conta', u['nome'])
+    st.markdown("### 🔒 Alterar Senha")
+    sa = st.text_input('Senha atual', type='password', placeholder='senha atual')
+    sn = st.text_input('Nova senha', type='password', placeholder='mín. 8 caracteres')
+    sc2 = st.text_input('Confirmar senha', type='password', placeholder='repita a nova senha')
+    if st.button('Salvar Senha', use_container_width=True):
+        uid = u['id']
+        sc = buscar_senha_usuario(uid) or u.get('senha')
+        if not sa: st.error('Digite a senha atual.')
+        elif sa != sc: st.error('Senha atual incorreta.')
+        elif len(sn) < 8: st.error('Mínimo 8 caracteres.')
+        elif sn != sc2: st.error('Confirmação não confere.')
+        else:
+            salvar_senha_usuario(uid, sn)
+            st.success('✅ Senha alterada com sucesso!')
 
-function salvarLocal(){
-  try{ localStorage.setItem(LS_KEY,JSON.stringify({lideres,atendentes})); }catch(e){}
-}
+# ── MAIN ─────────────────────────────────────────
+def main():
+    if "usuario" not in st.session_state:
+        tela_login()
+        return
 
-function carregarLocal(){
-  try{
-    const raw=localStorage.getItem(LS_KEY);
-    if(!raw) return false;
-    const d=JSON.parse(raw);
-    if(d.lideres&&d.lideres.length>0) lideres=d.lideres;
-    if(d.atendentes&&d.atendentes.length>0) atendentes=d.atendentes;
-    return true;
-  }catch(e){ return false; }
-}
+    # Migração automática de equipes — roda uma vez por deploy (v2)
+    if st.session_state.get('equipes_migradas') != 'v3':
+        st.session_state.equipes_migradas = 'v3'
+        migrar_operadores()
+        st.cache_data.clear()
 
-function carregarDados(d){
-  if(!d) return;
-  if(d.lideres&&d.lideres.length>0) lideres=d.lideres;
-  if(d.atendentes&&d.atendentes.length>0) atendentes=d.atendentes;
-  buildTables(); updateResults();
-  salvarLocal();
-}
+    ma, pag = render_sidebar()
+    u = st.session_state.usuario
 
-function exportarJSON(){
-  const dados=JSON.stringify({lideres,atendentes});
-  salvarLocal();
-  navigator.clipboard.writeText(dados)
-    .then(()=>alert('✅ JSON copiado!\\n\\nAgora cole no campo abaixo e clique em Salvar.'))
-    .catch(()=>prompt('Copie o JSON (Ctrl+A, Ctrl+C):', dados));
-}
+    if 'Monitorias' in pag:
+        pagina_monitorias(ma)
+    elif 'Premiação' in pag:
+        pagina_premiacao(ma)
+    elif 'Operadores' in pag:
+        pagina_operadores()
+    elif 'Critérios' in pag and u['role'] == 'admin':
+        pagina_criterios()
+    elif 'Minha Conta' in pag:
+        pagina_minha_conta()
 
-// Conectar salvamento local
-function connectSave(){
-  document.querySelectorAll('#lid-body input,#lid-body select,#at-body input,#at-body select').forEach(i=>{
-    i.addEventListener('input', salvarLocal);
-    i.addEventListener('blur', salvarLocal);
-  });
-}
-
-// __DADOS_SALVOS__
-
-</script>
-</body>
-</html>
-"""
-
-    # Injetar dados salvos no HTML se existirem
-    if dados_salvos:
-        dados_json = json.dumps(dados_salvos, ensure_ascii=False)
-        html_final = HTML_CALC.replace(
-            "// __DADOS_SALVOS__",
-            f"const DADOS_SALVOS = {dados_json}; carregarDados(DADOS_SALVOS);"
-        )
-    else:
-        html_final = HTML_CALC.replace("// __DADOS_SALVOS__", "")
-
-    # Forçar iframe largura total
-    st.markdown("""
-    <style>
-    iframe { width: 100% !important; min-width: 100% !important; }
-    .block-container { padding-left: 1rem !important; padding-right: 1rem !important; max-width: 100% !important; }
-    div[data-testid="stHorizontalBlock"] { width: 100% !important; }
-    </style>""", unsafe_allow_html=True)
-    result = components.html(html_final, height=2400, scrolling=True)
-
-    # ── SALVAR via st.form ──
-    st.markdown("---")
-    st.markdown("**Para salvar:** preencha os dados acima, cole o JSON gerado pelo botão '📋 Preparar para salvar' no campo abaixo e clique em Salvar.")
-
-    # Verificar se chegou dados via query param
-    qp = st.query_params.get("prem_save", "")
-    if qp:
-        try:
-            dados = json.loads(qp)
-            salvar_premiacao(ma, dados)
-            st.success("✅ Premiação salva automaticamente!")
-            st.query_params.clear()
-            st.cache_data.clear()
-        except Exception as e:
-            st.error(f"Erro ao salvar: {e}")
-
-    with st.form("form_prem"):
-        raw = st.text_area(
-            "Cole aqui o JSON (gerado pelo botão dentro da calculadora)",
-            height=100,
-            key="prem_json_input",
-            placeholder='{"lideres":[...],"atendentes":[...]}'
-        )
-        if st.form_submit_button("💾 Salvar Premiação", use_container_width=True):
-            try:
-                if raw.strip():
-                    dados = json.loads(raw.strip())
-                    salvar_premiacao(ma, dados)
-                    st.success("✅ Premiação salva!")
-                    st.cache_data.clear()
-                    st.rerun()
-                else:
-                    st.warning("Cole o JSON gerado pela calculadora antes de salvar.")
-            except Exception as e:
-                st.error(f"Erro ao salvar: {e}")
-
-
+if __name__ == "__main__":
+    main()
 # ── MINHA CONTA ──────────────────────────────────
 def pagina_minha_conta():
     u = st.session_state.usuario
