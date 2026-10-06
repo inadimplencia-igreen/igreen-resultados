@@ -722,7 +722,7 @@ def pagina_operadores():
             if st.button("Cadastrar", use_container_width=True, key="op_add_btn"):
                 if nn.strip():
                     salvar_operador(eq, nn.strip(), np_op)
-                    buscar_operadores.cache_clear()
+                    st.cache_data.clear()
                     st.success(f"✅ {nn} cadastrado!")
                     st.rerun()
                 else:
@@ -740,9 +740,9 @@ def pagina_operadores():
         with c1: nn = st.text_input("n", value=op["nome"], label_visibility="collapsed", key=f"n_{op['_id']}")
         with c2: np = st.checkbox("Pleno", value=op.get("pleno", False), key=f"p_{op['_id']}")
         with c3:
-            if st.button("Salvar", key=f"s_{op['_id']}"): atualizar_operador(op["_id"], nn, np); buscar_operadores.cache_clear(); st.rerun()
+            if st.button("Salvar", key=f"s_{op['_id']}"): atualizar_operador(op["_id"], nn, np); st.cache_data.clear(); st.rerun()
         with c4:
-            if st.button("Excluir", key=f"d_{op['_id']}"): excluir_operador(op["_id"]); buscar_operadores.cache_clear(); st.rerun()
+            if st.button("Excluir", key=f"d_{op['_id']}"): excluir_operador(op["_id"]); st.cache_data.clear(); st.rerun()
 
 # ── MONITORIAS ───────────────────────────────────
 def pagina_monitorias(ma):
@@ -1154,8 +1154,8 @@ def main():
     # Migração automática de equipes — roda uma vez por deploy (v2)
     if st.session_state.get('equipes_migradas') != 'v3':
         st.session_state.equipes_migradas = 'v3'
-        n = migrar_operadores()
-        buscar_operadores.cache_clear()
+        migrar_operadores()
+        st.cache_data.clear()
 
     ma, pag = render_sidebar()
     u = st.session_state.usuario
