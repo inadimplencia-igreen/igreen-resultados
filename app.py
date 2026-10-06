@@ -1196,7 +1196,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .logo-mark{width:38px;height:38px;background:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px}
 .logo-text{font-size:16px;font-weight:700;color:var(--text)}
 .logo-sub{font-size:12px;color:var(--text3);margin-top:1px}
-.wrap{width:100%;padding:1rem 1.5rem}
+.wrap{max-width:1300px;margin:0 auto;padding:2rem}
 .page-title{font-size:24px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-bottom:2px}
 .page-sub{font-size:14px;color:var(--text3);margin-bottom:1.75rem}
 .card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.25rem;box-shadow:var(--shadow)}
@@ -1705,114 +1705,57 @@ function addLider(){lideres.push({name:'',cargo:'pleno',qual:'',faltas:''});buil
 function addAtendente(){atendentes.push({name:'',gestor:lideres[0]?.name||'',meta:'',rec:'',qual:'',faltas:''});buildAtTable();updateResults();}
 
 document.querySelectorAll('#cfg-box input').forEach(i=>i.addEventListener('input',updateResults));
+// Inicialização correta
+buildTables();      // 1. Constrói com dados padrão
+connectSave();      // 2. Conecta salvamento
+// 3. Tenta carregar dados (localStorage ou banco)
+// (será feito após injeção do Streamlit via __DADOS_SALVOS__)
 
-// Inicialização — ordem correta
-// 1. Primeiro definir wraps para reconectar autosave após rebuild
-const _origBuildAt=buildAtTable;
-buildAtTable=function(){_origBuildAt();connectAutoSaveLocal();};
-const _origBuildLid=buildLidTable;
-buildLidTable=function(){_origBuildLid();connectAutoSaveLocal();};
 
-// 2. Construir tabelas com dados padrão
-buildTables();
+// ── PERSISTÊNCIA ──────────────────────────────
+const LS_KEY='igreen_prem_v1';
 
-// 3. Tentar carregar localStorage (se não tiver dados do banco)
-if(!window.__DADOS_BANCO__) carregarLocal();
-
-// 4. Conectar autosave
-connectAutoSaveLocal();
-
-// LocalStorage — salva automaticamente no browser
-const LS_KEY='igreen_premiacao_dados';
 function salvarLocal(){
-  try{
-    localStorage.setItem(LS_KEY, JSON.stringify({lideres,atendentes,ts:Date.now()}));
-  }catch(e){}
+  try{ localStorage.setItem(LS_KEY,JSON.stringify({lideres,atendentes})); }catch(e){}
 }
+
 function carregarLocal(){
   try{
     const raw=localStorage.getItem(LS_KEY);
-    if(raw){
-      const d=JSON.parse(raw);
-      if(d.lideres) lideres=d.lideres;
-      if(d.atendentes) atendentes=d.atendentes;
-      buildTables();updateResults();
-      return true;
-    }
-  }catch(e){}
-  return false;
+    if(!raw) return false;
+    const d=JSON.parse(raw);
+    if(d.lideres&&d.lideres.length>0) lideres=d.lideres;
+    if(d.atendentes&&d.atendentes.length>0) atendentes=d.atendentes;
+    return true;
+  }catch(e){ return false; }
 }
 
-// Conectar salvamento local a todos os inputs
-function connectAutoSaveLocal(){
-  document.querySelectorAll('#lid-body input,#lid-body select,#at-body input,#at-body select').forEach(inp=>{
-    inp.addEventListener('input',salvarLocal);
-    inp.addEventListener('change',salvarLocal);
-    inp.addEventListener('blur',salvarLocal);
-  });
-}
-
-// Carregar dados salvos do banco (injetado pelo Streamlit)
 function carregarDados(d){
   if(!d) return;
-  window.__DADOS_BANCO__=true;
-  if(d.lideres) lideres=d.lideres;
-  if(d.atendentes) atendentes=d.atendentes;
-  if(d.cfg){
-    const cfg=d.cfg;
-    const campos={
-      'cfg-total':'total','cfg-meta-min':'metaMin','cfg-super':'super',
-      'cfg-bonus':'bonus','cfg-qual-at':'qualAt','cfg-qual-lid':'qualLid',
-      'cfg-assi':'assiMin','cfg-assi-lid':'assiLid','cfg-dias':'dias',
-      'cfg-senior':'senior','cfg-pleno':'pleno','cfg-assist':'assist'
-    };
-    Object.entries(campos).forEach(([id,key])=>{
-      const el=document.getElementById(id);
-      if(el&&cfg[key]!==undefined) el.value=cfg[key];
-    });
-  }
-  buildTables();
-  updateResults();
-}
-
-// Função para coletar todos os dados e enviar para o Streamlit
-function coletarDados(){
-  return JSON.stringify({lideres, atendentes});
-}
-
-// Autosave — envia dados para o Streamlit automaticamente
-let autosaveTimer=null;
-function autoSave(){
-  clearTimeout(autosaveTimer);
-  autosaveTimer=setTimeout(()=>{
-    enviarParaStreamlit(true);
-  }, 1500); // 1.5s após parar de digitar
-}
-
-function enviarParaStreamlit(auto=false){
-  const dados=coletarDados();
+  if(d.lideres&&d.lideres.length>0) lideres=d.lideres;
+  if(d.atendentes&&d.atendentes.length>0) atendentes=d.atendentes;
+  buildTables(); updateResults();
   salvarLocal();
-  if(!auto){
-    // Copiar para clipboard
-    navigator.clipboard.writeText(dados).then(()=>{
-      alert("✅ JSON copiado!\n\nAgora cole no campo abaixo da calculadora e clique em Salvar.");
-    }).catch(()=>{
-      // Fallback: mostrar em prompt
-      prompt("Copie o JSON abaixo (Ctrl+A, Ctrl+C) e cole no campo de salvar:", dados);
-    });
-  }
 }
 
-// Conectar autosave a todos os inputs
-function connectAutoSave(){
-  document.querySelectorAll('#lid-body input,#lid-body select,#at-body input,#at-body select').forEach(inp=>{
-    inp.addEventListener('input',autoSave);
-    inp.addEventListener('change',autoSave);
+function exportarJSON(){
+  const dados=JSON.stringify({lideres,atendentes});
+  salvarLocal();
+  navigator.clipboard.writeText(dados)
+    .then(()=>alert('✅ JSON copiado!\\n\\nAgora cole no campo abaixo e clique em Salvar.'))
+    .catch(()=>prompt('Copie o JSON (Ctrl+A, Ctrl+C):', dados));
+}
+
+// Conectar salvamento local
+function connectSave(){
+  document.querySelectorAll('#lid-body input,#lid-body select,#at-body input,#at-body select').forEach(i=>{
+    i.addEventListener('input', salvarLocal);
+    i.addEventListener('blur', salvarLocal);
   });
 }
 
 // __DADOS_SALVOS__
-window.__DADOS_BANCO__=false;
+
 </script>
 </body>
 </html>
