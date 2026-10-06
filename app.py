@@ -1845,42 +1845,54 @@ window.__DADOS_BANCO__=false;
     </style>""", unsafe_allow_html=True)
     result = components.html(html_final, height=2400, scrolling=True)
 
-    # Botão salvar via JavaScript que lê localStorage e posta no form
+    # Botão salvar — lê localStorage via JS e envia para o Streamlit
     st.markdown("---")
+    # Campo oculto que recebe os dados via JS
+    dados_input = st.text_input("dados_json", value="", label_visibility="collapsed", key="prem_dados_json")
+    # JS que preenche o campo automaticamente ao clicar
     st.markdown("""
     <script>
-    function salvarParaStreamlit(){
+    function preencherEClicar(){
         try{
             const raw=localStorage.getItem('igreen_premiacao_dados');
-            if(raw){
-                const ta=window.parent.document.querySelector('textarea[aria-label="dados_json"]');
-                if(ta){
-                    const nv=Object.getOwnPropertyDescriptor(window.parent.HTMLTextAreaElement.prototype,'value').set;
-                    nv.call(ta,raw);
-                    ta.dispatchEvent(new Event('input',{bubbles:true}));
+            if(!raw){alert('Nenhum dado encontrado. Preencha a calculadora acima.');return;}
+            // Preencher input oculto
+            const inputs=window.parent.document.querySelectorAll('input[type="text"]');
+            let found=false;
+            inputs.forEach(inp=>{
+                if(inp.value===''&&inp.getAttribute('aria-label')==='dados_json'){
+                    const nv=Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype,'value').set;
+                    nv.call(inp,raw);
+                    inp.dispatchEvent(new Event('input',{bubbles:true}));
+                    found=true;
                 }
-            }
-        }catch(e){}
+            });
+            // Clicar no botão salvar
+            setTimeout(()=>{
+                const btns=window.parent.document.querySelectorAll('button');
+                btns.forEach(btn=>{
+                    if(btn.textContent.includes('Salvar Premiação')){btn.click();}
+                });
+            },300);
+        }catch(e){alert('Erro: '+e.message);}
     }
+    // Botão flutuante
+    const div=document.createElement('div');
+    div.style.cssText='position:fixed;bottom:24px;right:24px;z-index:9999';
+    div.innerHTML='<button onclick="preencherEClicar()" style="background:#16a34a;color:#fff;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);font-family:Inter,sans-serif">💾 Salvar Premiação</button>';
+    document.body.appendChild(div);
     </script>
     """, unsafe_allow_html=True)
-    dados_input = st.text_area("dados_json", value="", label_visibility="collapsed", key="prem_dados_json", height=68)
-    col1, col2 = st.columns([3,1])
-    with col1:
-        st.info("Cole aqui o JSON dos dados antes de salvar, ou use o botão **📋 Preparar para salvar** dentro da calculadora acima.")
-    with col2:
-        if st.button("💾 Salvar", use_container_width=True, key="btn_salvar_prem"):
-            try:
-                raw = st.session_state.get("prem_dados_json","").strip()
-                if raw:
-                    dados = json.loads(raw)
-                    salvar_premiacao(ma, dados)
-                    st.success("✅ Premiação salva! Os dados serão carregados automaticamente na próxima vez.")
-                    st.cache_data.clear()
-                else:
-                    st.warning("Clique em '📋 Preparar para salvar' na calculadora acima primeiro.")
-            except Exception as e:
-                st.error(f"Erro ao salvar: {e}")
+    if st.button("💾 Salvar Premiação", use_container_width=True, key="btn_salvar_prem"):
+        try:
+            raw = st.session_state.get("prem_dados_json","").strip()
+            if raw:
+                dados = json.loads(raw)
+                salvar_premiacao(ma, dados)
+                st.success("✅ Premiação salva!")
+                st.cache_data.clear()
+        except Exception as e:
+            st.error(f"Erro ao salvar: {e}")
 
 
 # ── MINHA CONTA ──────────────────────────────────
