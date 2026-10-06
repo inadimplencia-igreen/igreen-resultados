@@ -1705,23 +1705,22 @@ function addLider(){lideres.push({name:'',cargo:'pleno',qual:'',faltas:''});buil
 function addAtendente(){atendentes.push({name:'',gestor:lideres[0]?.name||'',meta:'',rec:'',qual:'',faltas:''});buildAtTable();updateResults();}
 
 document.querySelectorAll('#cfg-box input').forEach(i=>i.addEventListener('input',updateResults));
-buildTables();
-connectAutoSaveLocal();
 
-// Reconectar salvamento local após rebuild
+// Inicialização — ordem correta
+// 1. Primeiro definir wraps para reconectar autosave após rebuild
 const _origBuildAt=buildAtTable;
 buildAtTable=function(){_origBuildAt();connectAutoSaveLocal();};
 const _origBuildLid=buildLidTable;
 buildLidTable=function(){_origBuildLid();connectAutoSaveLocal();};
 
-// Carregar do localStorage se não tiver dados do banco
+// 2. Construir tabelas com dados padrão
+buildTables();
+
+// 3. Tentar carregar localStorage (se não tiver dados do banco)
 if(!window.__DADOS_BANCO__) carregarLocal();
 
-// Reconectar autosave após rebuild
-const _origBuildAt=buildAtTable;
-buildAtTable=function(){_origBuildAt();connectAutoSave();};
-const _origBuildLid=buildLidTable;
-buildLidTable=function(){_origBuildLid();connectAutoSave();};
+// 4. Conectar autosave
+connectAutoSaveLocal();
 
 // LocalStorage — salva automaticamente no browser
 const LS_KEY='igreen_premiacao_dados';
