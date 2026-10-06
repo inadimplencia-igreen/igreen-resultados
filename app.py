@@ -684,10 +684,10 @@ def render_sidebar():
             f"</div>", unsafe_allow_html=True)
 
         anos = get_anos_disponiveis()
-        ano = st.selectbox('Ano', anos, label_visibility='collapsed')
+        ano = st.selectbox('Ano', anos, label_visibility='collapsed', key='sb_ano')
         meses = get_todos_meses_ano(int(ano))
         mes_labels = [m.split('-')[0] for m in meses]
-        mes_sel = st.selectbox('Mês', mes_labels, index=datetime.now().month - 1, label_visibility='collapsed')
+        mes_sel = st.selectbox('Mês', mes_labels, index=datetime.now().month - 1, label_visibility='collapsed', key='sb_mes')
         mes_ano = f'{mes_sel}-{ano}'
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
