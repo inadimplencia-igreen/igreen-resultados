@@ -77,10 +77,37 @@ USUARIOS = {
 }
 
 EQUIPES = {
-    "luciano": {"nome": "Luciano", "cor": "#2daf5c"},
+    "danilo":  {"nome": "Danilo",  "cor": "#2daf5c"},
     "deborah": {"nome": "Déborah", "cor": "#a855f7"},
     "tamires": {"nome": "Tamires", "cor": "#f97316"},
-    "metcool": {"nome": "Meet Call", "cor": "#3b82f6"},
+}
+
+# Mapeamento nome → equipe (2 primeiros nomes para match)
+OPERADORES_EQUIPE = {
+    # Equipe Danilo
+    "heverton feliciano":    "danilo",
+    "eduarda sanqueta":      "danilo",
+    "ketle loyane":          "danilo",
+    "maria clara":           "danilo",
+    "laura beatriz":         "danilo",
+    "amanda clara":          "danilo",
+    # Equipe Déborah
+    "amanda eduarda":        "deborah",
+    "nicole kamilly":        "deborah",
+    "sara pereira":          "deborah",
+    "silye ferreira":        "deborah",
+    "diego soares":          "deborah",
+    "italo henrique":        "deborah",
+    "breno mendonça":        "deborah",
+    # Equipe Tamires
+    "wynara dos":            "tamires",
+    "andre gomes":           "tamires",
+    "wanessa da":            "tamires",
+    "lorena cristina":       "tamires",
+    "camila nara":           "tamires",
+    "jheniffer hellen":      "tamires",
+    "marcelle sampaio":      "tamires",
+    "grasielle da":          "tamires",
 }
 
 MESES_NOMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -231,6 +258,32 @@ def buscar_operadores(eq):
             unicos.append(op)
     return unicos
 
+def migrar_operadores():
+    """Migra operadores para as novas equipes com base no nome. Roda uma vez."""
+    import unicodedata
+    def norm(s):
+        s = unicodedata.normalize('NFKD', str(s).lower().strip()).encode('ascii','ignore').decode()
+        return re.sub(r'\s+', ' ', s).strip()
+
+    try:
+        db = get_db()
+        ops = list(db.operadores.find({}))
+        migrados = 0
+        for op in ops:
+            nome_op = norm(op.get('nome', ''))
+            palavras = nome_op.split()
+            dois = ' '.join(palavras[:2]) if len(palavras) >= 2 else nome_op
+            eq_nova = OPERADORES_EQUIPE.get(dois)
+            if eq_nova and op.get('equipeId') != eq_nova:
+                db.operadores.update_one(
+                    {"_id": op["_id"]},
+                    {"$set": {"equipeId": eq_nova}}
+                )
+                migrados += 1
+        return migrados
+    except Exception as e:
+        return 0
+
 def salvar_operador(eq, nome, pleno=False):
     oid = re.sub(r'[^a-z0-9]', '-', nome.lower().strip())
     oid = re.sub(r'-+', '-', oid).strip('-')
@@ -264,9 +317,16 @@ def buscar_monitorias_operador(oid):
     return list(get_db().monitorias.find({"opId": {"$in": ids_busca}}).sort("criadoEm", -1))
 
 def buscar_monitorias_equipe(eq, ma=None):
-    f = {"equipeId": eq}
+    # Busca todos os opIds da equipe atual
+    ops = list(get_db().operadores.find({"equipeId": eq}))
+    op_ids = [op["_id"] for op in ops]
+    # Inclui também vinculadoA
+    vinculados = [op.get("vinculadoA") for op in ops if op.get("vinculadoA")]
+    op_ids += vinculados
+    # Busca monitorias por opId OU por equipeId (para monitorias antigas)
+    f = {"$or": [{"opId": {"$in": op_ids}}, {"equipeId": eq}]}
     if ma:
-        f["mesAno"] = ma
+        f = {"$and": [{"$or": [{"opId": {"$in": op_ids}}, {"equipeId": eq}]}, {"mesAno": ma}]}
     return list(get_db().monitorias.find(f).sort("criadoEm", -1))
 
 def excluir_monitoria(did):
@@ -951,7 +1011,7 @@ def pagina_monitorias_diretor(ma):
 
     linhas_eq = ""
     todas_medias = []
-    for eq_pre in ["luciano", "deborah", "tamires"]:
+    for eq_pre in ["danilo", "deborah", "tamires", "luciano", "metcool"]:
         ops_pre = buscar_operadores(eq_pre)
         medias_pre = [calc_media_operador(op["_id"], ma)[0] for op in ops_pre if calc_media_operador(op["_id"], ma)[1] > 0]
         if medias_pre:
@@ -967,7 +1027,7 @@ def pagina_monitorias_diretor(ma):
         linhas_eq += f"<div style='border-top:1px solid #c8e0c8;margin-top:6px;padding-top:8px;display:flex;justify-content:space-between;align-items:center'><span style='color:#2d4a2d;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px'>Média Geral</span><span style='color:{cor_mg};font-size:22px;font-weight:800'>{mg:.2f}%</span></div>"
         st.markdown(f"<div style='background:#ffffff;border:1px solid #c8e0c8;border-radius:12px;padding:16px 24px;margin-bottom:20px;border-left:4px solid #2e7d32'>{linhas_eq}</div>", unsafe_allow_html=True)
 
-    for eq in EQUIPES:
+    for eq in list(EQUIPES.keys()) + ["luciano", "metcool"]:
         ops = buscar_operadores(eq)
         if not ops: continue
         monts = buscar_monitorias_equipe(eq, ma)
@@ -1063,6 +1123,13 @@ def main():
     if "usuario" not in st.session_state:
         tela_login()
         return
+
+    # Migração automática de equipes — roda uma vez por sessão
+    if 'equipes_migradas' not in st.session_state:
+        st.session_state.equipes_migradas = True
+        n = migrar_operadores()
+        if n > 0:
+            buscar_operadores.cache_clear()
 
     ma, pag = render_sidebar()
     u = st.session_state.usuario
