@@ -84,30 +84,45 @@ EQUIPES = {
 
 # Mapeamento nome → equipe (2 primeiros nomes para match)
 OPERADORES_EQUIPE = {
-    # Equipe Danilo
+    # Equipe Danilo — nomes exatos do banco
+    "heverton tavares":      "danilo",
     "heverton feliciano":    "danilo",
+    "heverton dos":          "danilo",
     "eduarda sanqueta":      "danilo",
+    "eduarda carvalho":      "danilo",
+    "ketle silva":           "danilo",
     "ketle loyane":          "danilo",
+    "ketle dias":            "danilo",
     "maria clara":           "danilo",
+    "laura silva":           "danilo",
     "laura beatriz":         "danilo",
     "amanda clara":          "danilo",
     # Equipe Déborah
     "amanda eduarda":        "deborah",
     "nicole kamilly":        "deborah",
+    "nicole amaral":         "deborah",
     "sara pereira":          "deborah",
     "silye ferreira":        "deborah",
+    "sylie ferreira":        "deborah",
     "diego soares":          "deborah",
     "italo henrique":        "deborah",
     "breno mendonça":        "deborah",
+    "breno mendonca":        "deborah",
     # Equipe Tamires
     "wynara dos":            "tamires",
+    "wynara reis":           "tamires",
     "andre gomes":           "tamires",
+    "andré gomes":           "tamires",
     "wanessa da":            "tamires",
+    "wanessa cardoso":       "tamires",
     "lorena cristina":       "tamires",
+    "lorena garcia":         "tamires",
     "camila nara":           "tamires",
     "jheniffer hellen":      "tamires",
+    "jheniffer santos":      "tamires",
     "marcelle sampaio":      "tamires",
     "grasielle da":          "tamires",
+    "grasielle santos":      "tamires",
 }
 
 MESES_NOMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -272,8 +287,20 @@ def migrar_operadores():
         for op in ops:
             nome_op = norm(op.get('nome', ''))
             palavras = nome_op.split()
-            dois = ' '.join(palavras[:2]) if len(palavras) >= 2 else nome_op
-            eq_nova = OPERADORES_EQUIPE.get(dois)
+            eq_nova = None
+            # Tentar combinações: p1+p2, p1+p3, p1+p4, só p1
+            combos = []
+            if len(palavras) >= 2:
+                combos.append(' '.join(palavras[:2]))
+            if len(palavras) >= 3:
+                combos.append(palavras[0] + ' ' + palavras[2])
+            if len(palavras) >= 4:
+                combos.append(palavras[0] + ' ' + palavras[3])
+            combos.append(palavras[0] if palavras else nome_op)
+            for combo in combos:
+                eq_nova = OPERADORES_EQUIPE.get(combo)
+                if eq_nova:
+                    break
             if eq_nova and op.get('equipeId') != eq_nova:
                 db.operadores.update_one(
                     {"_id": op["_id"]},
@@ -1124,12 +1151,11 @@ def main():
         tela_login()
         return
 
-    # Migração automática de equipes — roda uma vez por sessão
-    if 'equipes_migradas' not in st.session_state:
-        st.session_state.equipes_migradas = True
+    # Migração automática de equipes — roda uma vez por deploy (v2)
+    if st.session_state.get('equipes_migradas') != 'v3':
+        st.session_state.equipes_migradas = 'v3'
         n = migrar_operadores()
-        if n > 0:
-            buscar_operadores.cache_clear()
+        buscar_operadores.cache_clear()
 
     ma, pag = render_sidebar()
     u = st.session_state.usuario
