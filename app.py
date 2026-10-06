@@ -53,10 +53,15 @@ hr { border: none !important; border-top: 1px solid #e0e8e0 !important; margin: 
 .stWarning > div { background: #fffbf0 !important; border-left: 3px solid #f0c000 !important; color: #8a6a00 !important; border-radius: 8px !important; }
 [data-testid="stSidebarCollapseButton"] { display: none !important; }
 [data-testid="collapsedControl"] { display: none !important; }
+[data-testid="stSidebarCollapsedControl"] { display: none !important; }
+button[data-testid="baseButton-header"] { display: none !important; }
 #MainMenu { visibility: hidden !important; }
 header[data-testid="stHeader"] { display: none !important; }
 footer { display: none !important; }
-[data-testid="stSidebar"] { display: flex !important; visibility: visible !important; width: 260px !important; min-width: 260px !important; }
+[data-testid="stToolbar"] { display: none !important; }
+[data-testid="stDecoration"] { display: none !important; }
+[data-testid="stSidebar"] { display: flex !important; visibility: visible !important; opacity: 1 !important; width: 260px !important; min-width: 260px !important; transform: none !important; position: relative !important; }
+section[data-testid="stSidebar"] { display: flex !important; }
 .block-container { padding: 2rem 2rem 2rem !important; max-width: 1200px !important; }
 </style>
 """, unsafe_allow_html=True)
