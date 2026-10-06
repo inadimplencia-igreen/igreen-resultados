@@ -1791,24 +1791,16 @@ function autoSave(){
 
 function enviarParaStreamlit(auto=false){
   const dados=coletarDados();
-  try{
-    // Tenta setar no textarea oculto do Streamlit
-    const inputs=window.parent.document.querySelectorAll('textarea');
-    let found=false;
-    inputs.forEach(inp=>{
-      const lbl=window.parent.document.querySelector('label[for="'+inp.id+'"]');
-      if(inp.value!==undefined&&(inp.closest('[data-testid="stTextArea"]'))){
-        const nv=Object.getOwnPropertyDescriptor(window.parent.HTMLTextAreaElement.prototype,'value').set;
-        nv.call(inp,dados);
-        inp.dispatchEvent(new Event('input',{bubbles:true}));
-        found=true;
-      }
+  salvarLocal();
+  if(!auto){
+    // Copiar para clipboard
+    navigator.clipboard.writeText(dados).then(()=>{
+      alert("✅ JSON copiado!\n\nAgora cole no campo abaixo da calculadora e clique em Salvar.");
+    }).catch(()=>{
+      // Fallback: mostrar em prompt
+      prompt("Copie o JSON abaixo (Ctrl+A, Ctrl+C) e cole no campo de salvar:", dados);
     });
-    if(!auto){
-      const btn=document.getElementById('save-status');
-      if(btn) btn.textContent='✓ Pronto para salvar';
-    }
-  } catch(e){}
+  }
 }
 
 // Conectar autosave a todos os inputs
@@ -1845,54 +1837,41 @@ window.__DADOS_BANCO__=false;
     </style>""", unsafe_allow_html=True)
     result = components.html(html_final, height=2400, scrolling=True)
 
-    # Botão salvar — lê localStorage via JS e envia para o Streamlit
+    # ── SALVAR via st.form ──
     st.markdown("---")
-    # Campo oculto que recebe os dados via JS
-    dados_input = st.text_input("dados_json", value="", label_visibility="collapsed", key="prem_dados_json")
-    # JS que preenche o campo automaticamente ao clicar
-    st.markdown("""
-    <script>
-    function preencherEClicar(){
-        try{
-            const raw=localStorage.getItem('igreen_premiacao_dados');
-            if(!raw){alert('Nenhum dado encontrado. Preencha a calculadora acima.');return;}
-            // Preencher input oculto
-            const inputs=window.parent.document.querySelectorAll('input[type="text"]');
-            let found=false;
-            inputs.forEach(inp=>{
-                if(inp.value===''&&inp.getAttribute('aria-label')==='dados_json'){
-                    const nv=Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype,'value').set;
-                    nv.call(inp,raw);
-                    inp.dispatchEvent(new Event('input',{bubbles:true}));
-                    found=true;
-                }
-            });
-            // Clicar no botão salvar
-            setTimeout(()=>{
-                const btns=window.parent.document.querySelectorAll('button');
-                btns.forEach(btn=>{
-                    if(btn.textContent.includes('Salvar Premiação')){btn.click();}
-                });
-            },300);
-        }catch(e){alert('Erro: '+e.message);}
-    }
-    // Botão flutuante
-    const div=document.createElement('div');
-    div.style.cssText='position:fixed;bottom:24px;right:24px;z-index:9999';
-    div.innerHTML='<button onclick="preencherEClicar()" style="background:#16a34a;color:#fff;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);font-family:Inter,sans-serif">💾 Salvar Premiação</button>';
-    document.body.appendChild(div);
-    </script>
-    """, unsafe_allow_html=True)
-    if st.button("💾 Salvar Premiação", use_container_width=True, key="btn_salvar_prem"):
+    st.markdown("**Para salvar:** preencha os dados acima, cole o JSON gerado pelo botão '📋 Preparar para salvar' no campo abaixo e clique em Salvar.")
+
+    # Verificar se chegou dados via query param
+    qp = st.query_params.get("prem_save", "")
+    if qp:
         try:
-            raw = st.session_state.get("prem_dados_json","").strip()
-            if raw:
-                dados = json.loads(raw)
-                salvar_premiacao(ma, dados)
-                st.success("✅ Premiação salva!")
-                st.cache_data.clear()
+            dados = json.loads(qp)
+            salvar_premiacao(ma, dados)
+            st.success("✅ Premiação salva automaticamente!")
+            st.query_params.clear()
+            st.cache_data.clear()
         except Exception as e:
             st.error(f"Erro ao salvar: {e}")
+
+    with st.form("form_prem"):
+        raw = st.text_area(
+            "Cole aqui o JSON (gerado pelo botão dentro da calculadora)",
+            height=100,
+            key="prem_json_input",
+            placeholder='{"lideres":[...],"atendentes":[...]}'
+        )
+        if st.form_submit_button("💾 Salvar Premiação", use_container_width=True):
+            try:
+                if raw.strip():
+                    dados = json.loads(raw.strip())
+                    salvar_premiacao(ma, dados)
+                    st.success("✅ Premiação salva!")
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.warning("Cole o JSON gerado pela calculadora antes de salvar.")
+            except Exception as e:
+                st.error(f"Erro ao salvar: {e}")
 
 
 # ── MINHA CONTA ──────────────────────────────────
