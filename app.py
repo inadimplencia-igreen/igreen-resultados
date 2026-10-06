@@ -1706,10 +1706,57 @@ function addAtendente(){atendentes.push({name:'',gestor:lideres[0]?.name||'',met
 
 document.querySelectorAll('#cfg-box input').forEach(i=>i.addEventListener('input',updateResults));
 buildTables();
+connectAutoSaveLocal();
+
+// Reconectar salvamento local após rebuild
+const _origBuildAt=buildAtTable;
+buildAtTable=function(){_origBuildAt();connectAutoSaveLocal();};
+const _origBuildLid=buildLidTable;
+buildLidTable=function(){_origBuildLid();connectAutoSaveLocal();};
+
+// Carregar do localStorage se não tiver dados do banco
+if(!window.__DADOS_BANCO__) carregarLocal();
+
+// Reconectar autosave após rebuild
+const _origBuildAt=buildAtTable;
+buildAtTable=function(){_origBuildAt();connectAutoSave();};
+const _origBuildLid=buildLidTable;
+buildLidTable=function(){_origBuildLid();connectAutoSave();};
+
+// LocalStorage — salva automaticamente no browser
+const LS_KEY='igreen_premiacao_dados';
+function salvarLocal(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({lideres,atendentes,ts:Date.now()}));
+  }catch(e){}
+}
+function carregarLocal(){
+  try{
+    const raw=localStorage.getItem(LS_KEY);
+    if(raw){
+      const d=JSON.parse(raw);
+      if(d.lideres) lideres=d.lideres;
+      if(d.atendentes) atendentes=d.atendentes;
+      buildTables();updateResults();
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+// Conectar salvamento local a todos os inputs
+function connectAutoSaveLocal(){
+  document.querySelectorAll('#lid-body input,#lid-body select,#at-body input,#at-body select').forEach(inp=>{
+    inp.addEventListener('input',salvarLocal);
+    inp.addEventListener('change',salvarLocal);
+    inp.addEventListener('blur',salvarLocal);
+  });
+}
 
 // Carregar dados salvos do banco (injetado pelo Streamlit)
 function carregarDados(d){
   if(!d) return;
+  window.__DADOS_BANCO__=true;
   if(d.lideres) lideres=d.lideres;
   if(d.atendentes) atendentes=d.atendentes;
   if(d.cfg){
@@ -1734,24 +1781,47 @@ function coletarDados(){
   return JSON.stringify({lideres, atendentes});
 }
 
-// Botão copiar dados para o campo oculto do Streamlit
-function enviarParaStreamlit(){
+// Autosave — envia dados para o Streamlit automaticamente
+let autosaveTimer=null;
+function autoSave(){
+  clearTimeout(autosaveTimer);
+  autosaveTimer=setTimeout(()=>{
+    enviarParaStreamlit(true);
+  }, 1500); // 1.5s após parar de digitar
+}
+
+function enviarParaStreamlit(auto=false){
   const dados=coletarDados();
-  // Tenta via window.parent (iframe)
   try{
+    // Tenta setar no textarea oculto do Streamlit
     const inputs=window.parent.document.querySelectorAll('textarea');
+    let found=false;
     inputs.forEach(inp=>{
-      if(inp.getAttribute('aria-label')==='dados_json'||inp.dataset.testid==='stTextArea'){
-        const nativeInputValueSetter=Object.getOwnPropertyDescriptor(window.parent.HTMLTextAreaElement.prototype,'value').set;
-        nativeInputValueSetter.call(inp,dados);
+      const lbl=window.parent.document.querySelector('label[for="'+inp.id+'"]');
+      if(inp.value!==undefined&&(inp.closest('[data-testid="stTextArea"]'))){
+        const nv=Object.getOwnPropertyDescriptor(window.parent.HTMLTextAreaElement.prototype,'value').set;
+        nv.call(inp,dados);
         inp.dispatchEvent(new Event('input',{bubbles:true}));
+        found=true;
       }
     });
+    if(!auto){
+      const btn=document.getElementById('save-status');
+      if(btn) btn.textContent='✓ Pronto para salvar';
+    }
   } catch(e){}
-  alert('Dados copiados! Clique em "Salvar Premiação" abaixo.');
+}
+
+// Conectar autosave a todos os inputs
+function connectAutoSave(){
+  document.querySelectorAll('#lid-body input,#lid-body select,#at-body input,#at-body select').forEach(inp=>{
+    inp.addEventListener('input',autoSave);
+    inp.addEventListener('change',autoSave);
+  });
 }
 
 // __DADOS_SALVOS__
+window.__DADOS_BANCO__=false;
 </script>
 </body>
 </html>
@@ -1776,19 +1846,42 @@ function enviarParaStreamlit(){
     </style>""", unsafe_allow_html=True)
     result = components.html(html_final, height=2400, scrolling=True)
 
-    # Botão salvar — recebe dados via query params ou session state
+    # Botão salvar via JavaScript que lê localStorage e posta no form
     st.markdown("---")
-    dados_input = st.text_area("dados_json", value="", label_visibility="collapsed", key="prem_dados_json", height=1)
-    if st.button("💾 Salvar Premiação", use_container_width=True, key="btn_salvar_prem"):
-        try:
-            raw = st.session_state.get("prem_dados_json","").strip()
-            if raw:
-                dados = json.loads(raw)
-                salvar_premiacao(ma, dados)
-                st.success("✅ Premiação salva!")
-                st.cache_data.clear()
-        except Exception as e:
-            st.error(f"Erro ao salvar: {e}")
+    st.markdown("""
+    <script>
+    function salvarParaStreamlit(){
+        try{
+            const raw=localStorage.getItem('igreen_premiacao_dados');
+            if(raw){
+                const ta=window.parent.document.querySelector('textarea[aria-label="dados_json"]');
+                if(ta){
+                    const nv=Object.getOwnPropertyDescriptor(window.parent.HTMLTextAreaElement.prototype,'value').set;
+                    nv.call(ta,raw);
+                    ta.dispatchEvent(new Event('input',{bubbles:true}));
+                }
+            }
+        }catch(e){}
+    }
+    </script>
+    """, unsafe_allow_html=True)
+    dados_input = st.text_area("dados_json", value="", label_visibility="collapsed", key="prem_dados_json", height=68)
+    col1, col2 = st.columns([3,1])
+    with col1:
+        st.info("Cole aqui o JSON dos dados antes de salvar, ou use o botão **📋 Preparar para salvar** dentro da calculadora acima.")
+    with col2:
+        if st.button("💾 Salvar", use_container_width=True, key="btn_salvar_prem"):
+            try:
+                raw = st.session_state.get("prem_dados_json","").strip()
+                if raw:
+                    dados = json.loads(raw)
+                    salvar_premiacao(ma, dados)
+                    st.success("✅ Premiação salva! Os dados serão carregados automaticamente na próxima vez.")
+                    st.cache_data.clear()
+                else:
+                    st.warning("Clique em '📋 Preparar para salvar' na calculadora acima primeiro.")
+            except Exception as e:
+                st.error(f"Erro ao salvar: {e}")
 
 
 # ── MINHA CONTA ──────────────────────────────────
