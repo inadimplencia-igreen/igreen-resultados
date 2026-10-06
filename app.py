@@ -1196,7 +1196,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .logo-mark{width:38px;height:38px;background:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px}
 .logo-text{font-size:16px;font-weight:700;color:var(--text)}
 .logo-sub{font-size:12px;color:var(--text3);margin-top:1px}
-.wrap{max-width:1300px;margin:0 auto;padding:2rem}
+.wrap{width:100%;padding:1rem 1.5rem}
 .page-title{font-size:24px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-bottom:2px}
 .page-sub{font-size:14px;color:var(--text3);margin-bottom:1.75rem}
 .card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.25rem;box-shadow:var(--shadow)}
@@ -1767,8 +1767,15 @@ function enviarParaStreamlit(){
     else:
         html_final = HTML_CALC.replace("// __DADOS_SALVOS__", "")
 
-    # Renderizar HTML
-    result = components.html(html_final, height=1800, scrolling=True)
+    # Renderizar HTML — largura total, sem scroll lateral
+    st.markdown("""
+    <style>
+    iframe[title="streamlit_components_v1_html"] {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+    </style>""", unsafe_allow_html=True)
+    result = components.html(html_final, height=2200, scrolling=True)
 
     # Botão salvar — recebe dados via query params ou session state
     st.markdown("---")
