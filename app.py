@@ -1767,15 +1767,14 @@ function enviarParaStreamlit(){
     else:
         html_final = HTML_CALC.replace("// __DADOS_SALVOS__", "")
 
-    # Renderizar HTML — largura total, sem scroll lateral
+    # Forçar iframe largura total
     st.markdown("""
     <style>
-    iframe[title="streamlit_components_v1_html"] {
-        width: 100% !important;
-        min-width: 100% !important;
-    }
+    iframe { width: 100% !important; min-width: 100% !important; }
+    .block-container { padding-left: 1rem !important; padding-right: 1rem !important; max-width: 100% !important; }
+    div[data-testid="stHorizontalBlock"] { width: 100% !important; }
     </style>""", unsafe_allow_html=True)
-    result = components.html(html_final, height=2200, scrolling=True)
+    result = components.html(html_final, height=2400, scrolling=True)
 
     # Botão salvar — recebe dados via query params ou session state
     st.markdown("---")
