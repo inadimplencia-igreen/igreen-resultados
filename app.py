@@ -765,94 +765,109 @@ def pagina_monitorias(ma):
         st.warning("Cadastre operadores primeiro.")
         return
 
-    header_page("Monitorias", f"Equipe {EQUIPES.get(eq, {}).get('nome', '')} · {ma.replace('-', ' ')}")
+    if "mon_op_sel" not in st.session_state:
+        st.session_state.mon_op_sel = None
 
-    # Botão relatório
-    rel = gerar_relatorio_monitorias(eq, ma)
-    if rel:
-        st.download_button(
-            "⬇️ Baixar Relatório de Monitorias (.xlsx)",
-            rel,
-            file_name=f"monitorias_{eq}_{ma}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="dl_rel_mon_topo"
-        )
-
-    if "mon_op_sel" not in st.session_state: st.session_state.mon_op_sel = None
-
+    # ── TELA LISTA DE OPERADORES ──────────────────
     if st.session_state.mon_op_sel is None:
+        header_page("Monitorias", f"Equipe {EQUIPES.get(eq, {}).get('nome', '')} · {ma.replace('-', ' ')}")
+
+        # Relatório só gera quando clicar — não carrega automaticamente
+        if st.button("⬇️ Baixar Relatório (.xlsx)", key="btn_rel"):
+            rel = gerar_relatorio_monitorias(eq, ma)
+            if rel:
+                st.download_button(
+                    "📥 Clique aqui para baixar",
+                    rel,
+                    file_name=f"monitorias_{eq}_{ma}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_rel_mon"
+                )
+            else:
+                st.info("Nenhuma monitoria registrada neste mês.")
+
         ultimo = st.session_state.pop("mon_ultimo_salvo", None)
         if ultimo:
-            st.success(f"Monitoria salva! {ultimo['nome']} — Nota: {ultimo['nota']:.0f}% | Média: {ultimo['media']:.2f}% | Pontos: {ultimo['pontos']}")
-            st.markdown(f'<a href="data:text/html;base64,{ultimo["b64"]}" download="Mon_{ultimo["nome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;margin-bottom:12px">Baixar PDF</a>', unsafe_allow_html=True)
+            cn_u = "#2e7d32" if ultimo['nota'] >= 80 else "#f57f17" if ultimo['nota'] >= 60 else "#c62828"
+            st.markdown(
+                f"<div style='background:#f0faf0;border:1px solid #c8e0c8;border-radius:10px;padding:12px 16px;margin-bottom:12px'>"
+                f"<div style='color:#2e7d32;font-weight:700'>✓ Monitoria de {ultimo['nome']} salva!</div>"
+                f"<div style='color:#1a2e1a;font-size:13px'>Nota: <strong style='color:{cn_u}'>{ultimo['nota']:.0f}%</strong> · Média: <strong>{ultimo['media']:.2f}%</strong> · Pontos: <strong>{ultimo['pontos']}</strong></div>"
+                f"</div>", unsafe_allow_html=True)
+            st.markdown(f'<a href="data:text/html;base64,{ultimo["b64"]}" download="Mon_{ultimo["nome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;margin-bottom:12px">⬇ Baixar PDF</a>', unsafe_allow_html=True)
 
-        # Resumo equipe
+        # Média da equipe
         monts_eq = buscar_monitorias_equipe(eq, ma)
         if monts_eq:
-            medias_eq = [calc_media_operador(op["_id"], ma)[0] for op in ops if calc_media_operador(op["_id"], ma)[1] > 0]
-            if medias_eq:
-                me_eq = sum(medias_eq) / len(medias_eq)
+            notas_eq = [float(m['nota']) for m in monts_eq if 'nota' in m]
+            if notas_eq:
+                me_eq = sum(notas_eq) / len(notas_eq)
                 st_txt, st_cor, _ = get_status_media(me_eq)
                 st.markdown(
                     f"<div style='background:#f0f7f0;border:1px solid #c8e0c8;border-radius:10px;"
                     f"padding:12px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center'>"
                     f"<div><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase;letter-spacing:1.5px'>MÉDIA DA EQUIPE — {ma.replace('-',' ').upper()}</div>"
                     f"<div style='color:{st_cor};font-size:22px;font-weight:800;margin-top:2px'>{me_eq:.2f}%</div></div>"
-                    f"<div style='text-align:right'><div style='color:#3a6a4a;font-size:9px;text-transform:uppercase'>STATUS</div>"
-                    f"<div style='color:{st_cor};font-size:13px;font-weight:600'>{st_txt}</div></div>"
+                    f"<div style='color:{st_cor};font-size:13px;font-weight:600'>{st_txt}</div>"
                     f"</div>", unsafe_allow_html=True)
 
         st.markdown(f"<div style='color:#5a8a5a;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px'>{len(ops)} operadores</div>", unsafe_allow_html=True)
 
         for i in range(0, len(ops), 4):
             cols = st.columns(4)
-            for j, op in enumerate(ops[i:i+4]):
-                media, n = calc_media_operador(op["_id"], ma)
-                st_txt, st_cor, st_bg = get_status_media(media)
-                ini = get_iniciais(op["nome"])
-                cini = get_cor_inicial(op["nome"])
+            for j, op_item in enumerate(ops[i:i+4]):
+                # Calcular média direto das monitorias já buscadas (sem nova query)
+                monts_op = [m for m in monts_eq if m.get('opId') == op_item['_id']]
+                notas_op = [float(m['nota']) for m in monts_op if 'nota' in m]
+                media = round(sum(notas_op) / len(notas_op), 1) if notas_op else 0
+                n = len(notas_op)
+                st_txt, st_cor, _ = get_status_media(media)
+                ini = get_iniciais(op_item["nome"])
+                cini = get_cor_inicial(op_item["nome"])
                 pontos_op = calc_pontos(media)
                 with cols[j]:
                     st.markdown(f"""<div style="background:#ffffff;border:1px solid #c8e0c8;border-radius:12px;
                         padding:16px;text-align:center;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
                         <div style="width:44px;height:44px;background:{cini};border-radius:50%;display:inline-flex;
                         align-items:center;justify-content:center;color:white;font-weight:700;font-size:15px;margin-bottom:8px">{ini}</div>
-                        <div style="color:#1a2e1a;font-weight:700;font-size:12px;margin-bottom:4px">{op['nome']}{'  ★' if op.get('pleno') else ''}</div>
+                        <div style="color:#1a2e1a;font-weight:700;font-size:12px;margin-bottom:4px">{op_item['nome']}{'  ★' if op_item.get('pleno') else ''}</div>
                         <div style="color:{st_cor};font-size:20px;font-weight:800">{round(media)}%</div>
                         <div style="color:#5a8a5a;font-size:10px">{n} monitoria{'s' if n != 1 else ''}</div>
                         <div style="color:#2e7d32;font-size:11px;font-weight:600;margin-top:2px">{pontos_op} pts</div>
                     </div>""", unsafe_allow_html=True)
                     c1, c2 = st.columns(2)
                     with c1:
-                        if st.button("+ Nova", key=f"nova_{op['_id']}", use_container_width=True):
-                            st.session_state.mon_op_sel = op
+                        if st.button("+ Nova", key=f"nova_{op_item['_id']}", use_container_width=True):
+                            st.session_state.mon_op_sel = op_item
                             st.rerun()
                     with c2:
-                        if st.button("Histórico", key=f"hist_{op['_id']}", use_container_width=True):
-                            st.session_state.mon_op_sel = op
-                            st.session_state.mon_modo = "historico"
+                        if st.button("Histórico", key=f"hist_{op_item['_id']}", use_container_width=True):
+                            st.session_state.mon_op_sel = op_item
                             st.rerun()
         return
 
+    # ── TELA DE NOVA MONITORIA ────────────────────
     op = st.session_state.mon_op_sel
-    media_op, n_op = calc_media_operador(op["_id"], ma)
+    monts_op_todas = buscar_monitorias_operador(op["_id"])
+    monts_op_mes = [m for m in monts_op_todas if m.get("mesAno") == ma]
+    notas_todas = [float(m['nota']) for m in monts_op_todas if 'nota' in m]
+    media_op = round(sum(notas_todas) / len(notas_todas), 1) if notas_todas else 0
+    n_op = len(notas_todas)
 
     if st.button("← Voltar"):
         st.session_state.mon_op_sel = None
-        st.session_state.pop("mon_modo", None)
         st.rerun()
 
-    st.markdown(f"<div style='background:#e8f5e9;border:1px solid #c8e0c8;border-radius:8px;padding:10px 16px;margin-bottom:12px'>"
-                f"<span style='color:#2e7d32;font-weight:700;font-size:15px'>👤 {op['nome']}</span>"
-                f"<span style='color:#5a8a5a;font-size:12px;margin-left:12px'>Média: {media_op:.0f}% · {n_op} monitoria{'s' if n_op != 1 else ''}</span></div>", unsafe_allow_html=True)
-    st.markdown("---")
+    st.markdown(
+        f"<div style='background:#e8f5e9;border:1px solid #c8e0c8;border-radius:8px;padding:10px 16px;margin-bottom:12px'>"
+        f"<span style='color:#2e7d32;font-weight:700;font-size:15px'>👤 {op['nome']}</span>"
+        f"<span style='color:#5a8a5a;font-size:12px;margin-left:12px'>Média geral: {media_op:.0f}% · {n_op} monitoria{'s' if n_op != 1 else ''}</span></div>",
+        unsafe_allow_html=True)
 
     t1, t2 = st.tabs(["Nova Monitoria", "Monitorias do Mês"])
 
     with t1:
-        monts_op_mes = [m for m in buscar_monitorias_equipe(eq, ma) if m["opId"] == op["_id"]]
         semanas_usadas = {m.get("semana_mon", "") for m in monts_op_mes}
-
         semanas_opts = []
         for s in SEMANAS_MONITORIA:
             if s in semanas_usadas:
@@ -863,106 +878,110 @@ def pagina_monitorias(ma):
         semana_sel = st.selectbox("Qual monitoria é esta?", semanas_opts, key="semana_sel")
         semana = SEMANAS_MONITORIA[semanas_opts.index(semana_sel)]
         semana_bloqueada = semana in semanas_usadas
-
-        if semana_bloqueada:
-            st.error(f"⛔ A **{semana}** já foi registrada para {op['nome']} em {ma.replace('-',' ')}.")
-
-        prot = st.text_input("Protocolo da Ligação", placeholder="Ex: 20260520-001", key="prot_input")
-        obs = st.text_area("Observações", placeholder="Anotações...", height=70, key="obs_input")
-        st.markdown("---")
-
-        crits_usar = get_criterios()
-        erros_usar = get_erros_criticos()
-
-        # Erros críticos
-        st.markdown("<p style='color:#c62828;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>ERROS CRÍTICOS — Qualquer um zera a monitoria</p>", unsafe_allow_html=True)
-        erros_m = []
-        c1, c2 = st.columns(2)
-        for i, ec in enumerate(erros_usar):
-            with (c1 if i % 2 == 0 else c2):
-                if st.checkbox(f"{ec['nome']}", key=f"ec_{ec['id']}", help=ec['desc']):
-                    erros_m.append(ec)
-
-        st.markdown("---")
-        zerada = len(erros_m) > 0
-        crits_r = []
-        nota = 0 if zerada else 100
-
-        if zerada:
-            st.error("MONITORIA ZERADA — Erro crítico marcado!")
-            for c in crits_usar:
-                crits_r.append({**c, "passou": False})
-        else:
-            st.markdown("<p style='color:#e53935;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>CRITÉRIOS — MARQUE O QUE NÃO FOI FEITO</p>", unsafe_allow_html=True)
-            for crit in crits_usar:
-                c1, c2 = st.columns([8, 1])
-                with c1:
-                    nao_passou = st.checkbox(f"{crit['num']} {crit['nome']}", key=f"cr_{crit['id']}", value=False)
-                with c2:
-                    st.markdown(f"<div style='padding-top:6px;color:#e53935;font-size:12px;font-weight:600;text-align:right'>−{crit['peso']} pts</div>", unsafe_allow_html=True)
-                if crit.get('itens'):
-                    for it in crit['itens']:
-                        cor_it = "#f87171" if "obrigatório" in it.lower() or "!" in it else "#34d399"
-                        st.markdown(f"<div style='padding:3px 0 3px 24px;font-size:12px;color:{cor_it};line-height:1.5'>• {it}</div>", unsafe_allow_html=True)
-                passou = not nao_passou
-                if not passou:
-                    nota -= crit["peso"]
-                crits_r.append({**crit, "passou": passou})
-
-        nota = max(0, nota)
-        pontos_perdidos = 100 - nota
-        cn = "#2e7d32" if nota >= 80 else "#f57f17" if nota >= 60 else "#c62828"
-        st.markdown(
-            f"<div style='background:#f0f7f0;border:1px solid #c8e0c8;border-radius:10px;padding:14px 20px;margin-top:16px;"
-            f"display:flex;justify-content:space-between;align-items:center'>"
-            f"<div><div style='color:#5a8a5a;font-size:11px'>Pontuação final (máx. 100 pts)</div>"
-            f"<div style='color:#5a8a5a;font-size:11px'>Pontos perdidos: {pontos_perdidos}</div></div>"
-            f"<div style='color:{cn};font-size:36px;font-weight:800'>{round(nota)}</div>"
-            f"</div>", unsafe_allow_html=True)
-
         sk_salvo = f"mon_salvo_{op['_id']}_{semana}_{ma}"
-        if not st.session_state.get(sk_salvo):
-            if st.button("Salvar Monitoria", use_container_width=True, key="btn_salvar_mon", disabled=semana_bloqueada):
-                if not prot.strip():
-                    st.error("Preencha o Protocolo da Ligação!")
-                else:
-                    eq_save = u.get('equipe') or (list(EQUIPES.keys())[0] if u['role'] == 'admin' else 'tamires')
-                    # Para admin, pegar a equipe do seletor
-                    if u['role'] == 'admin':
-                        eq_opts_s = list(EQUIPES.keys())
-                        eq_labels_s = [f"Equipe {EQUIPES[e]['nome']}" for e in eq_opts_s]
-                        eq_save = eq_opts_s[0]
-                        for eq_o in eq_opts_s:
-                            ops_o = buscar_operadores(eq_o)
-                            if any(o['_id'] == op['_id'] for o in ops_o):
-                                eq_save = eq_o
-                                break
-                    salvar_monitoria(eq_save, op["_id"], op["nome"], prot, obs, crits_r, erros_m, nota, ma, semana=semana)
-                    mm, nm = calc_media_operador(op["_id"], ma)
-                    html = gerar_pdf_monitoria(op["nome"], prot, obs, crits_r, erros_m, nota, mm, nm, ma)
-                    b64 = base64.b64encode(html.encode()).decode()
-                    st.session_state[sk_salvo] = {"nome": op["nome"], "nota": nota, "media": mm, "pontos": calc_pontos(mm), "b64": b64, "prot": prot}
-        else:
+
+        # ── JÁ SALVOU — mostra só resultado + PDF ──
+        if st.session_state.get(sk_salvo):
             salvo = st.session_state[sk_salvo]
             cn2 = "#2e7d32" if salvo['nota'] >= 80 else "#f57f17" if salvo['nota'] >= 60 else "#c62828"
             st.markdown(
-                f"<div style='background:#f0faf0;border:2px solid #2e7d32;border-radius:12px;padding:20px 24px;margin:16px 0'>"
-                f"<div style='color:#2e7d32;font-weight:700;font-size:15px;margin-bottom:8px'>✓ Monitoria salva!</div>"
-                f"<div style='color:#1a2e1a;font-size:13px'>Nota: <strong style='color:{cn2}'>{salvo['nota']:.0f}%</strong> | "
-                f"Média: <strong>{salvo['media']:.2f}%</strong> | Pontos: <strong>{salvo['pontos']}</strong></div>"
+                f"<div style='background:#f0faf0;border:2px solid #2e7d32;border-radius:16px;"
+                f"padding:32px;text-align:center;margin:16px 0'>"
+                f"<div style='color:#2e7d32;font-size:13px;font-weight:600;text-transform:uppercase;"
+                f"letter-spacing:1px;margin-bottom:8px'>✓ Monitoria salva com sucesso!</div>"
+                f"<div style='color:{cn2};font-size:64px;font-weight:800;line-height:1;margin-bottom:8px'>{salvo['nota']:.0f}%</div>"
+                f"<div style='color:#1a2e1a;font-size:14px;margin-bottom:4px'>Média: <strong>{salvo['media']:.2f}%</strong></div>"
+                f"<div style='color:#2e7d32;font-size:14px;font-weight:700;margin-bottom:24px'>Pontuação: {salvo['pontos']} pts</div>"
                 f"</div>", unsafe_allow_html=True)
             st.markdown(
                 f'<a href="data:text/html;base64,{salvo["b64"]}" '
                 f'download="Monitoria_{salvo["nome"].replace(" ","_")}_{salvo["prot"]}.html" '
-                f'style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;'
-                f'padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:13px;margin-bottom:12px">'
+                f'style="display:block;text-align:center;background:#1a3a1a;color:#a0c4a0;'
+                f'border:1px solid #2a4a2a;padding:14px 24px;border-radius:8px;'
+                f'text-decoration:none;font-weight:600;font-size:14px;margin-bottom:12px">'
                 f'⬇ Baixar PDF da Monitoria</a>', unsafe_allow_html=True)
-            if st.button("Concluir e Voltar", use_container_width=True, key="btn_concluir_mon"):
+            if st.button("← Voltar para a equipe", use_container_width=True, key="btn_concluir_mon"):
                 ultimo = st.session_state.pop(sk_salvo, None)
                 st.session_state.mon_op_sel = None
                 if ultimo:
                     st.session_state["mon_ultimo_salvo"] = ultimo
                 st.rerun()
+
+        # ── AINDA NÃO SALVOU — mostra formulário ──
+        else:
+            if semana_bloqueada:
+                st.error(f"⛔ A **{semana}** já foi registrada para {op['nome']} em {ma.replace('-',' ')}.")
+
+            prot = st.text_input("Protocolo da Ligação", placeholder="Ex: 20260520-001", key="prot_input")
+            obs = st.text_area("Observações", placeholder="Anotações...", height=70, key="obs_input")
+            st.markdown("---")
+
+            crits_usar = get_criterios()
+            erros_usar = get_erros_criticos()
+
+            # Erros críticos
+            st.markdown("<p style='color:#c62828;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>ERROS CRÍTICOS — Qualquer um zera a monitoria</p>", unsafe_allow_html=True)
+            erros_m = []
+            c1, c2 = st.columns(2)
+            for i, ec in enumerate(erros_usar):
+                with (c1 if i % 2 == 0 else c2):
+                    if st.checkbox(f"{ec['nome']}", key=f"ec_{ec['id']}", help=ec['desc']):
+                        erros_m.append(ec)
+
+            st.markdown("---")
+            zerada = len(erros_m) > 0
+            crits_r = []
+            nota = 0 if zerada else 100
+
+            if zerada:
+                st.error("MONITORIA ZERADA — Erro crítico marcado!")
+                for c in crits_usar:
+                    crits_r.append({**c, "passou": False})
+            else:
+                st.markdown("<p style='color:#e53935;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>CRITÉRIOS — MARQUE O QUE NÃO FOI FEITO</p>", unsafe_allow_html=True)
+                for crit in crits_usar:
+                    c1, c2 = st.columns([8, 1])
+                    with c1:
+                        nao_passou = st.checkbox(f"{crit['num']} {crit['nome']}", key=f"cr_{crit['id']}", value=False)
+                    with c2:
+                        st.markdown(f"<div style='padding-top:6px;color:#e53935;font-size:12px;font-weight:600;text-align:right'>−{crit['peso']} pts</div>", unsafe_allow_html=True)
+                    if crit.get('itens'):
+                        for it in crit['itens']:
+                            cor_it = "#f87171" if "obrigatório" in it.lower() or "!" in it else "#34d399"
+                            st.markdown(f"<div style='padding:3px 0 3px 24px;font-size:12px;color:{cor_it};line-height:1.5'>• {it}</div>", unsafe_allow_html=True)
+                    passou = not nao_passou
+                    if not passou:
+                        nota -= crit["peso"]
+                    crits_r.append({**crit, "passou": passou})
+
+            nota = max(0, nota)
+            pontos_perdidos = 100 - nota
+            cn = "#2e7d32" if nota >= 80 else "#f57f17" if nota >= 60 else "#c62828"
+            st.markdown(
+                f"<div style='background:#f0f7f0;border:1px solid #c8e0c8;border-radius:10px;"
+                f"padding:14px 20px;margin-top:16px;display:flex;justify-content:space-between;align-items:center'>"
+                f"<div><div style='color:#5a8a5a;font-size:11px'>Pontuação final (máx. 100 pts)</div>"
+                f"<div style='color:#5a8a5a;font-size:11px'>Pontos perdidos: {pontos_perdidos}</div></div>"
+                f"<div style='color:{cn};font-size:36px;font-weight:800'>{round(nota)}</div>"
+                f"</div>", unsafe_allow_html=True)
+
+            if st.button("💾 Salvar Monitoria", use_container_width=True, key="btn_salvar_mon", disabled=semana_bloqueada):
+                if not prot.strip():
+                    st.error("Preencha o Protocolo da Ligação!")
+                else:
+                    salvar_monitoria(eq, op["_id"], op["nome"], prot, obs, crits_r, erros_m, nota, ma, semana=semana)
+                    # Recalcular média com a nova monitoria incluída
+                    notas_novas = [float(m['nota']) for m in buscar_monitorias_operador(op["_id"]) if 'nota' in m]
+                    mm = round(sum(notas_novas) / len(notas_novas), 1) if notas_novas else nota
+                    nm = len(notas_novas)
+                    html = gerar_pdf_monitoria(op["nome"], prot, obs, crits_r, erros_m, nota, mm, nm, ma)
+                    b64 = base64.b64encode(html.encode()).decode()
+                    st.session_state[sk_salvo] = {
+                        "nome": op["nome"], "nota": nota,
+                        "media": mm, "pontos": calc_pontos(mm),
+                        "b64": b64, "prot": prot
+                    }
+                    st.rerun()
 
     with t2:
         monts2 = buscar_monitorias_operador(op["_id"])
