@@ -1227,8 +1227,6 @@ def main():
     elif 'Minha Conta' in pag:
         pagina_minha_conta()
 
-if __name__ == "__main__":
-    main()
 # ── MINHA CONTA ──────────────────────────────────
 def pagina_minha_conta():
     u = st.session_state.usuario
@@ -1249,30 +1247,5 @@ def pagina_minha_conta():
             st.success('✅ Senha alterada com sucesso!')
 
 # ── MAIN ─────────────────────────────────────────
-def main():
-    if "usuario" not in st.session_state:
-        tela_login()
-        return
-
-    # Migração automática de equipes — roda uma vez por deploy (v2)
-    if st.session_state.get('equipes_migradas') != 'v3':
-        st.session_state.equipes_migradas = 'v3'
-        migrar_operadores()
-        st.cache_data.clear()
-
-    ma, pag = render_sidebar()
-    u = st.session_state.usuario
-
-    if 'Monitorias' in pag:
-        pagina_monitorias(ma)
-    elif 'Premiação' in pag:
-        pagina_premiacao(ma)
-    elif 'Operadores' in pag:
-        pagina_operadores()
-    elif 'Critérios' in pag and u['role'] == 'admin':
-        pagina_criterios()
-    elif 'Minha Conta' in pag:
-        pagina_minha_conta()
-
 if __name__ == "__main__":
     main()
