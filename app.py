@@ -1169,39 +1169,193 @@ def buscar_premiacao(ma):
 
 # ── PREMIAÇÃO — PÁGINA ────────────────────────────
 def pagina_premiacao(ma):
-    import streamlit.components.v1 as components
     import json as _json
     header_page("Premiação", f"Cálculo mensal · {ma.replace('-', ' ')}")
-    st.markdown(
-        "<style>iframe{width:100%!important;min-width:100%!important;border:none!important}"
-        ".block-container{padding:1rem!important;max-width:100%!important}</style>",
-        unsafe_allow_html=True
-    )
-    # Carregar dados do banco e injetar no HTML
+
+    # Dados padrão
+    lids_default = [
+        {"name":"Moyara","cargo":"senior","qual":"","faltas":"","diretoria":True},
+        {"name":"Danilo","cargo":"pleno","qual":"","faltas":"","diretoria":False},
+        {"name":"Déborah","cargo":"pleno","qual":"","faltas":"","diretoria":False},
+        {"name":"Tamires","cargo":"pleno","qual":"","faltas":"","diretoria":False},
+        {"name":"Mikael","cargo":"assist","qual":"","faltas":"","diretoria":True},
+    ]
+    ats_default = [
+        {"name":"Heverton Tavares","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Eduarda Sanqueta","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Ketle Silva","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Maria Clara","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Laura Silva","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Amanda Clara","gestor":"Danilo","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Amanda Eduarda","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Nicole Kamilly","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Sara Pereira","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Silye Ferreira","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Diego Soares","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Italo Henrique","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Breno Mendonça","gestor":"Déborah","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Wynara Parreira","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"André Gomes","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Wanessa Cardoso","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Lorena Cristina","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Camila Nara","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Jheniffer Santos","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Marcelle Sampaio","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
+        {"name":"Grasielle Santos","gestor":"Tamires","meta":"","rec":"","qual":"","faltas":""},
+    ]
+
+    cfg = dict(total=3000,metaMin=100,super=125,bonus=20,qualAt=95,qualLid=90,assiAt=100,assiLid=97,senior=200,pleno=150,assist=100,dias=21)
+
+    # Carregar dados salvos
     dados_salvos = buscar_premiacao(ma)
-    if dados_salvos:
-        dados_js = _json.dumps(dados_salvos, ensure_ascii=False)
-        html_final = PREMIACAO_HTML.replace("// __INJECT__", f"window.__DADOS_BANCO__ = {dados_js};")
-    else:
-        html_final = PREMIACAO_HTML.replace("// __INJECT__", "window.__DADOS_BANCO__ = null;")
-    components.html(html_final, height=2600, scrolling=True)
+    lids = dados_salvos.get("lideres", lids_default) if dados_salvos else lids_default
+    ats  = dados_salvos.get("atendentes", ats_default) if dados_salvos else ats_default
 
-    # Formulário para salvar no banco
-    with st.form("salvar_prem"):
-        raw = st.text_area("Dados (gerado automaticamente pelo botão Salvar)", height=80, key="prem_raw", label_visibility="collapsed", placeholder="Clique em 💾 Salvar na calculadora acima, depois clique aqui e cole os dados")
-        if st.form_submit_button("💾 Salvar no banco", use_container_width=True):
-            try:
-                if raw.strip():
-                    dados = _json.loads(raw.strip())
-                    salvar_premiacao(ma, dados)
-                    st.success("✅ Salvo! Abrirá em qualquer máquina agora.")
-                    st.cache_data.clear()
-                    st.rerun()
-                else:
-                    st.warning("Cole os dados gerados pelo botão Salvar da calculadora.")
-            except Exception as e:
-                st.error(f"Erro: {e}")
+    def fmtR(v):
+        try:
+            v=float(v)
+            if v==0: return "—"
+            return f"R$ {v:_.2f}".replace("_",".")
+        except: return "—"
 
+    def assi_pct(faltas, n_pessoas=1, dias=21):
+        try: return round((1 - int(faltas)/(n_pessoas*dias))*100, 1)
+        except: return 100.0
+
+    def calc_pct(rec, meta):
+        try:
+            r,m=float(rec),float(meta)
+            if m<=0: return 0
+            return round(r/m*100,1)
+        except: return 0
+
+    def calc_premio_lid(l, ats, cfg):
+        base = cfg['senior'] if l['cargo']=='senior' else cfg['pleno'] if l['cargo']=='pleno' else cfg['assist']
+        scope = ats if l.get('diretoria') else [a for a in ats if a['gestor']==l['name']]
+        meta = sum(float(a['meta']) for a in scope if a['meta']!='')
+        rec  = sum(float(a['rec'])  for a in scope if a['rec']!='')
+        faltas = sum(int(a['faltas']) for a in scope if a['faltas']!='')
+        n = len(scope) or 1
+        pct  = calc_pct(rec, meta)
+        assi = assi_pct(faltas, n, cfg['dias'])
+        qual = float(l['qual']) if l['qual']!='' else None
+        mots = []
+        if meta==0 or pct<cfg['metaMin']: mots.append(f"recebido abaixo de {cfg['metaMin']}%")
+        if qual is None or qual<cfg['qualLid']: mots.append(f"qualidade abaixo de {cfg['qualLid']}%")
+        if assi<cfg['assiLid']: mots.append(f"assiduidade {assi}% abaixo de {cfg['assiLid']}%")
+        bateu = len(mots)==0
+        sup   = bateu and pct>=cfg['super']
+        premio = round(base*(1+cfg['bonus']/100 if sup else 1),2) if bateu else 0
+        return dict(base=base,meta=meta,rec=rec,pct=pct,assi=assi,bateu=bateu,sup=sup,mots=mots,premio=premio,faltas=faltas)
+
+    def calc_premios_at(lids, ats, cfg):
+        prem_lid = sum(calc_premio_lid(l,ats,cfg)['premio'] for l in lids)
+        base_tot = sum((cfg['senior'] if l['cargo']=='senior' else cfg['pleno'] if l['cargo']=='pleno' else cfg['assist']) for l in lids)
+        pool = cfg['total'] - prem_lid
+        res = []
+        for a in ats:
+            if a['meta']=='' and a['rec']=='':
+                res.append(dict(skip=True,bateu=False,sup=False,mots=[],peso=0,premio=0,pct=0,assi=100))
+                continue
+            pct  = calc_pct(a['rec'],a['meta'])
+            assi = assi_pct(a['faltas'] if a['faltas']!='' else 0,1,cfg['dias'])
+            qual = float(a['qual']) if a['qual']!='' else None
+            mots = []
+            if float(a['meta'] or 0)==0 or pct<cfg['metaMin']: mots.append(f"abaixo de {cfg['metaMin']}%")
+            if qual is None or qual<cfg['qualAt']: mots.append(f"qualidade abaixo de {cfg['qualAt']}%")
+            if assi<cfg['assiAt']: mots.append(f"assiduidade {assi}% abaixo de {cfg['assiAt']}%")
+            bateu = len(mots)==0
+            sup   = bateu and pct>=cfg['super']
+            peso  = (1+cfg['bonus']/100) if sup else (1.0 if bateu else 0)
+            res.append(dict(skip=False,bateu=bateu,sup=sup,mots=mots,peso=peso,premio=0,pct=pct,assi=assi))
+        tot_peso = sum(r['peso'] for r in res)
+        if tot_peso>0:
+            for r in res:
+                r['premio'] = round(pool*r['peso']/tot_peso,2)
+        return res
+
+    res_lids = [calc_premio_lid(l,ats,cfg) for l in lids]
+    res_ats  = calc_premios_at(lids,ats,cfg)
+    prem_lid = sum(r['premio'] for r in res_lids)
+    prem_at  = sum(r['premio'] for r in res_ats)
+    sem_dest = max(0, round(cfg['total']-prem_lid-prem_at,2))
+
+    # Resumo
+    c1,c2,c3,c4 = st.columns(4)
+    with c1: st.metric("Total", fmtR(cfg['total']))
+    with c2: st.metric("Liderança", fmtR(prem_lid), f"{sum(1 for r in res_lids if r['bateu'])} premiados")
+    with c3: st.metric("Atendentes", fmtR(prem_at), f"{sum(1 for r in res_ats if r['bateu'])} premiados")
+    with c4: st.metric("Sem destino", fmtR(sem_dest))
+
+    st.markdown("---")
+
+    # Liderança
+    st.markdown("#### Liderança")
+    lids_novo = []
+    for i,l in enumerate(lids):
+        r = res_lids[i]
+        badge = ("🟠 Super meta" if r['sup'] else "🟢 Bateu") if r['bateu'] else "🔴 Não recebe"
+        with st.expander(f"{l['name']} — {badge} — {fmtR(r['premio'])}", expanded=False):
+            st.markdown(f"**Meta equipe:** {fmtR(r['meta'])} | **Recebido:** {fmtR(r['rec'])} | **% Meta:** {r['pct']:.1f}% | **Assid.:** {r['assi']:.1f}%")
+            if r['mots']: st.warning(" · ".join(r['mots']))
+            novo_qual = st.number_input(f"Qualidade %", value=float(l['qual']) if l['qual']!='' else 0.0, min_value=0.0, max_value=100.0, step=0.1, key=f"lq_{i}")
+            lids_novo.append({**l, "qual": str(novo_qual) if novo_qual>0 else ''})
+    if not lids_novo: lids_novo = lids
+
+    st.markdown("---")
+
+    # Atendentes
+    st.markdown("#### Atendentes")
+    ats_novo = []
+    gestores = list(dict.fromkeys(a['gestor'] for a in ats))
+    for gest in gestores:
+        st.markdown(f"**📋 Equipe {gest}**")
+        cols = st.columns([2,1.2,1.2,0.7,0.7,0.7,1.2,0.8])
+        cols[0].markdown("<small>**Nome**</small>", unsafe_allow_html=True)
+        cols[1].markdown("<small>**Meta (R$)**</small>", unsafe_allow_html=True)
+        cols[2].markdown("<small>**Recebido (R$)**</small>", unsafe_allow_html=True)
+        cols[3].markdown("<small>**% Meta**</small>", unsafe_allow_html=True)
+        cols[4].markdown("<small>**Qual %**</small>", unsafe_allow_html=True)
+        cols[5].markdown("<small>**Faltas**</small>", unsafe_allow_html=True)
+        cols[6].markdown("<small>**Situação**</small>", unsafe_allow_html=True)
+        cols[7].markdown("<small>**Prêmio**</small>", unsafe_allow_html=True)
+        for i,a in enumerate(ats):
+            if a['gestor']!=gest: 
+                ats_novo.append(None)
+                continue
+            r = res_ats[i]
+            c = st.columns([2,1.2,1.2,0.7,0.7,0.7,1.2,0.8])
+            with c[0]: st.markdown(f"<div style='padding-top:8px;font-size:13px'>{a['name']}</div>", unsafe_allow_html=True)
+            with c[1]: nm = st.text_input("m",value=a['meta'],placeholder="0",label_visibility="collapsed",key=f"am_{i}")
+            with c[2]: nr = st.text_input("r",value=a['rec'], placeholder="0",label_visibility="collapsed",key=f"ar_{i}")
+            with c[3]:
+                pct_str = f"{r['pct']:.0f}%" if not r['skip'] and float(a['meta'] or 0)>0 else "—"
+                cor = "color:#16a34a" if r['pct']>=cfg['metaMin'] else "color:#dc2626"
+                st.markdown(f"<div style='padding-top:8px;font-size:13px;font-weight:600;{cor}'>{pct_str}</div>", unsafe_allow_html=True)
+            with c[4]: nq = st.text_input("q",value=a['qual'],placeholder="%",label_visibility="collapsed",key=f"aq_{i}")
+            with c[5]: nf = st.text_input("f",value=a['faltas'],placeholder="0",label_visibility="collapsed",key=f"af_{i}")
+            with c[6]:
+                if r['skip']: badge_at="⬜ Aguardando"
+                elif r['sup']: badge_at="🟠 Super meta"
+                elif r['bateu']: badge_at="🟢 Bateu"
+                else: badge_at="🔴 Não recebe"
+                st.markdown(f"<div style='padding-top:8px;font-size:12px'>{badge_at}</div>", unsafe_allow_html=True)
+                if not r['skip'] and r['mots']:
+                    st.markdown(f"<div style='font-size:10px;color:#dc2626'>{r['mots'][0]}</div>", unsafe_allow_html=True)
+            with c[7]:
+                cor_p = "color:#16a34a;font-weight:700" if r['premio']>0 else "color:#9ca3af"
+                st.markdown(f"<div style='padding-top:8px;font-size:13px;{cor_p}'>{fmtR(r['premio'])}</div>", unsafe_allow_html=True)
+            ats_novo.append({**a,"meta":nm,"rec":nr,"qual":nq,"faltas":nf})
+        st.markdown("<hr style='margin:6px 0'>", unsafe_allow_html=True)
+
+    ats_final = [a for a in ats_novo if a is not None]
+
+    # Salvar
+    if st.button("💾 Salvar Premiação", use_container_width=True, key="btn_salvar_prem"):
+        salvar_premiacao(ma, {"lideres": lids_novo, "atendentes": ats_final})
+        st.success("✅ Premiação salva! Aparece em qualquer máquina agora.")
+        st.cache_data.clear()
+        st.rerun()
 
 # ── MINHA CONTA ──────────────────────────────────
 def pagina_minha_conta():
