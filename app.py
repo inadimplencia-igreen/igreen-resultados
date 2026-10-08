@@ -370,6 +370,85 @@ def buscar_monitorias_equipe(eq, ma=None):
         f = {"$and": [{"$or": [{"opId": {"$in": op_ids}}, {"equipeId": eq}]}, {"mesAno": ma}]}
     return list(get_db().monitorias.find(f).sort("criadoEm", -1))
 
+def atualizar_monitoria(did, campos):
+    # Só ATUALIZA a monitoria existente (mesmo _id). Nunca apaga nem cria outra.
+    campos = dict(campos)
+    campos["editadoEm"] = datetime.now()
+    get_db().monitorias.update_one({"_id": did}, {"$set": campos})
+
+def editar_monitoria_form(m, monts_mes):
+    mid = m["_id"]
+    st.markdown("<p style='color:#2e7d32;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:8px 0'>✏️ EDITAR MONITORIA</p>", unsafe_allow_html=True)
+
+    # Semana — trava se outra monitoria do mesmo operador/mês já usa a semana
+    usadas = {x.get("semana_mon", "") for x in monts_mes if x["_id"] != mid}
+    sem_atual = m.get("semana_mon") if m.get("semana_mon") in SEMANAS_MONITORIA else SEMANAS_MONITORIA[0]
+    opts = [f"🔴 {s} — JÁ REGISTRADA" if s in usadas else f"✅ {s}" for s in SEMANAS_MONITORIA]
+    sel = st.selectbox("Qual monitoria é esta?", opts, index=SEMANAS_MONITORIA.index(sem_atual), key=f"ed_sem_{mid}")
+    semana = SEMANAS_MONITORIA[opts.index(sel)]
+    bloqueada = semana in usadas
+    if bloqueada:
+        st.error(f"⛔ A **{semana}** já está registrada em outra monitoria deste operador neste mês.")
+
+    prot = st.text_input("Protocolo da Ligação", value=m.get("protocolo", ""), key=f"ed_prot_{mid}")
+    obs = st.text_area("Observações", value=m.get("observacao", ""), height=90, key=f"ed_obs_{mid}")
+
+    # Erros críticos (pré-marcados com o que foi salvo)
+    erros_usar = get_erros_criticos()
+    ids_erros_salvos = {e.get("id") for e in (m.get("errosCriticos") or [])}
+    st.markdown("<p style='color:#c62828;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:8px 0'>ERROS CRÍTICOS — Qualquer um zera a monitoria</p>", unsafe_allow_html=True)
+    erros_m = []
+    c1, c2 = st.columns(2)
+    for i, ec in enumerate(erros_usar):
+        with (c1 if i % 2 == 0 else c2):
+            if st.checkbox(ec["nome"], value=ec["id"] in ids_erros_salvos, key=f"ed_ec_{mid}_{ec['id']}", help=ec.get("desc", "")):
+                erros_m.append(ec)
+
+    # Critérios — usa os critérios gravados nessa monitoria (pré-marcados)
+    pesos_atuais = {c["id"]: c.get("peso", 0) for c in get_criterios()}
+    crits_base = m.get("criterios") or [{**c, "passou": True} for c in get_criterios()]
+    zerada = len(erros_m) > 0
+    crits_r = []
+    nota = 0 if zerada else 100
+    if zerada:
+        st.error("MONITORIA ZERADA — Erro crítico marcado!")
+        for c in crits_base:
+            crits_r.append({**c, "passou": False})
+    else:
+        st.markdown("<p style='color:#e53935;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:8px 0'>CRITÉRIOS — MARQUE O QUE NÃO FOI FEITO</p>", unsafe_allow_html=True)
+        for c in crits_base:
+            peso = c.get("peso", pesos_atuais.get(c.get("id"), 0))
+            nao_passou = st.checkbox(f"{c.get('num','')} {c.get('nome','')}  (−{peso} pts)",
+                                     value=not c.get("passou", True), key=f"ed_cr_{mid}_{c.get('id')}")
+            if nao_passou:
+                nota -= peso
+            crits_r.append({**c, "peso": peso, "passou": not nao_passou})
+    nota = max(0, nota)
+
+    nota_antiga = float(m.get("nota", 0))
+    cn = "#2e7d32" if nota >= 80 else "#f57f17" if nota >= 60 else "#c62828"
+    st.markdown(f"<div style='background:#f0f7f0;border:1px solid #c8e0c8;border-radius:10px;padding:12px 18px;margin:12px 0;display:flex;justify-content:space-between;align-items:center'>"
+                f"<div style='color:#5a8a5a;font-size:12px'>Nota antes: <strong>{int(nota_antiga)}%</strong></div>"
+                f"<div style='color:{cn};font-size:28px;font-weight:800'>Nova nota: {round(nota)}%</div></div>", unsafe_allow_html=True)
+
+    b1, b2 = st.columns(2)
+    with b1:
+        if st.button("💾 Salvar Edição", key=f"ed_save_{mid}", use_container_width=True, disabled=bloqueada):
+            if not prot.strip():
+                st.error("Preencha o Protocolo da Ligação!")
+            else:
+                atualizar_monitoria(mid, {
+                    "semana_mon": semana, "protocolo": prot, "observacao": obs,
+                    "criterios": crits_r, "errosCriticos": erros_m, "nota": nota,
+                })
+                st.session_state[f"editando_{mid}"] = False
+                st.success("✅ Monitoria atualizada! A média já foi recalculada.")
+                st.rerun()
+    with b2:
+        if st.button("Cancelar", key=f"ed_cancel_{mid}", use_container_width=True):
+            st.session_state[f"editando_{mid}"] = False
+            st.rerun()
+
 def excluir_monitoria(did):
     get_db().monitorias.delete_one({"_id": did})
 
@@ -1030,6 +1109,13 @@ def pagina_monitorias(ma):
                     b64h = base64.b64encode(hp.encode()).decode()
                     st.markdown(f'<a href="data:text/html;base64,{b64h}" download="Mon_{op["nome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px;margin-top:6px">⬇ Baixar PDF</a>', unsafe_allow_html=True)
                     st.markdown("---")
+                    ed_key = f"editando_{m['_id']}"
+                    if not st.session_state.get(ed_key):
+                        if st.button("✏️ Editar", key=f"ed_btn_{m['_id']}"):
+                            st.session_state[ed_key] = True
+                            st.rerun()
+                    else:
+                        editar_monitoria_form(m, monts2)
                     if st.button("Excluir", key=f"del_op_{m['_id']}"):
                         excluir_monitoria(m["_id"])
                         st.rerun()
