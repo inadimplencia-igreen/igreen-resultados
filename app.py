@@ -873,12 +873,15 @@ def pagina_monitorias(ma):
         header_page("Monitorias", f"Equipe {EQUIPES.get(eq, {}).get('nome', '')} · {ma.replace('-', ' ')}")
 
         # Relatório só gera quando clicar — não carrega automaticamente
+        # Guarda a planilha gerada na sessão, pra o botão de baixar não sumir no clique
+        rel_key = f"rel_mon_{eq}_{ma}"
         if st.button("⬇️ Baixar Relatório (.xlsx)", key="btn_rel"):
-            rel = gerar_relatorio_monitorias(eq, ma)
-            if rel:
+            st.session_state[rel_key] = gerar_relatorio_monitorias(eq, ma) or b""
+        if rel_key in st.session_state:
+            if st.session_state[rel_key]:
                 st.download_button(
                     "📥 Clique aqui para baixar",
-                    rel,
+                    st.session_state[rel_key],
                     file_name=f"monitorias_{eq}_{ma}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     key="dl_rel_mon"
