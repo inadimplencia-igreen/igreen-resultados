@@ -449,6 +449,13 @@ def editar_monitoria_form(m, monts_mes):
             st.session_state[f"editando_{mid}"] = False
             st.rerun()
 
+def nome_arquivo_mon(nome, semana=None):
+    # Ex.: "André Gomes - 1ª Semana - 2ª Monitoria.html"
+    base = str(nome or "Monitoria").strip()
+    if semana:
+        base += " - " + str(semana).replace(" — ", " - ")
+    return base.replace('"', "").replace("/", "-") + ".html"
+
 def excluir_monitoria(did):
     get_db().monitorias.delete_one({"_id": did})
 
@@ -887,7 +894,7 @@ def pagina_monitorias(ma):
                 f"<div style='color:#2e7d32;font-weight:700'>✓ Monitoria de {ultimo['nome']} salva!</div>"
                 f"<div style='color:#1a2e1a;font-size:13px'>Nota: <strong style='color:{cn_u}'>{ultimo['nota']:.0f}%</strong> · Média: <strong>{ultimo['media']:.2f}%</strong> · Pontos: <strong>{ultimo['pontos']}</strong></div>"
                 f"</div>", unsafe_allow_html=True)
-            st.markdown(f'<a href="data:text/html;base64,{ultimo["b64"]}" download="Mon_{ultimo["nome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;margin-bottom:12px">⬇ Baixar PDF</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="data:text/html;base64,{ultimo["b64"]}" download="{nome_arquivo_mon(ultimo["nome"], ultimo.get("semana"))}" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;margin-bottom:12px">⬇ Baixar PDF</a>', unsafe_allow_html=True)
 
         # Média da equipe
         monts_eq = buscar_monitorias_equipe(eq, ma)
@@ -988,7 +995,7 @@ def pagina_monitorias(ma):
                 f"</div>", unsafe_allow_html=True)
             st.markdown(
                 f'<a href="data:text/html;base64,{salvo["b64"]}" '
-                f'download="Monitoria_{salvo["nome"].replace(" ","_")}_{salvo["prot"]}.html" '
+                f'download="{nome_arquivo_mon(salvo["nome"], salvo.get("semana"))}" '
                 f'style="display:block;text-align:center;background:#1a3a1a;color:#a0c4a0;'
                 f'border:1px solid #2a4a2a;padding:14px 24px;border-radius:8px;'
                 f'text-decoration:none;font-weight:600;font-size:14px;margin-bottom:12px">'
@@ -1072,7 +1079,7 @@ def pagina_monitorias(ma):
                     st.session_state[sk_salvo] = {
                         "nome": op["nome"], "nota": nota,
                         "media": mm, "pontos": calc_pontos(mm),
-                        "b64": b64, "prot": prot
+                        "b64": b64, "prot": prot, "semana": semana
                     }
                     st.rerun()
 
@@ -1107,7 +1114,7 @@ def pagina_monitorias(ma):
                     mm2, nm2 = calc_media_operador(op["_id"], ma)
                     hp = gerar_pdf_monitoria(op["nome"], m.get("protocolo", ""), m.get("observacao", ""), m.get("criterios", []), m.get("errosCriticos", []), nm, mm2, nm2, ma)
                     b64h = base64.b64encode(hp.encode()).decode()
-                    st.markdown(f'<a href="data:text/html;base64,{b64h}" download="Mon_{op["nome"].replace(" ","_")}.html" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px;margin-top:6px">⬇ Baixar PDF</a>', unsafe_allow_html=True)
+                    st.markdown(f'<a href="data:text/html;base64,{b64h}" download="{nome_arquivo_mon(op["nome"], m.get("semana_mon"))}" style="display:inline-block;background:#1a3a1a;color:#a0c4a0;border:1px solid #2a4a2a;padding:5px 12px;border-radius:5px;text-decoration:none;font-size:12px;margin-top:6px">⬇ Baixar PDF</a>', unsafe_allow_html=True)
                     st.markdown("---")
                     ed_key = f"editando_{m['_id']}"
                     if not st.session_state.get(ed_key):
