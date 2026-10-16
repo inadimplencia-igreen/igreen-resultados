@@ -228,6 +228,31 @@ ERROS_CRITICOS_PADRAO = [
      "desc": "Manter o cliente em espera/linha sem necessidade ou justificativa"},
 ]
 
+# ── CRITÉRIOS DE CHAT ───────────────────────────
+CRITERIOS_CHAT_PADRAO = [
+    {"id": "ch1", "num": "1º", "nome": "Abertura e Identificação", "peso": 10, "obrigatorio": False,
+     "itens": ["Saudação adequada", "Identificação correta"]},
+    {"id": "ch2", "num": "2º", "nome": "Comunicação e Postura", "peso": 15, "obrigatorio": False,
+     "itens": ["Clareza", "Tom respeitoso", "Sem gírias", "Não ameaçar"]},
+    {"id": "ch3", "num": "3º", "nome": "Negociação/Conformidade", "peso": 40, "obrigatorio": False,
+     "itens": ["Apresentação de propostas", "Script de Retenção", "Escrita correta"]},
+    {"id": "ch4", "num": "4º", "nome": "Registro e Procedimentos", "peso": 20, "obrigatorio": False,
+     "itens": ["Registro correto", "Classificação/tabulação"]},
+    {"id": "ch5", "num": "5º", "nome": "Encerramento", "peso": 15, "obrigatorio": False,
+     "itens": ["Acordo fechado", "Agradecimento", "Encerramento"]},
+]
+
+ERROS_CRITICOS_CHAT_PADRAO = [
+    {"id": "ce1", "nome": "Passou informação incorreta", "desc": "Passou informação incorreta ao cliente"},
+    {"id": "ce2", "nome": "Agiu de forma ríspida ou ameaçadora", "desc": "Agiu de forma ríspida ou ameaçadora com o cliente"},
+    {"id": "ce3", "nome": "Linguagem agressiva por escrito", "desc": "Usou linguagem agressiva por escrito"},
+    {"id": "ce4", "nome": "Ignorou mensagem/deixou sem resposta", "desc": "Ignorou mensagem do cliente ou deixou sem resposta"},
+    {"id": "ce5", "nome": "Ofereceu desconto fora da regra", "desc": "Ofereceu desconto fora da regra"},
+    {"id": "ce6", "nome": "Enviou boleto inválido e finalizou sem verificar", "desc": "Enviou boleto inválido e finalizou o atendimento sem verificar"},
+]
+
+TIPOS_MONITORIA = {"ligacao": "📞 Ligação", "chat": "💬 Chat"}
+
 FAIXAS_PONTOS = [(0,70,0),(71,80,300),(81,90,500),(91,95,700),(96,99,1000),(100,100,1100)]
 
 # ── MONGODB ─────────────────────────────────────
@@ -243,35 +268,39 @@ def get_db():
     )
     return client[st.secrets["mongo"]["db"]]
 
-def get_criterios():
+def get_criterios(tipo="ligacao"):
+    _id = "criterios_monitoria_chat" if tipo == "chat" else "criterios_monitoria"
     try:
-        doc = get_db().configuracoes.find_one({"_id": "criterios_monitoria"})
+        doc = get_db().configuracoes.find_one({"_id": _id})
         if doc and doc.get("criterios"):
             return doc["criterios"]
     except:
         pass
-    return CRITERIOS_PADRAO
+    return CRITERIOS_CHAT_PADRAO if tipo == "chat" else CRITERIOS_PADRAO
 
-def salvar_criterios(c):
+def salvar_criterios(c, tipo="ligacao"):
+    _id = "criterios_monitoria_chat" if tipo == "chat" else "criterios_monitoria"
     get_db().configuracoes.update_one(
-        {"_id": "criterios_monitoria"},
-        {"$set": {"_id": "criterios_monitoria", "criterios": c, "atualizadoEm": datetime.now()}},
+        {"_id": _id},
+        {"$set": {"_id": _id, "criterios": c, "atualizadoEm": datetime.now()}},
         upsert=True
     )
 
-def get_erros_criticos():
+def get_erros_criticos(tipo="ligacao"):
+    _id = "erros_criticos_monitoria_chat" if tipo == "chat" else "erros_criticos_monitoria"
     try:
-        doc = get_db().configuracoes.find_one({"_id": "erros_criticos_monitoria"})
+        doc = get_db().configuracoes.find_one({"_id": _id})
         if doc and doc.get("erros"):
             return doc["erros"]
     except:
         pass
-    return ERROS_CRITICOS_PADRAO
+    return ERROS_CRITICOS_CHAT_PADRAO if tipo == "chat" else ERROS_CRITICOS_PADRAO
 
-def salvar_erros_criticos(e):
+def salvar_erros_criticos(e, tipo="ligacao"):
+    _id = "erros_criticos_monitoria_chat" if tipo == "chat" else "erros_criticos_monitoria"
     get_db().configuracoes.update_one(
-        {"_id": "erros_criticos_monitoria"},
-        {"$set": {"_id": "erros_criticos_monitoria", "erros": e, "atualizadoEm": datetime.now()}},
+        {"_id": _id},
+        {"$set": {"_id": _id, "erros": e, "atualizadoEm": datetime.now()}},
         upsert=True
     )
 
@@ -339,14 +368,14 @@ def atualizar_operador(oid, nome, pleno):
 def excluir_operador(oid):
     get_db().operadores.delete_one({"_id": oid})
 
-def salvar_monitoria(eq, oid, onome, prot, obs, crits, erros, nota, ma, semana=None):
+def salvar_monitoria(eq, oid, onome, prot, obs, crits, erros, nota, ma, semana=None, tipo="ligacao"):
     ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
     get_db().monitorias.insert_one({
         "_id": f"mon__{eq}__{oid}__{ts}",
         "equipeId": eq, "opId": oid, "opNome": onome,
         "protocolo": prot, "observacao": obs,
         "criterios": crits, "errosCriticos": erros,
-        "nota": nota, "mesAno": ma, "semana_mon": semana,
+        "nota": nota, "mesAno": ma, "semana_mon": semana, "tipo": tipo,
         "criadoEm": datetime.now()
     })
     medias_monitoria_mes.clear()
@@ -392,11 +421,13 @@ def editar_monitoria_form(m, monts_mes):
     if bloqueada:
         st.error(f"⛔ A **{semana}** já está registrada em outra monitoria deste operador neste mês.")
 
-    prot = st.text_input("Protocolo da Ligação", value=m.get("protocolo", ""), key=f"ed_prot_{mid}")
+    tipo_m = m.get("tipo") or "ligacao"
+    lbl_prot_ed = "Protocolo do Chat" if tipo_m == "chat" else "Protocolo da Ligação"
+    prot = st.text_input(lbl_prot_ed, value=m.get("protocolo", ""), key=f"ed_prot_{mid}")
     obs = st.text_area("Observações", value=m.get("observacao", ""), height=90, key=f"ed_obs_{mid}")
 
     # Erros críticos (pré-marcados com o que foi salvo)
-    erros_usar = get_erros_criticos()
+    erros_usar = get_erros_criticos(tipo_m)
     ids_erros_salvos = {e.get("id") for e in (m.get("errosCriticos") or [])}
     st.markdown("<p style='color:#c62828;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:8px 0'>ERROS CRÍTICOS — Qualquer um zera a monitoria</p>", unsafe_allow_html=True)
     erros_m = []
@@ -407,8 +438,8 @@ def editar_monitoria_form(m, monts_mes):
                 erros_m.append(ec)
 
     # Critérios — usa os critérios gravados nessa monitoria (pré-marcados)
-    pesos_atuais = {c["id"]: c.get("peso", 0) for c in get_criterios()}
-    crits_base = m.get("criterios") or [{**c, "passou": True} for c in get_criterios()]
+    pesos_atuais = {c["id"]: c.get("peso", 0) for c in get_criterios(tipo_m)}
+    crits_base = m.get("criterios") or [{**c, "passou": True} for c in get_criterios(tipo_m)]
     zerada = len(erros_m) > 0
     crits_r = []
     nota = 0 if zerada else 100
@@ -437,7 +468,7 @@ def editar_monitoria_form(m, monts_mes):
     with b1:
         if st.button("💾 Salvar Edição", key=f"ed_save_{mid}", use_container_width=True, disabled=bloqueada):
             if not prot.strip():
-                st.error("Preencha o Protocolo da Ligação!")
+                st.error(f"Preencha o {lbl_prot_ed}!")
             else:
                 atualizar_monitoria(mid, {
                     "semana_mon": semana, "protocolo": prot, "observacao": obs,
@@ -1036,12 +1067,15 @@ def pagina_monitorias(ma):
             if semana_bloqueada:
                 st.error(f"⛔ A **{semana}** já foi registrada para {op['nome']} em {ma.replace('-',' ')}.")
 
-            prot = st.text_input("Protocolo da Ligação", placeholder="Ex: 20260520-001", key="prot_input")
+            tipo_lbl = st.radio("Tipo de monitoria", list(TIPOS_MONITORIA.values()), horizontal=True, key="tipo_mon")
+            tipo = [k for k, v in TIPOS_MONITORIA.items() if v == tipo_lbl][0]
+            lbl_prot = "Protocolo do Chat" if tipo == "chat" else "Protocolo da Ligação"
+            prot = st.text_input(lbl_prot, placeholder="Ex: 20260520-001", key="prot_input")
             obs = st.text_area("Observações", placeholder="Anotações...", height=70, key="obs_input")
             st.markdown("---")
 
-            crits_usar = get_criterios()
-            erros_usar = get_erros_criticos()
+            crits_usar = get_criterios(tipo)
+            erros_usar = get_erros_criticos(tipo)
 
             # Erros críticos
             st.markdown("<p style='color:#c62828;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px'>ERROS CRÍTICOS — Qualquer um zera a monitoria</p>", unsafe_allow_html=True)
@@ -1091,9 +1125,9 @@ def pagina_monitorias(ma):
 
             if st.button("💾 Salvar Monitoria", use_container_width=True, key="btn_salvar_mon", disabled=semana_bloqueada):
                 if not prot.strip():
-                    st.error("Preencha o Protocolo da Ligação!")
+                    st.error(f"Preencha o {lbl_prot}!")
                 else:
-                    salvar_monitoria(eq, op["_id"], op["nome"], prot, obs, crits_r, erros_m, nota, ma, semana=semana)
+                    salvar_monitoria(eq, op["_id"], op["nome"], prot, obs, crits_r, erros_m, nota, ma, semana=semana, tipo=tipo)
                     # Recalcular média com a nova monitoria incluída
                     notas_novas = [float(m['nota']) for m in buscar_monitorias_operador(op["_id"]) if 'nota' in m]
                     mm = round(sum(notas_novas) / len(notas_novas), 1) if notas_novas else nota
@@ -1122,7 +1156,7 @@ def pagina_monitorias(ma):
                     f"<div style='background:#f8fdf8;border:1px solid #c8e0c8;border-radius:10px;"
                     f"padding:14px 18px;margin-bottom:8px;border-left:3px solid {cm}'>"
                     f"<div style='color:#1a2e1a;font-weight:600'>{m.get('semana_mon','—')}</div>"
-                    f"<div style='color:#5a8a5a;font-size:11px'>Protocolo: {m.get('protocolo','—')} · {str(m.get('criadoEm',''))[:10]}</div>"
+                    f"<div style='color:#5a8a5a;font-size:11px'>{'💬 Chat · ' if m.get('tipo') == 'chat' else ''}Protocolo: {m.get('protocolo','—')} · {str(m.get('criadoEm',''))[:10]}</div>"
                     f"<div style='color:{cm};font-size:18px;font-weight:800'>{int(nm)}%</div></div>", unsafe_allow_html=True)
                 with st.expander("Ver detalhes"):
                     for c in m.get("criterios", []):
@@ -1177,7 +1211,7 @@ def pagina_monitorias_diretor(ma):
                 cm = "#2e7d32" if nm >= 80 else "#f57f17" if nm >= 60 else "#c62828"
                 st.markdown(f"<div style='background:#f8fdf8;border:1px solid #c8e0c8;border-radius:10px;padding:14px 18px;margin-bottom:8px;border-left:3px solid {cm}'>"
                             f"<div style='color:#1a2e1a;font-weight:600'>{m.get('semana_mon','—')}</div>"
-                            f"<div style='color:#5a8a5a;font-size:11px'>Protocolo: {m.get('protocolo','—')}</div>"
+                            f"<div style='color:#5a8a5a;font-size:11px'>{'💬 Chat · ' if m.get('tipo') == 'chat' else ''}Protocolo: {m.get('protocolo','—')}</div>"
                             f"<div style='color:{cm};font-size:18px;font-weight:800'>{nm:.0f}%</div></div>", unsafe_allow_html=True)
                 with st.expander("Ver detalhes"):
                     for c in m.get("criterios", []):
@@ -1229,8 +1263,10 @@ def pagina_monitorias_diretor(ma):
 # ── CRITÉRIOS ────────────────────────────────────
 def pagina_criterios():
     header_page("Critérios de Monitoria", "Configure os critérios de avaliação")
-    crits = get_criterios()
-    erros = get_erros_criticos()
+    tipo_lbl = st.radio("Ficha:", list(TIPOS_MONITORIA.values()), horizontal=True, key="tipo_crit")
+    tipo = [k for k, v in TIPOS_MONITORIA.items() if v == tipo_lbl][0]
+    crits = get_criterios(tipo)
+    erros = get_erros_criticos(tipo)
     t1, t2 = st.tabs(["Critérios de Avaliação", "Erros Críticos"])
     with t1:
         st.markdown("**Distribuição: 100 pontos totais. Alterações valem apenas para novas monitorias.**")
@@ -1243,15 +1279,15 @@ def pagina_criterios():
         for i, c in enumerate(crits):
             with st.expander(f"{c['num']} {c['nome']} — {c['peso']} pts", expanded=False):
                 col1, col2, col3 = st.columns([3, 1, 1])
-                with col1: nm = st.text_input("Nome", value=c["nome"], key=f"cn_{i}")
-                with col2: ps = st.number_input("Peso", min_value=1, max_value=100, value=int(c["peso"]), key=f"cp_{i}")
-                with col3: ob = st.checkbox("Obrigatório", value=c.get("obrigatorio", False), key=f"co_{i}")
-                it = st.text_area("Itens (um por linha)", value="\n".join(c.get("itens", [])), height=100, key=f"ci_{i}")
+                with col1: nm = st.text_input("Nome", value=c["nome"], key=f"cn_{tipo}_{i}")
+                with col2: ps = st.number_input("Peso", min_value=1, max_value=100, value=int(c["peso"]), key=f"cp_{tipo}_{i}")
+                with col3: ob = st.checkbox("Obrigatório", value=c.get("obrigatorio", False), key=f"co_{tipo}_{i}")
+                it = st.text_area("Itens (um por linha)", value="\n".join(c.get("itens", [])), height=100, key=f"ci_{tipo}_{i}")
                 ce.append({"id": c["id"], "num": c["num"], "nome": nm, "peso": ps, "obrigatorio": ob,
                            "itens": [x.strip() for x in it.split("\n") if x.strip()]})
         st.markdown("---")
         if st.button("Salvar Critérios", use_container_width=True):
-            salvar_criterios(ce)
+            salvar_criterios(ce, tipo)
             st.success("Critérios salvos!")
             st.rerun()
     with t2:
@@ -1260,20 +1296,20 @@ def pagina_criterios():
         ee = []
         for i, e in enumerate(erros):
             col1, col2 = st.columns([2, 3])
-            with col1: ne = st.text_input("Nome", value=e["nome"], key=f"en_{i}")
-            with col2: de = st.text_input("Descrição", value=e["desc"], key=f"ed_{i}")
+            with col1: ne = st.text_input("Nome", value=e["nome"], key=f"en_{tipo}_{i}")
+            with col2: de = st.text_input("Descrição", value=e["desc"], key=f"ed_{tipo}_{i}")
             ee.append({"id": e["id"], "nome": ne, "desc": de})
         st.markdown("---")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Salvar Erros Críticos", use_container_width=True):
-                salvar_erros_criticos(ee)
+                salvar_erros_criticos(ee, tipo)
                 st.success("Salvo!")
                 st.rerun()
         with col2:
             if st.button("Adicionar Erro", use_container_width=True):
-                ee.append({"id": f"e{len(erros)+1}", "nome": "Novo erro", "desc": "Descrição"})
-                salvar_erros_criticos(ee)
+                ee.append({"id": f"{'ce' if tipo == 'chat' else 'e'}{len(erros)+1}", "nome": "Novo erro", "desc": "Descrição"})
+                salvar_erros_criticos(ee, tipo)
                 st.rerun()
 
 # ── PREMIAÇÃO — BANCO ────────────────────────────
